@@ -54,3 +54,34 @@ As bibliotecas com `[lib] name` explícito usam identificadores `orca_harness_*`
 ## Pendências para ORCA-06B
 
 Inventariar no código (não apenas documentação) nomes de comandos, diretórios de configuração, variáveis de ambiente, formatos persistidos, eventos NDJSON e protocolos de extensão; produzir matriz símbolo → localização → consumidor → compatibilidade, com evidência reproduzível. Só depois decidir se alguma adaptação é necessária.
+
+
+## ORCA-06B — Matriz de contratos observados no código
+
+Inspeção estática remota na referência `41be0191`. Localizações abaixo são relativas a `vendor/orca-harness/`; números de linha referem-se ao commit fixado. Consumidores externos são *potenciais*, não foram enumerados por telemetria ou busca global.
+
+| Símbolo / contrato | Fonte (linha) | Consumidor / persistência | Classe |
+| --- | --- | --- | --- |
+| `ORCA_CONFIG_DIR` | `crates/cli/src/config/storage.rs:41-54` | CLI e configuração persistida | A |
+| `XDG_CONFIG_HOME`, `APPDATA`, `HOME` | `crates/cli/src/config/storage.rs:45-52` | resolução de diretório multiplataforma | A |
+| `config.json` | `crates/cli/src/config/storage.rs:54` | configurações e aprovações | A |
+| `memory.sqlite3` | `crates/cli/src/config/storage.rs:64-65` | banco de memória | A |
+| `stored_approvals`, `save_approval`, `remove_approval` | `crates/cli/src/config/storage.rs:246-287` | autorização por workspace | A |
+| `stored_mcp_servers`, `save_mcp_server` | `crates/cli/src/config/storage.rs:302-375` | configurações de servidores MCP | A |
+| `ORCA_MODEL`, `ORCA_BASE_URL` | `crates/cli/src/run_args.rs:11-12` | execução e seleção de modelo | A |
+| `ORCA_SUBAGENT_DEPTH` | `crates/cli/src/run_args.rs:28` | limite de profundidade de subagentes | A |
+| `ORCA_THEME` | `crates/cli/src/run_args.rs:40` | aparência da CLI | A |
+| `orcacode resume ID` | `crates/cli/src/run_args.rs:48` | CLI e scripts externos | A |
+| `--json` e serialização de eventos | `crates/cli/src/headless.rs:1-3,112-128` | consumidores de stdout NDJSON | A |
+| metadados de sessão serializados | `crates/cli/src/runtime/session.rs:80` | persistência de sessões | A |
+| `write_private_json` | `crates/cli/src/auth/store.rs:10-36` | armazenamento privado de autenticação | A |
+
+**A = contrato congelado nesta fase.** A leitura estática confirma pontos de entrada e persistência, mas não valida o esquema completo de eventos, a migração de sessões ou a compatibilidade entre versões.
+
+### Recomendações vinculantes para revisão
+
+1. Não substituir `ORCA_*` por `FINECORE_*` por busca e troca.
+2. Não mudar o nome do executável, imports, crates, caminhos de configuração, arquivos de sessão ou formato NDJSON.
+3. Manter documentação FineCore fora da árvore doadora; qualquer wrapper futuro deve ser opt-in, com testes de não regressão e sem publicação upstream acidental.
+4. ORCA-07 deverá separar `cargo fmt --check`, `cargo clippy`, `cargo test --workspace`, testes de parsers de benchmark e `cargo bench -- --test` (smoke), de benchmarks de eficácia/desempenho propriamente ditos.
+5. Antes de declarar cobertura completa de ORCA-06B, realizar busca sistemática no restante da árvore Rust para todas as variáveis `ORCA_*`, diretórios, flags, eventos e esquemas de persistência; o presente inventário é uma amostra dirigida a módulos críticos.
