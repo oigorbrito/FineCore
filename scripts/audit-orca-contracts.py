@@ -35,8 +35,24 @@ def main():
         ap.error(f"cannot establish Git tree: {exc}")
     if tree != args.expected_tree:
         ap.error(f"tree mismatch: {tree} != {args.expected_tree}")
-    rows = []
+    # Reject worktree edits and untracked files: HEAD tree equality alone is insufficient.
+    changed = subprocess.check_output(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all", "--", relative],
+        text=True,
+    )
+    if changed.strip():
+        ap.error("donor worktree differs from pinned Git tree")
+    tracked = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", "HEAD", "--", relative],
+        text=True,
+    ).splitlines()
+    expected_files = sorted(p[len(relative) + 1:] for p in tracked
+                            if p.startswith(relative + "/") and p.endswith(".rs"))
     files = sorted(root.rglob("*.rs"))
+    actual_files = [p.relative_to(root).as_posix() for p in files]
+    if actual_files != expected_files:
+        ap.error(f"Rust file set mismatch: expected {len(expected_files)}, found {len(actual_files)}")
+    rows = []
     for file in files:
         for line_no, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
             for category, pattern in PATTERNS.items():
