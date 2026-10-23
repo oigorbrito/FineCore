@@ -1,6 +1,9 @@
 name: orca-rust-validation
 
 on:
+  pull_request:
+    branches:
+      - migration/orca-tree-import
   push:
     branches:
       - work/orca-07-rust-ci-gates
