@@ -45,3 +45,13 @@ No clone local do FineCore, usar `origin` para `oigorbrito/finecore` e `upstream
 **Critérios para encerrar a fase de identidade:** (a) nomes públicos coerentes; (b) proveniência antiga e nova distinguidas; (c) nenhum diff funcional; (d) atribuições preservadas; (e) revisão manual da PR. Acompanhamento de releases e execução agendada são entregas separadas, não condições presumidamente satisfeitas.
 
 **Estado:** documentação proposta; incorporação Orca e paridade = NÃO VERIFICADAS; merge = NÃO AUTORIZADO.
+
+## Gate consolidado — IDENTITY-02 (2026-10-23)
+
+**Base:** `migration/finecore-m01` @ `a0b9d7755d343e284bf2c39cdbbe714ad452c8b5`. **Branch:** `docs/identity-orca-provenance`.
+
+- Comparação GitHub: 4 commits à frente, 0 atrás; mudanças apenas em `README.md`, `AGENTS.md` e este documento (2 arquivos modificados, 1 criado). **Escopo documental: PASS**.
+- Inventário observado: `packages/core-runtime` contém `package.json`, `src`, `test` e `README.md`; `scripts` contém `reconcile-finecore-m01.ps1` e `upstream_tracker.py`. Não se identificou uma árvore Rust Orca nesse inventário superficial; **ancestralidade Orca: NÃO VERIFICADA**, não “ausente” em sentido absoluto.
+- `docs/migration/FINECORE-M01.md` declara migração anterior **IN PROGRESS — NOT VALIDATED** e transporte da implementação pendente. **Paridade da migração anterior: PENDENTE**.
+- O workflow `.github/workflows/upstream-independent-tracker.yml` ainda usa `oigorbrito/core` como origem padrão e está na branch de migração; **acompanhamento Orca e agendamento na branch padrão: NÃO VERIFICADOS**. Nenhuma configuração operacional foi alterada nesta PR.
+- **Gate de merge:** aguarda revisão humana; a ausência de alteração funcional é comprovada pelo diff de caminhos, não por benchmark de desempenho. Não foram executados benchmarks porque nenhuma hipótese de desempenho foi alterada.
