@@ -1,0 +1,43 @@
+name: orca-contract-inventory
+
+on:
+  pull_request:
+    branches:
+      - migration/orca-tree-import
+  push:
+    branches:
+      - work/orca-06-identity-inventory
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify scanner regression cases
+        run: python3 scripts/test_audit_orca_contracts.py
+      - name: Scan pinned donor Rust tree
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/orca-06
+          python3 scripts/audit-orca-contracts.py --output evidence/orca-06/contracts.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          x = json.loads(Path("evidence/orca-06/contracts.json").read_text())
+          assert x["tree"] == "9c35d0dd0d7e0f226063f16dd80161e231628e2b"
+          assert x["files_scanned"] == 517, x["files_scanned"]
+          assert x["matches"] > 0
+          print(f"Rust files: {x['files_scanned']}; matched literals: {x['matches']}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orca-06-contracts
+          path: evidence/orca-06/contracts.json
+          retention-days: 30
