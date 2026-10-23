@@ -1,0 +1,70 @@
+[package]
+name = "orca-harness-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "High-level Rust SDK for composing Orca Harness agents, runs, sessions, tools, memory, MCP, and skills."
+
+[lib]
+name = "orca_harness_sdk"
+
+[dependencies]
+orca-harness-core = { path = "../harness-core" }
+orca-harness-model-providers = { path = "../model-providers" }
+orca-harness-sandbox-providers = { path = "../sandbox-providers" }
+orca-harness-provider-auth = { path = "../provider-auth" }
+orca-harness-tools = { path = "../tools" }
+orca-harness-tool-extensions = { path = "../tool-extensions" }
+orca-harness-extensions = { path = "../extensions" }
+async-trait.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+
+[[example]]
+name = "provider_anthropic"
+path = "examples/providers/anthropic.rs"
+
+[[example]]
+name = "provider_openai"
+path = "examples/providers/openai.rs"
+
+[[example]]
+name = "provider_openrouter"
+path = "examples/providers/openrouter.rs"
+
+[[example]]
+name = "provider_codex"
+path = "examples/providers/codex.rs"
+
+[[example]]
+name = "provider_gateway"
+path = "examples/providers/gateway.rs"
+
+[[example]]
+name = "detached_subagents"
+path = "examples/subagents/detached.rs"
+
+[[example]]
+name = "background_processes"
+path = "examples/processes/background.rs"
+
+[[example]]
+name = "workflows"
+path = "examples/workflows/graph.rs"
+
+[[example]]
+name = "agent_triage"
+path = "examples/use_cases/triage.rs"
+
+[[example]]
+name = "agent_support"
+path = "examples/use_cases/support.rs"
+
+[[example]]
+name = "agent_data_science"
+path = "examples/use_cases/data_science.rs"
