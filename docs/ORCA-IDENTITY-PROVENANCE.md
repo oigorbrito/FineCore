@@ -55,3 +55,15 @@ No clone local do FineCore, usar `origin` para `oigorbrito/finecore` e `upstream
 - `docs/migration/FINECORE-M01.md` declara migração anterior **IN PROGRESS — NOT VALIDATED** e transporte da implementação pendente. **Paridade da migração anterior: PENDENTE**.
 - O workflow `.github/workflows/upstream-independent-tracker.yml` ainda usa `oigorbrito/core` como origem padrão e está na branch de migração; **acompanhamento Orca e agendamento na branch padrão: NÃO VERIFICADOS**. Nenhuma configuração operacional foi alterada nesta PR.
 - **Gate de merge:** aguarda revisão humana; a ausência de alteração funcional é comprovada pelo diff de caminhos, não por benchmark de desempenho. Não foram executados benchmarks porque nenhuma hipótese de desempenho foi alterada.
+
+## Gate de proveniência — ORCA-03 (2026-10-23)
+
+**Origem fixada para inventário:** `okikorg/orca-harness` / `main` @ `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`. A API GitHub retornou árvore recursiva com **1.284 entradas, `truncated=false`**. Artefatos identificados: `Cargo.toml` blob `214457aa2a6dd3b8b7c7b01492c2dc3102ff0109`, `Cargo.lock` blob `b8b42126a3f4ab568dc1bdca9b98ef3b241316d0`, `LICENSE` blob `16fe87b06e802f094b3fbb0894b137bca2b16ef1`, `README.md` blob `67d0f0281a2cbb4898755d40ecef58de0d890fcf`.
+
+O `Cargo.toml` declara workspace Rust com dez crates: `harness-core`, `harness-dag`, `provider-auth`, `model-providers`, `sandbox-providers`, `tools`, `tool-extensions`, `extensions`, `sdk`, `cli`. Declara `Apache-2.0`, repositório upstream e homepage Orca; tais metadados são **atribuição original**, não identidade FineCore já aplicada.
+
+**Destino fixado para inventário:** `oigorbrito/finecore` / `migration/finecore-m01` @ `a0b9d7755d343e284bf2c39cdbbe714ad452c8b5`. Árvore recursiva: **92 entradas, `truncated=false`**. Contém `packages/core-runtime`, experimentos, benchmarks e scripts de reconciliação; não contém `Cargo.toml` na raiz nem diretório `crates/` nessa referência.
+
+**Decisão técnica:** transporte do Orca deve ser planejado como incorporação de árvore Git com atribuição e preservação de conteúdo, e não renomeação da árvore FineCore existente. O método de integração (histórico Git preservado versus snapshot atribuído), colisões por blob, licenças/avisos e branch de transporte ainda exigem revisão específica. Nenhum arquivo Orca foi transportado neste gate.
+
+**Resultado:** inventário de árvores = PASS; origem Orca fixada = PASS; transporte = PENDENTE; identidade nominal em código = PENDENTE; build/paridade = NÃO EXECUTADOS; `main` = INTOCADA.
