@@ -1,0 +1,33 @@
+# FineCore — identidade e proveniência do Orca
+
+## Identidade canônica
+
+- Nome do projeto: **FineCore**.
+- Repositório canônico: https://github.com/oigorbrito/finecore
+- Upstream Orca sob avaliação: https://github.com/okikorg/orca-harness
+- Escopo desta fase: identidade, atribuição, metadados e rastreabilidade; **nenhuma melhoria ou alteração funcional no código**.
+
+## Proveniência: estado verificável
+
+Este repositório já contém uma migração anterior, documentada em `AGENTS.md`, proveniente de `oigorbrito/core` na referência `8ca24d268ed78d71e326b1f6ac53255d1a723928`. Essa referência **não é** o commit de origem do Orca e não deve ser substituída ou reinterpretada.
+
+A incorporação literal da árvore e do histórico de `okikorg/orca-harness` **não está demonstrada** nesta branch. O SHA de origem a ser adotado, o método de transporte Git, a correspondência de arquivos e a paridade funcional devem ser registrados em evidência separada **antes** de afirmar que FineCore é derivado do Orca.
+
+## Procedimento de identidade
+
+1. Preservar `main` e a branch `migration/finecore-m01`; trabalhar em branch e PR com revisão manual.
+2. Inventariar a árvore atual e a árvore Orca em um SHA fixo, sem sobrescrever arquivos preexistentes.
+3. Registrar os commits de origem e os métodos de incorporação; conservar atribuições e arquivos de licença/aviso aplicáveis.
+4. Aplicar apenas mudanças nominais justificadas (nome exibido, documentação e metadados), evitando renomeação cega de crates, imports, APIs, variáveis, formatos persistidos e identificadores externos.
+5. Verificar diff semântico, build/testes existentes e proveniência em gates agrupados; falhas ou dados ausentes permanecem explicitamente pendentes.
+6. Acompanhar issues, PRs, commits de PRs e releases do upstream como **metadados**, sem aplicar patches ou fazer merge automático.
+
+## Política de sincronização
+
+No clone local do FineCore, usar `origin` para `oigorbrito/finecore` e `upstream-orca` para `okikorg/orca-harness`. `git fetch upstream-orca` é leitura e atualização de referências remotas; qualquer incorporação requer PR e aprovação manual. Não usar `git push --force`, `gh repo sync --force` ou atualização automática da `main`.
+
+## Referências oficiais
+
+- https://docs.github.com/en/pull-requests/how-tos/work-with-forks/configuring-a-remote-repository-for-a-fork
+- https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork
+- https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository
