@@ -131,3 +131,18 @@ Os itens seguintes foram confirmados por leitura direta do código em `41be0191`
 - A serialização de `HarnessEvent` está comprovada, mas a **estrutura completa de cada variante** e sua estabilidade entre versões ainda exigem leitura de `crates/extensions` e testes de contrato.
 - Este gate comprova **consumidores internos específicos**, não a enumeração exaustiva dos consumidores externos.
 - A execução integral de `scripts/audit-orca-contracts.py` permanece pendente; não há artefato de runner que autorize declará-la aprovada.
+
+
+## ORCA-06E — Esquemas de eventos e sessões: evidência de fonte
+
+Leitura do commit fixado `41be0191`:
+
+- `crates/extensions/src/events.rs:18-71`: `HarnessEvent` é `Serialize/Deserialize` com `#[serde(tag = "type", rename_all = "snake_case")]`. Variantes: `agent_start`, `assistant_delta`, `reasoning_delta`, `tool_input_delta`, `assistant`, `tool_call`, `tool_started`, `tool_finished`, `tool_result`, `usage`, `result`, `error`. Campos variam por variante; por exemplo, `tool_result` carrega `tool_call_id`, `tool_name`, `output` e `is_error`. A serialização para stdout é confirmada em `crates/cli/src/headless.rs:123-131`.
+- `crates/extensions/src/events.rs:44-56`: `tool_started` pode ocorrer mais de uma vez em caso de retry e `tool_finished` pode chegar fora da ordem de chamadas. Consumidores não podem assumir pareamento 1:1 ordenado.
+- `crates/extensions/src/session.rs:1-8,21-38`: sessões são JSONL append-only; primeira linha é `SessionMeta` com `v=1`, `id`, `created_at`, `workspace`, `model` e `parent` opcional.
+- `crates/extensions/src/session.rs:140-183`: versões incompatíveis são rejeitadas; somente a última linha truncada e sem terminador pode ser descartada com aviso. Erros em outras linhas são tratados como corrupção.
+- `crates/sdk/src/session/persistence.rs:36-44`: armazenamento de recuperação em caminho com extensão `recovery.json`.
+
+**Invariantes de compatibilidade para integração futura:** preservar discriminador `type`, nomes e tipos dos campos, eventos repetidos/fora de ordem, cabeçalho de sessão v1, semântica de corrupção e recuperação de última linha. Não traduzir nomes de variantes para a identidade FineCore no fio.
+
+**Limite:** a matriz de esquemas está sustentada pela leitura de fonte; não representa teste de serialização executado nem compatibilidade empírica com clientes externos.
