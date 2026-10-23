@@ -1,0 +1,39 @@
+name: orca-rust-validation
+
+on:
+  push:
+    branches:
+      - work/orca-07-rust-ci-gates
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: vendor/orca-harness
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Provenance and toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:vendor/orca-harness)" = "9c35d0dd0d7e0f226063f16dd80161e231628e2b"
+          test -z "$(git status --porcelain=v1 --untracked-files=all -- vendor/orca-harness)"
+          rustc --version --verbose
+          cargo --version
+          sha256sum Cargo.lock
+      - name: Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Rust workspace compilation
+        run: cargo check --workspace --locked
+      - name: Rust workspace tests
+        run: cargo test --workspace --locked
+      - name: Rust clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
