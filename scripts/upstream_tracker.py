@@ -121,7 +121,7 @@ def sync_branch(upstream, indexed):
         number, old = previous
         request("PATCH", f"/repos/{DEST}/issues/{number}", {"title": title, "body": body})
         request("POST", f"/repos/{DEST}/issues/{number}/comments",
-                {"body": f"Default branch advanced: \\x60{old.get('sha')}\\x60 → \\x60{state['sha']}\\x60\n{commit['html_url']}"})
+                {"body": f"Default branch advanced: {old.get('sha')} → {state['sha']}\n{commit['html_url']}"})
         indexed[key] = (number, state)
         return "updated"
     issue = request("POST", f"/repos/{DEST}/issues", {"title": title, "body": body})
