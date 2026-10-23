@@ -1,0 +1,23 @@
+name: Upstream independent tracker
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: upstream-independent-tracker
+  cancel-in-progress: false
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync upstream issue, PR and commit changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKING_REPO: ${{ github.repository }}
+          UPSTREAM_REPOSITORIES: ${{ vars.UPSTREAM_REPOSITORIES || 'oigorbrito/core' }}
+        run: python3 scripts/upstream_tracker.py
