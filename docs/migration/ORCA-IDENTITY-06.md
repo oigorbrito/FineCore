@@ -104,3 +104,30 @@ python3 -c 'import json; x=json.load(open("orca-contracts.json")); assert x["fil
 ```
 
 Após obter o JSON real, classificar cada ocorrência por API pública, configuração, persistência, protocolo, identidade apenas textual ou teste. Não confundir frequência de palavras com consumidores efetivos nem usar o inventário estático como benchmark.
+
+
+## ORCA-06D — Contratos com consumidores comprovados (leitura do código fixado)
+
+Os itens seguintes foram confirmados por leitura direta do código em `41be0191`, não por contagem de palavras. Caminhos relativos a `vendor/orca-harness/`.
+
+| Interface e evidência | Consumidor/efeito comprovado | Risco de mudança |
+| --- | --- | --- |
+| `crates/cli/src/config/storage.rs:41-65`: `ORCA_CONFIG_DIR` > `XDG_CONFIG_HOME` > `APPDATA` (Windows) / `HOME/.config`; `config.json`, `sessions`, `memory.sqlite3` | `config_path()`, `sessions_dir()`, `memory_path()`; dados locais persistidos | **Crítico**: isolamento, recuperação e perda aparente de dados |
+| `crates/cli/src/config/storage.rs:242-280`: `approvals[workspace]` | `stored_approvals`, `save_approval`, `remove_approval`; falha de leitura resulta em lista vazia (fail-closed) | **Crítico**: autorização e segurança |
+| `crates/cli/src/config/storage.rs:296-325`: entradas MCP como string legada ou objeto `{command,enabled}` | `stored_mcp_servers()` aceita ambos os formatos | **Alto**: retrocompatibilidade de configuração |
+| `crates/cli/src/run_args.rs:10-40,92-115`: variáveis `ORCA_MODEL`, `ORCA_BASE_URL`, `ORCA_SUBAGENT_DEPTH`, `ORCA_THEME` e flags de execução | `parse_run_args()` transforma parâmetros em `Config` | **Alto**: scripts e automações |
+| `crates/cli/src/main.rs:370-376`: `ORCA_MODEL_CONCURRENCY` | `Endpoint::from_config()` passa limite a `subagent_settings::configured()` | **Alto**: paralelismo e recursos |
+| `crates/cli/src/runtime/session.rs:11-33,35-59`: retomada por ID/prefixo e workspace | `SessionHandler::resume` e `SessionHandler::create`; ID ambíguo falha explicitamente | **Crítico**: integridade e retomada de sessões |
+| `crates/sdk/src/session/persistence.rs:14-23,36-44`: extensão `recovery.json` | `TruncationStore::load/save` do SDK | **Alto**: recuperação do contexto |
+| `crates/cli/src/headless.rs:112-131`: `--json` | `EventStream` serializa `HarnessEvent` como JSON por linha no stdout | **Crítico**: consumidores externos do protocolo |
+| `crates/cli/src/headless.rs:133-163`: saída sem `--json` | texto do assistente em stdout, raciocínio/ações em stderr | **Alto**: parsers e redirecionamentos |
+| `crates/cli/src/main.rs:134-160`: `--continue`, `--resume`, `--no-session`, `--json`, `.orca/`, `AGENTS.md` | interface pública documentada no help compilado | **Alto**: CLI e instruções por workspace |
+
+### Decisões e limites
+
+- Preservar a precedência de diretórios e os formatos de configuração legados, inclusive o formato MCP anterior.
+- Não modificar a semântica fail-closed de aprovações, nem os critérios de ambiguidade de sessão.
+- Não interceptar stdout do modo `--json` com banners ou mensagens de identidade FineCore; isso quebraria consumidores NDJSON.
+- A serialização de `HarnessEvent` está comprovada, mas a **estrutura completa de cada variante** e sua estabilidade entre versões ainda exigem leitura de `crates/extensions` e testes de contrato.
+- Este gate comprova **consumidores internos específicos**, não a enumeração exaustiva dos consumidores externos.
+- A execução integral de `scripts/audit-orca-contracts.py` permanece pendente; não há artefato de runner que autorize declará-la aprovada.
