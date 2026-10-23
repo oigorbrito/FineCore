@@ -1,4 +1,20 @@
-# Template de Repositório Orientado por Evidências
+# FineCore
+
+**Repositório canônico:** https://github.com/oigorbrito/finecore
+
+FineCore está em fase de **definição de identidade e reconciliação de proveniência**. O repositório mantém um histórico anterior associado a `oigorbrito/core`; o projeto `okikorg/orca-harness` é o upstream Rust cuja incorporação está sendo avaliada. **A migração do código Orca e sua paridade funcional ainda não foram comprovadas neste repositório.**
+
+Nesta fase, o escopo é exclusivamente nominal e documental. Não há autorização para alterar o comportamento do motor, substituir a `main` ou fazer merges automáticos.
+
+Consulte [Identidade e proveniência do Orca](docs/ORCA-IDENTITY-PROVENANCE.md) e [instruções de engenharia](AGENTS.md).
+
+---
+
+## Material anterior do repositório
+
+O conteúdo a seguir documenta o harness inicial e não representa uma descrição validada do motor Orca.
+
+## Template de Repositório Orientado por Evidências
 
 Este repositório é um **harness inicial**, não uma afirmação de maturidade ou conformidade.
 
