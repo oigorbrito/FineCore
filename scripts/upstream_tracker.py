@@ -65,10 +65,18 @@ def parse(body):
     return match.group(1), json.loads(match.group(2))
 
 
-def snapshot(upstream, kind, item):
+def snapshot(upstream, kind, item, previous=None):
     state = {"updated_at": item.get("updated_at"), "state": item.get("state"), "title": item.get("title")}
     if kind == "pr":
         pr = request("GET", f"/repos/{upstream}/pulls/{item['number']}")
+        cached = previous or {}
+        if cached.get("head") == pr["head"]["sha"] and cached.get("base") == pr["base"]["sha"] and "commits_digest" in cached:
+            state.update({"head": pr["head"]["sha"], "base": pr["base"]["sha"],
+                          "draft": pr.get("draft", False), "merged_at": pr.get("merged_at"),
+                          "commit_count": cached["commit_count"],
+                          "commits_digest": cached["commits_digest"],
+                          "last_commit": cached.get("last_commit")})
+            return state
         commits = list(pages(f"/repos/{upstream}/pulls/{item['number']}/commits"))
         state.update({"head": pr["head"]["sha"], "base": pr["base"]["sha"],
                       "draft": pr.get("draft", False), "merged_at": pr.get("merged_at"),
@@ -80,8 +88,8 @@ def snapshot(upstream, kind, item):
 
 def sync_one(upstream, kind, item, indexed):
     key = f"{upstream}:{kind}:{item['number']}"
-    state = snapshot(upstream, kind, item)
     previous = indexed.get(key)
+    state = snapshot(upstream, kind, item, previous[1] if previous else None)
     if previous and previous[1] == state:
         return "unchanged"
     title = f"[upstream:{upstream}] {'PR' if kind == 'pr' else 'Issue'} #{item['number']}: {item['title']}"[:250]
@@ -95,10 +103,13 @@ def sync_one(upstream, kind, item, indexed):
     if previous:
         number, old = previous
         changes = {k: {"before": old.get(k), "after": v} for k, v in state.items() if old.get(k) != v}
-        request("PATCH", f"/repos/{DEST}/issues/{number}", {"title": title, "body": body})
+        # Comment first, then advance the marker. A retry may repeat the comment;
+        # the deterministic event marker below makes retries detectable.
+        event_id = hashlib.sha256((key + json.dumps(state, sort_keys=True)).encode()).hexdigest()
         request("POST", f"/repos/{DEST}/issues/{number}/comments",
-                {"body": "Upstream change detected (no merge performed):\n\x60\x60\x60json\n"
+                {"body": f"<!-- finecore-event:{event_id} -->\\nUpstream change detected (no merge performed):\n\x60\x60\x60json\n"
                          + json.dumps(changes, indent=2, sort_keys=True)[:45000] + "\n\x60\x60\x60"})
+        request("PATCH", f"/repos/{DEST}/issues/{number}", {"title": title, "body": body})
         indexed[key] = (number, state)
         return "updated"
     created = request("POST", f"/repos/{DEST}/issues", {"title": title, "body": body})
