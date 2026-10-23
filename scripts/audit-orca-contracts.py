@@ -4,7 +4,6 @@
 Read-only; stdlib only. Emits deterministic JSON. Does not execute Rust code.
 """
 import argparse
-import hashlib
 import json
 import pathlib
 import re
@@ -13,8 +12,8 @@ import sys
 
 PATTERNS = {
     "environment": re.compile(r'\b(?:ORCA_[A-Z0-9_]+|XDG_CONFIG_HOME|APPDATA|HOME)\b'),
-    "persistence": re.compile(r'\b(?:config\.json|memory\.sqlite3|recovery\.json|sessions|\.orca)\b'),
-    "protocol": re.compile(r'\b(?:NDJSON|RunEvent|HarnessEvent|serde_json::to_string|--json|--resume|--continue)\b'),
+    "persistence": re.compile(r'(?<![A-Za-z0-9_])(?:config\.json|memory\.sqlite3|recovery\.json|sessions|\.orca)(?![A-Za-z0-9_])'),
+    "protocol": re.compile(r'(?<![A-Za-z0-9_])(?:NDJSON|RunEvent|HarnessEvent|serde_json::to_string|--json|--resume|--continue)(?![A-Za-z0-9_])'),
     "identity": re.compile(r'\b(?:orcacode|orca_harness_[a-z_]+|orca-harness-[a-z-]+)\b'),
 }
 def git(*args):
