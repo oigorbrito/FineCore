@@ -31,3 +31,17 @@ No clone local do FineCore, usar `origin` para `oigorbrito/finecore` e `upstream
 - https://docs.github.com/en/pull-requests/how-tos/work-with-forks/configuring-a-remote-repository-for-a-fork
 - https://docs.github.com/en/pull-requests/how-tos/work-with-forks/syncing-a-fork
 - https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository
+
+## Registro de decisão — IDENTITY-001
+
+**Decisão:** usar `oigorbrito/finecore` como repositório canônico e `okikorg/orca-harness` como origem técnica candidata, sem afirmar incorporação já concluída.
+
+**Motivo:** há histórico preexistente no FineCore e a substituição direta de `main` apagaria a distinção entre identidade, proveniência e código incorporado. A mudança documental é reversível, revisável por diff e não altera comportamento.
+
+**Alternativas não adotadas nesta fase:** renomear o fork `oigorbrito/orca-harness-fork` para FineCore (nome canônico já ocupado); sobrescrever `main`; reescrever commits para trocar autoria; substituir globalmente `orca` por `finecore` nos fontes Rust.
+
+**Evidência disponível:** README e AGENTS.md da branch de migração; metadados dos repositórios; branch e PR draft de identidade. **Evidência ausente:** SHA Orca efetivamente transportado, diff árvore-a-árvore, testes de paridade e execução comprovada do tracker na branch padrão.
+
+**Critérios para encerrar a fase de identidade:** (a) nomes públicos coerentes; (b) proveniência antiga e nova distinguidas; (c) nenhum diff funcional; (d) atribuições preservadas; (e) revisão manual da PR. Acompanhamento de releases e execução agendada são entregas separadas, não condições presumidamente satisfeitas.
+
+**Estado:** documentação proposta; incorporação Orca e paridade = NÃO VERIFICADAS; merge = NÃO AUTORIZADO.
