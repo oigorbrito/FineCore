@@ -85,3 +85,22 @@ Inspeção estática remota na referência `41be0191`. Localizações abaixo sã
 3. Manter documentação FineCore fora da árvore doadora; qualquer wrapper futuro deve ser opt-in, com testes de não regressão e sem publicação upstream acidental.
 4. ORCA-07 deverá separar `cargo fmt --check`, `cargo clippy`, `cargo test --workspace`, testes de parsers de benchmark e `cargo bench -- --test` (smoke), de benchmarks de eficácia/desempenho propriamente ditos.
 5. Antes de declarar cobertura completa de ORCA-06B, realizar busca sistemática no restante da árvore Rust para todas as variáveis `ORCA_*`, diretórios, flags, eventos e esquemas de persistência; o presente inventário é uma amostra dirigida a módulos críticos.
+
+
+## ORCA-06C — Gate de integridade do inventário
+
+O scanner em `scripts/audit-orca-contracts.py` exige três condições cumulativas: árvore `HEAD:vendor/orca-harness` igual ao SHA fixado, `git status --porcelain` limpo sob o prefixo importado, e lista dos `*.rs` idêntica à listagem rastreada por `git ls-tree`. A comparação de árvore isolada **não** demonstra que os bytes do checkout estejam intactos.
+
+A árvore remota fixada contém **517 arquivos Rust** (incluindo 2 arquivos de benchmark fora dos crates), segundo o inventário Git recursivo de 1.284 entradas, não truncado. Essa é uma expectativa de cobertura, não um resultado de execução do scanner.
+
+**Execução ainda não comprovada:** os testes Python e o inventário completo não foram executados em runner. A criação de workflow GitHub Actions foi bloqueada pelo mecanismo de permissões disponível; não se deve relatar CI verde, saída JSON ou cobertura real antes de uma execução comprovada. O checkout completo do repositório privado não está acessível no ambiente de execução desta sessão.
+
+### Gate executável
+
+```bash
+python3 scripts/test_audit_orca_contracts.py
+python3 scripts/audit-orca-contracts.py --output orca-contracts.json
+python3 -c 'import json; x=json.load(open("orca-contracts.json")); assert x["files_scanned"] == 517 and x["matches"] > 0; print(x["files_scanned"], x["matches"])'
+```
+
+Após obter o JSON real, classificar cada ocorrência por API pública, configuração, persistência, protocolo, identidade apenas textual ou teste. Não confundir frequência de palavras com consumidores efetivos nem usar o inventário estático como benchmark.
