@@ -1,16 +1,32 @@
 use finecore::{Event, Execution, State};
 
 const EVENTS: [Event; 4] = [Event::Start, Event::Succeed, Event::Fail, Event::Cancel];
-const STATES: [State; 5] = [State::Ready, State::Running, State::Completed, State::Failed, State::Cancelled];
+const STATES: [State; 5] = [
+    State::Ready,
+    State::Running,
+    State::Completed,
+    State::Failed,
+    State::Cancelled,
+];
 
 fn execution_in(state: State) -> Execution {
     let mut execution = Execution::default();
     match state {
         State::Ready => {}
-        State::Running => { execution.apply(Event::Start).unwrap(); }
-        State::Completed => { execution.apply(Event::Start).unwrap(); execution.apply(Event::Succeed).unwrap(); }
-        State::Failed => { execution.apply(Event::Start).unwrap(); execution.apply(Event::Fail).unwrap(); }
-        State::Cancelled => { execution.apply(Event::Cancel).unwrap(); }
+        State::Running => {
+            execution.apply(Event::Start).unwrap();
+        }
+        State::Completed => {
+            execution.apply(Event::Start).unwrap();
+            execution.apply(Event::Succeed).unwrap();
+        }
+        State::Failed => {
+            execution.apply(Event::Start).unwrap();
+            execution.apply(Event::Fail).unwrap();
+        }
+        State::Cancelled => {
+            execution.apply(Event::Cancel).unwrap();
+        }
     }
     execution
 }
