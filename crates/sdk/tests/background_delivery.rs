@@ -1,0 +1,550 @@
+//! Detached subagent results on their way to the parent: delivered once,
+//! at a model boundary, recorded with the transcript; observed by the
+//! host without ever starting a run on the session's own initiative;
+//! suppressed once the conversation that asked for them is gone.
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use orca_harness_core::testing::ScriptedModel;
+use orca_harness_core::{CancellationToken, FnTool, Message, Model, ModelResponse};
+use orca_harness_sdk::orchestration::{BackgroundStatus, SubagentModel, SubagentRequest};
+use orca_harness_sdk::{BackgroundNotification, Harness, RunRequest, SubagentConfig};
+use serde_json::json;
+use tokio::sync::Notify;
+
+mod background_support;
+mod common;
+use background_support::{
+    completion_messages, next_matching, route_to_child, routed_agent, spawn_call, tool_call,
+    wait_until, Held,
+};
+use common::temp_dir;
+
+#[tokio::test]
+async fn completion_reaches_parent_once_at_next_model_call() {
+    let root = temp_dir("delivery-once");
+    let harness = Harness::builder().workspace(&root).build().unwrap();
+    let parent = Arc::new(ScriptedModel::new(vec![
+        spawn_call("c1", "look into it"),
+        ModelResponse::final_text("spawned"),
+        ModelResponse::final_text("turn two"),
+        ModelResponse::final_text("turn three"),
+    ]));
+    let child = Arc::new(ScriptedModel::new(vec![ModelResponse::final_text(
+        "child done",
+    )]));
+    let agent = routed_agent(&harness, parent.clone(), child, SubagentConfig::new());
+    let session = agent.new_session().ephemeral().open().unwrap();
+    let subagents = session.subagents().unwrap();
+    route_to_child(&subagents.settings());
+
+    assert_eq!(session.run("delegate").await.unwrap().text, "spawned");
+    assert!(
+        !parent.observed_contexts()[0]
+            .messages()
+            .iter()
+            .any(|message| matches!(message, Message::User { content, .. } if content.contains("background_subagent_inventory"))),
+        "no inventory snapshot before anything was spawned"
+    );
+    wait_until(|| session.pending_completions() == 1, "the completion").await;
+    assert!(
+        completion_messages(&session.messages().await).is_empty(),
+        "nothing is delivered between runs"
+    );
+
+    assert_eq!(session.run("next").await.unwrap().text, "turn two");
+    let delivered = completion_messages(&session.messages().await);
+    assert_eq!(delivered.len(), 1, "one batch, one user turn");
+    assert!(delivered[0].contains("child done"), "{}", delivered[0]);
+    let seen_by_turn_two = parent.observed_contexts()[2].clone();
+    assert_eq!(
+        completion_messages(seen_by_turn_two.messages()).len(),
+        1,
+        "the model saw the batch before answering turn two"
+    );
+    assert_eq!(session.pending_completions(), 0);
+
+    assert_eq!(session.run("again").await.unwrap().text, "turn three");
+    assert_eq!(
+        completion_messages(&session.messages().await).len(),
+        1,
+        "a delivered batch is never delivered again"
+    );
+    assert_eq!(session.pending_completions(), 0);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn completion_during_run_is_delivered_before_next_model_step() {
+    let root = temp_dir("delivery-mid-run");
+    let harness = Harness::builder().workspace(&root).build().unwrap();
+    let parent = Arc::new(ScriptedModel::new(vec![
+        spawn_call("c1", "look into it"),
+        tool_call("c2", "wait_for_child"),
+        ModelResponse::final_text("folded in"),
+    ]));
+    let child = Arc::new(ScriptedModel::new(vec![ModelResponse::final_text(
+        "child done",
+    )]));
+    let ready = Arc::new(Notify::new());
+    let wait_for_child = {
+        let ready = ready.clone();
+        FnTool::new(
+            "wait_for_child",
+            "waits until the child finished",
+            json!({"type": "object"}),
+            move |_args, _ctx| {
+                let ready = ready.clone();
+                async move {
+                    ready.notified().await;
+                    Ok(json!({"waited": true}))
+                }
+            },
+        )
+    };
+    let agent = harness
+        .agent(parent)
+        .tool(wait_for_child)
+        .subagents(SubagentConfig::new().model(SubagentModel::new(
+            "flash/child",
+            "the child",
+            child,
+        )))
+        .build()
+        .unwrap();
+    let session = agent.new_session().persistent().open().unwrap();
+    let id = session.id().unwrap();
+    let subagents = session.subagents().unwrap();
+    route_to_child(&subagents.settings());
+    let mut notifications = session.notifications();
+    tokio::spawn({
+        let ready = ready.clone();
+        async move {
+            next_matching(&mut notifications, "results ready", |n| {
+                matches!(n, BackgroundNotification::CompletionsReady { .. }).then_some(())
+            })
+            .await;
+            ready.notify_one();
+        }
+    });
+
+    assert_eq!(
+        session.run("delegate and wait").await.unwrap().text,
+        "folded in"
+    );
+    let messages = session.messages().await;
+    let wait_result = messages
+        .iter()
+        .position(|message| {
+            matches!(message, Message::Tool { results } if results.iter().any(|r| r.call_id == "c2"))
+        })
+        .expect("the wait tool's result");
+    let delivery = messages
+        .iter()
+        .position(|message| {
+            matches!(message, Message::User { content, .. } if content.contains("background_subagent_completions"))
+        })
+        .expect("the delivered batch");
+    let answer = messages
+        .iter()
+        .position(|message| {
+            matches!(message, Message::Assistant { content: Some(text), .. } if text == "folded in")
+        })
+        .expect("the final answer");
+    assert!(
+        wait_result < delivery && delivery < answer,
+        "delivery sits between the tool result and the next model step: {wait_result} < {delivery} < {answer}"
+    );
+    assert_eq!(session.pending_completions(), 0);
+    drop(session);
+
+    let resumed = agent.resume_session(&id).unwrap();
+    assert_eq!(
+        completion_messages(&resumed.messages().await).len(),
+        1,
+        "the delivered batch is part of the recorded transcript"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn idle_completion_notifies_host_without_launching_a_run() {
+    let root = temp_dir("delivery-idle");
+    let harness = Harness::builder().workspace(&root).build().unwrap();
+    let parent = Arc::new(ScriptedModel::new(vec![
+        spawn_call("c1", "look into it"),
+        ModelResponse::final_text("spawned"),
+        ModelResponse::final_text("took the results"),
+    ]));
+    let child = Arc::new(ScriptedModel::new(vec![ModelResponse::final_text(
+        "child done",
+    )]));
+    let agent = routed_agent(&harness, parent.clone(), child, SubagentConfig::new());
+    let session = agent.new_session().ephemeral().open().unwrap();
+    let subagents = session.subagents().unwrap();
+    route_to_child(&subagents.settings());
+    let mut notifications = session.notifications();
+
+    assert_eq!(session.run("delegate").await.unwrap().text, "spawned");
+    let calls_after_first_run = parent.generate_calls();
+
+    let finished = next_matching(&mut notifications, "the worker exit", |n| match n {
+        BackgroundNotification::SubagentFinished(n) => Some(n),
+        _ => None,
+    })
+    .await;
+    assert_eq!(finished.spawn.task, "look into it");
+    assert_eq!(finished.spawn.call_id, "c1");
+    assert_eq!(finished.result.unwrap()["answer"], "child done");
+    let pending = next_matching(&mut notifications, "results ready", |n| match n {
+        BackgroundNotification::CompletionsReady { pending } => Some(pending),
+        _ => None,
+    })
+    .await;
+    assert_eq!(pending, 1);
+    assert_eq!(session.pending_completions(), 1);
+
+    // A negative proof: a run started on the session's own initiative
+    // would need time to show up, so this can only pass spuriously if
+    // that run had not begun within the window.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(
+        parent.generate_calls(),
+        calls_after_first_run,
+        "an idle completion never starts a model run"
+    );
+    assert!(completion_messages(&session.messages().await).is_empty());
+    assert!(
+        notifications.try_recv().is_err(),
+        "nothing else was announced"
+    );
+
+    let result = session
+        .continue_run(RunRequest::continuation())
+        .await
+        .unwrap();
+    assert_eq!(result.text, "took the results");
+    assert_eq!(completion_messages(&session.messages().await).len(), 1);
+    assert_eq!(session.pending_completions(), 0);
+    let delivered = next_matching(&mut notifications, "the delivery", |n| match n {
+        BackgroundNotification::CompletionsDelivered { spawn_ids } => Some(spawn_ids),
+        _ => None,
+    })
+    .await;
+    assert_eq!(delivered, vec![finished.spawn.id]);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn stale_generation_completions_are_suppressed() {
+    let root = temp_dir("delivery-stale");
+    let harness = Harness::builder().workspace(&root).build().unwrap();
+    let parent = Arc::new(ScriptedModel::new(vec![ModelResponse::final_text(
+        "fresh turn",
+    )]));
+    let release = CancellationToken::new();
+    let child: Arc<dyn Model> = Arc::new(Held(release.clone()));
+    let agent = routed_agent(&harness, parent, child, SubagentConfig::new());
+    let session = agent.new_session().ephemeral().open().unwrap();
+    let subagents = session.subagents().unwrap();
+    route_to_child(&subagents.settings());
+    let mut notifications = session.notifications();
+
+    let ack = subagents.spawn(SubagentRequest::new("held")).unwrap();
+    assert_eq!(ack.status, BackgroundStatus::Running);
+    session.clear().await.unwrap();
+    release.cancel();
+
+    let finished = next_matching(&mut notifications, "the worker exit", |n| match n {
+        BackgroundNotification::SubagentFinished(n) => Some(n),
+        _ => None,
+    })
+    .await;
+    assert_eq!(finished.spawn.id, ack.spawn_id);
+    assert_eq!(finished.generation, 0, "the generation clear() replaced");
+    assert_eq!(session.pending_completions(), 0);
+
+    assert_eq!(session.run("hello").await.unwrap().text, "fresh turn");
+    assert!(completion_messages(&session.messages().await).is_empty());
+    assert!(
+        !session.messages().await.iter().any(|message| {
+            matches!(message, Message::User { content, .. } if content.contains("background_subagent_inventory"))
+        }),
+        "a conversation with no workers carries no inventory snapshot"
+    );
+    while let Ok(notification) = notifications.try_recv() {
+        assert!(
+            !matches!(
+                notification,
+                BackgroundNotification::CompletionsReady { .. }
+                    | BackgroundNotification::CompletionsDelivered { .. }
+            ),
+            "a stale result is neither announced as ready nor delivered: {notification:?}"
+        );
+    }
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn idle_completion_after_a_mid_run_delivery_still_notifies_host() {
+    /// Answers the first worker at once and holds the second until released.
+    struct FirstThenHeld {
+        calls: std::sync::atomic::AtomicUsize,
+        release: CancellationToken,
+    }
+
+    #[async_trait::async_trait]
+    impl Model for FirstThenHeld {
+        async fn generate(
+            &self,
+            _: &orca_harness_core::Context,
+            _: &[orca_harness_core::ToolSchema],
+        ) -> Result<ModelResponse, orca_harness_core::ModelError> {
+            if self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                return Ok(ModelResponse::final_text("first done"));
+            }
+            self.release.cancelled().await;
+            Ok(ModelResponse::final_text("second done"))
+        }
+    }
+
+    let root = temp_dir("delivery-relatch");
+    let harness = Harness::builder().workspace(&root).build().unwrap();
+    let parent = Arc::new(ScriptedModel::new(vec![
+        spawn_call("c1", "first"),
+        tool_call("c2", "wait_for_child"),
+        spawn_call("c3", "second"),
+        ModelResponse::final_text("both spawned"),
+    ]));
+    let release = CancellationToken::new();
+    let child: Arc<dyn Model> = Arc::new(FirstThenHeld {
+        calls: Default::default(),
+        release: release.clone(),
+    });
+    let ready = Arc::new(Notify::new());
+    let wait_for_child = {
+        let ready = ready.clone();
+        FnTool::new(
+            "wait_for_child",
+            "waits until the first child finished",
+            json!({"type": "object"}),
+            move |_args, _ctx| {
+                let ready = ready.clone();
+                async move {
+                    ready.notified().await;
+                    Ok(json!({"waited": true}))
+                }
+            },
+        )
+    };
+    let agent = harness
+        .agent(parent)
+        .tool(wait_for_child)
+        .subagents(SubagentConfig::new().model(SubagentModel::new(
+            "flash/child",
+            "the child",
+            child,
+        )))
+        .build()
+        .unwrap();
+    let session = agent.new_session().ephemeral().open().unwrap();
+    let subagents = session.subagents().unwrap();
+    route_to_child(&subagents.settings());
+    let mut notifications = session.notifications();
+    let mut wake_ups = session.notifications();
+    tokio::spawn({
+        let ready = ready.clone();
+        async move {
+            next_matching(&mut wake_ups, "the first wake-up", |n| {
+                matches!(n, BackgroundNotification::CompletionsReady { .. }).then_some(())
+            })
+            .await;
+            ready.notify_one();
+        }
+    });
+
+    assert_eq!(
+        session.run("delegate twice").await.unwrap().text,
+        "both spawned"
+    );
+    let delivered = completion_messages(&session.messages().await);
+    assert_eq!(delivered.len(), 1, "the first result was delivered mid-run");
+    assert!(delivered[0].contains("first done"));
+    assert_eq!(
+        subagents.active().len(),
+        1,
+        "the second worker is still held"
+    );
+    next_matching(&mut notifications, "the mid-run wake-up", |n| {
+        matches!(n, BackgroundNotification::CompletionsReady { .. }).then_some(())
+    })
+    .await;
+    next_matching(&mut notifications, "the mid-run delivery", |n| {
+        matches!(n, BackgroundNotification::CompletionsDelivered { .. }).then_some(())
+    })
+    .await;
+
+    // The second worker finishes while the session is idle: the wake-up
+    // latch the mid-run result set must have been cleared with the run.
+    release.cancel();
+    let pending = next_matching(&mut notifications, "the idle wake-up", |n| match n {
+        BackgroundNotification::CompletionsReady { pending } => Some(pending),
+        _ => None,
+    })
+    .await;
+    assert_eq!(pending, 1);
+    assert_eq!(session.pending_completions(), 1);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
+async fn completion_after_the_last_model_boundary_is_announced_when_the_run_ends() {
+    /// Answers the first worker at once and holds the second until released.
+    struct FirstThenHeld {
+        calls: std::sync::atomic::AtomicUsize,
+        release: CancellationToken,
+    }
+
+    #[async_trait::async_trait]
+    impl Model for FirstThenHeld {
+        async fn generate(
+            &self,
+            _: &orca_harness_core::Context,
+            _: &[orca_harness_core::ToolSchema],
+        ) -> Result<ModelResponse, orca_harness_core::ModelError> {
+            if self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                return Ok(ModelResponse::final_text("first done"));
+            }
+            self.release.cancelled().await;
+            Ok(ModelResponse::final_text("second done"))
+        }
+    }
+
+    /// The parent: on its final answer, releases the second worker and
+    /// waits for it to exit, so the result lands after the run's last
+    /// model boundary and before the run ends.
+    struct FinalAwaitsChild {
+        script: ScriptedModel,
+        release: CancellationToken,
+        child_finished: Arc<Notify>,
+    }
+
+    #[async_trait::async_trait]
+    impl Model for FinalAwaitsChild {
+        async fn generate(
+            &self,
+            context: &orca_harness_core::Context,
+            tools: &[orca_harness_core::ToolSchema],
+        ) -> Result<ModelResponse, orca_harness_core::ModelError> {
+            let response = self.script.generate(context, tools).await?;
+            if matches!(response, ModelResponse::Final { .. }) {
+                self.release.cancel();
+                self.child_finished.notified().await;
+            }
+            Ok(response)
+        }
+    }
+
+    let root = temp_dir("delivery-late-window");
+    let harness = Harness::builder().workspace(&root).build().unwrap();
+    let release = CancellationToken::new();
+    let child_finished = Arc::new(Notify::new());
+    let parent = FinalAwaitsChild {
+        script: ScriptedModel::new(vec![
+            spawn_call("c1", "first"),
+            tool_call("c2", "wait_for_child"),
+            spawn_call("c3", "second"),
+            ModelResponse::final_text("both spawned"),
+        ]),
+        release: release.clone(),
+        child_finished: child_finished.clone(),
+    };
+    let child: Arc<dyn Model> = Arc::new(FirstThenHeld {
+        calls: Default::default(),
+        release,
+    });
+    let ready = Arc::new(Notify::new());
+    let wait_for_child = {
+        let ready = ready.clone();
+        FnTool::new(
+            "wait_for_child",
+            "waits until the first child finished",
+            json!({"type": "object"}),
+            move |_args, _ctx| {
+                let ready = ready.clone();
+                async move {
+                    ready.notified().await;
+                    Ok(json!({"waited": true}))
+                }
+            },
+        )
+    };
+    let agent = harness
+        .agent(parent)
+        .tool(wait_for_child)
+        .subagents(SubagentConfig::new().model(SubagentModel::new(
+            "flash/child",
+            "the child",
+            child,
+        )))
+        .build()
+        .unwrap();
+    let session = agent.new_session().ephemeral().open().unwrap();
+    let subagents = session.subagents().unwrap();
+    route_to_child(&subagents.settings());
+    let mut notifications = session.notifications();
+    let mut observer = session.notifications();
+    tokio::spawn(async move {
+        loop {
+            match observer.recv().await {
+                Ok(BackgroundNotification::CompletionsReady { .. }) => ready.notify_one(),
+                Ok(BackgroundNotification::SubagentFinished(n)) if n.spawn.task == "second" => {
+                    child_finished.notify_one();
+                }
+                Ok(_) => {}
+                Err(_) => break,
+            }
+        }
+    });
+
+    assert_eq!(
+        session.run("delegate twice").await.unwrap().text,
+        "both spawned"
+    );
+    assert_eq!(
+        subagents.active().len(),
+        0,
+        "the second worker exited inside the run"
+    );
+    assert_eq!(
+        session.pending_completions(),
+        1,
+        "its result waits for the parent"
+    );
+
+    let mut order = Vec::new();
+    while order.len() < 3 {
+        let step = next_matching(&mut notifications, "the run's announcements", |n| match n {
+            BackgroundNotification::CompletionsReady { pending } => {
+                Some(format!("ready:{pending}"))
+            }
+            BackgroundNotification::CompletionsDelivered { .. } => Some("delivered".to_string()),
+            _ => None,
+        })
+        .await;
+        order.push(step);
+    }
+    assert_eq!(
+        order,
+        ["ready:1", "delivered", "ready:1"],
+        "the first result mid-run, the second announced by the run's end"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
