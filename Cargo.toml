@@ -1,0 +1,9 @@
+[package]
+name = "finecore"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Independent, minimal execution core"
+
+[lib]
+path = "src/lib.rs"
