@@ -179,11 +179,15 @@ class EndToEndTrackerTests(unittest.TestCase):
             if path == f"/repos/{destination}/issues?state=all":
                 return list(created.values())
             if path.startswith(f"/repos/{upstream}/issues?state=all"):
+                # Production-like case: issues endpoint contains no PR objects.
                 return [
-                    {"number": 22, "title": state["pr_title"], "updated_at": "2026-10-25T00:00:00Z",
-                     "state": "open", "html_url": f"https://github.com/{upstream}/pull/22", "pull_request": {}},
                     {"number": 23, "title": "A real issue", "updated_at": "2026-10-25T00:00:00Z",
                      "state": "open", "html_url": f"https://github.com/{upstream}/issues/23"},
+                ]
+            if path == f"/repos/{upstream}/pulls?state=all":
+                return [
+                    {"number": 22, "title": state["pr_title"], "updated_at": "2026-10-25T00:00:00Z",
+                     "state": "open", "html_url": f"https://github.com/{upstream}/pull/22"},
                 ]
             if path == f"/repos/{upstream}/pulls/22/commits":
                 return [{"sha": state["pr_head"]}]

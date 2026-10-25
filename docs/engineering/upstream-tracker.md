@@ -6,8 +6,8 @@ This monitoring workflow is separate from the Rust engine migration and from the
 
 - Read-only upstream: `okikorg/orca-harness`.
 - Destination: GitHub Issues in `oigorbrito/finecore`.
-- Source events: upstream issues (open and closed), pull requests and their commit-list digest, upstream default-branch HEAD, tags, releases and deleted/restored tags/releases.
-- Schedule: at minute 17 every six hours (UTC); manual `workflow_dispatch` is available **once this workflow exists on the repository default branch**.
+- Source events: upstream issues (open and closed) and, via a **separate `/pulls?state=all` listing**, pull requests and their commit-list digest; upstream default-branch HEAD, tags, releases and deleted/restored tags/releases. The first production run created 33 issue/tag/release/HEAD records but zero PR records, so the PR listing is now mandatory and fails closed if unavailable.
+- Schedule: at minute 17 every six hours (UTC). Manual `workflow_dispatch` is available on the default branch. A **push to main modifying the tracker implementation** also runs validation and tracking, so the reviewed repair can be verified immediately after manual merge. Ordinary application pushes do not trigger it.
 - Idempotence: records are keyed by an HTML marker in the destination issue. A repeated snapshot is a no-op. Updates use a single issue PATCH and do not post per-update comments, avoiding duplicate notifications after a retry.
 - An upstream HEAD change records the newly observed SHA; it does not claim to enumerate every intermediate commit between polls.
 - A newly created issue may remain if its creation succeeds but the process fails before learning its number. The next run re-indexes markers before continuing.
