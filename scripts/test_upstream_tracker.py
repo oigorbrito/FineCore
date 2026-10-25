@@ -224,3 +224,28 @@ class EndToEndTrackerTests(unittest.TestCase):
             self.assertEqual(len(mutations), first_mutations + 2)
             self.assertTrue(all(p.startswith(f"/repos/{destination}/issues") for m,p in mutations))
             self.assertFalse(any("/comments" in p for _, p in mutations))
+
+
+class RetrySafetyTests(unittest.TestCase):
+    def test_ambiguous_post_http_failure_is_not_retried(self):
+        """A repeated issue POST could duplicate a record after a lost response."""
+        from urllib.error import HTTPError
+        error = HTTPError("https://api.github.com/repos/oigorbrito/finecore/issues", 503,
+                          "Service Unavailable", None, None)
+        with patch.object(tracker.urllib.request, "urlopen", side_effect=error) as send, \
+             patch.object(tracker.time, "sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+                tracker.request("POST", "/repos/oigorbrito/finecore/issues", {"title": "test"})
+        send.assert_called_once()
+        sleep.assert_not_called()
+
+    def test_get_http_failure_retries_only_bounded_attempts(self):
+        from urllib.error import HTTPError
+        error = HTTPError("https://api.github.com/repos/okikorg/orca-harness", 503,
+                          "Service Unavailable", None, None)
+        with patch.object(tracker.urllib.request, "urlopen", side_effect=error) as send, \
+             patch.object(tracker.time, "sleep") as sleep:
+            with self.assertRaisesRegex(RuntimeError, "HTTP 503"):
+                tracker.request("GET", "/repos/okikorg/orca-harness")
+        self.assertEqual(send.call_count, 4)
+        self.assertEqual(sleep.call_count, 3)
