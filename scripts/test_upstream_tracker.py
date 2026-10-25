@@ -249,3 +249,14 @@ class RetrySafetyTests(unittest.TestCase):
                 tracker.request("GET", "/repos/okikorg/orca-harness")
         self.assertEqual(send.call_count, 4)
         self.assertEqual(sleep.call_count, 3)
+
+
+class MutationRateTests(unittest.TestCase):
+    def test_mutation_spacing_is_at_least_one_second(self):
+        with patch.object(tracker, "LAST_WRITE_STARTED", 100.0), \
+             patch.object(tracker.time, "monotonic", side_effect=[100.2, 101.0]), \
+             patch.object(tracker.time, "sleep") as sleep:
+            tracker.pace_write()
+            sleep.assert_called_once()
+            self.assertAlmostEqual(sleep.call_args.args[0], 0.8)
+            self.assertEqual(tracker.LAST_WRITE_STARTED, 101.0)
