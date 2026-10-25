@@ -1,0 +1,181 @@
+name: FineCore migration acceptance (Rust)
+
+# This runner does not publish, release, benchmark with paid APIs, or merge.
+# The reference branch is the unmodified Orca commit plus this workflow.
+# The migration branch must contain the locally reviewed FineCore source.
+on:
+  push:
+    branches:
+      - validation/orca-reference-runners
+      - migration/orca-faithful-import
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'crates/**'
+      - 'ci/**'
+      - 'docs/upstream-import-manifest.csv'
+      - 'docs/identity-divergence.csv'
+      - '.github/workflows/finecore-migration-acceptance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finecore-migration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  rust:
+    name: Rust ${{ matrix.platform }} (reference or migration)
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-24.04
+          - platform: macos
+            runner: macos-15
+
+    steps:
+      - name: Checkout the exact triggering commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Stable Rust with fmt and clippy
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust build inputs
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: finecore-migration-${{ matrix.platform }}
+
+      - name: Validate workspace and provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/finecore-evidence"
+          test -f Cargo.toml
+          test -f Cargo.lock
+          test -f rust-toolchain.toml
+          git diff --check HEAD^ HEAD
+          printf 'commit=%s\n' "$(git rev-parse HEAD)" | tee "$RUNNER_TEMP/finecore-evidence/provenance.log"
+          rustc --version --verbose | tee -a "$RUNNER_TEMP/finecore-evidence/provenance.log"
+          cargo --version | tee -a "$RUNNER_TEMP/finecore-evidence/provenance.log"
+          if [[ "$GITHUB_REF" == "refs/heads/validation/orca-reference-runners" ]]; then
+            test "$(git rev-parse HEAD^)" = "2a9fd399cfbbaad773e3cbed92bb6e24d7561f01"
+            test -z "$(git diff --name-only HEAD^ HEAD -- . ':!.github/workflows/finecore-migration-acceptance.yml')"
+            echo "reference=Orca-2a9fd399-faithful" | tee -a "$RUNNER_TEMP/finecore-evidence/provenance.log"
+          else
+            test -s docs/upstream-import-manifest.csv
+            test -s docs/identity-divergence.csv
+            python3 - <<'PY' | tee -a "$RUNNER_TEMP/finecore-evidence/provenance.log"
+          import json, subprocess
+          metadata = json.loads(subprocess.check_output(
+              ["cargo", "metadata", "--no-deps", "--format-version", "1", "--locked"]))
+          packages = metadata["packages"]
+          matches = [p for p in packages if p["name"] == "finecore"
+                     and any("bin" in t["kind"] and t["name"] == "finecore"
+                             for t in p["targets"])]
+          if len(matches) != 1:
+              raise SystemExit("MIGRATION_IDENTITY_FAILED: finecore executable not found")
+          print("identity=finecore-binary")
+          PY
+          fi
+
+      - name: Format workspace
+        id: fmt
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo fmt --all -- --check 2>&1 | tee "$RUNNER_TEMP/finecore-evidence/fmt.log"
+
+      - name: Compile all workspace targets
+        id: check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo check --workspace --all-targets --locked 2>&1 | tee "$RUNNER_TEMP/finecore-evidence/check.log"
+
+      - name: Run complete Rust test suite
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked 2>&1 | tee "$RUNNER_TEMP/finecore-evidence/tests.log"
+
+      - name: Clippy all targets (deny warnings)
+        id: clippy
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --locked -- -D warnings 2>&1 | tee "$RUNNER_TEMP/finecore-evidence/clippy.log"
+
+      - name: Historical source-size check (diagnostic only)
+        id: size
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          if [[ -f ci/check-source-size.sh ]]; then
+            bash ci/check-source-size.sh 2>&1 | tee "$RUNNER_TEMP/finecore-evidence/source-size.log"
+          else
+            echo "Source size script not found (diagnostic unavailable)" |
+              tee "$RUNNER_TEMP/finecore-evidence/source-size.log"
+          fi
+
+      - name: Preserve logs for differential analysis
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: finecore-rust-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/finecore-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce acceptance gates
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT: ${{ steps.provenance.outcome }}
+          FORMAT: ${{ steps.fmt.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          CLIPPY: ${{ steps.clippy.outcome }}
+          SIZE_DIAGNOSTIC: ${{ steps.size.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo "| Gate | Outcome |"
+            echo "| --- | --- |"
+            echo "| Provenance and identity | $PREFLIGHT |"
+            echo "| Rust format | $FORMAT |"
+            echo "| Workspace check (all targets) | $CHECK |"
+            echo "| Workspace tests | $TESTS |"
+            echo "| Clippy (-D warnings) | $CLIPPY |"
+            echo "| Source size (nonblocking baseline diagnostic) | $SIZE_DIAGNOSTIC |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for result in "$PREFLIGHT" "$FORMAT" "$CHECK" "$TESTS" "$CLIPPY"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::Rust migration gate failed; inspect evidence artifact"
+              exit 1
+            fi
+          done
