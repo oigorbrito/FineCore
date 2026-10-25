@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
+  # Verify and sync immediately when the tracker implementation enters main.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/upstream-independent-tracker.yml'
+      - 'scripts/upstream_tracker.py'
+      - 'scripts/test_upstream_tracker.py'
   pull_request:
     paths:
       - '.github/workflows/upstream-independent-tracker.yml'
@@ -33,7 +40,7 @@ jobs:
 
   track:
     needs: validate
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
