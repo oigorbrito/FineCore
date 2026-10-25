@@ -243,10 +243,16 @@ def main():
     for upstream in UPSTREAMS:
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", upstream):
             raise RuntimeError("Invalid upstream: " + upstream)
-        # Fetch all issues (including PR-backed issue objects) to retain closed state changes.
+        # Fetch issues and PRs explicitly. The first production run observed
+        # only issue objects from /issues despite public PRs being present.
+        # Treat /pulls as the authoritative PR collection to fail closed on
+        # missing PR permissions instead of silently recording incomplete data.
         for item in pages(f"/repos/{upstream}/issues?state=all&sort=updated&direction=desc"):
-            kind = "pr" if "pull_request" in item else "issue"
-            stats[sync_one(upstream, kind, item, indexed)] += 1
+            if "pull_request" in item:
+                continue
+            stats[sync_one(upstream, "issue", item, indexed)] += 1
+        for item in pages(f"/repos/{upstream}/pulls?state=all"):
+            stats[sync_one(upstream, "pr", item, indexed)] += 1
         stats[sync_branch(upstream, indexed)] += 1
         sync_releases_and_tags(upstream, indexed, stats)
     print(json.dumps({"destination": DEST, "upstreams": UPSTREAMS, "stats": stats}, sort_keys=True))
