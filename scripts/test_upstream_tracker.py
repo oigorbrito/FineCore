@@ -14,6 +14,25 @@ class MarkerTests(unittest.TestCase):
         self.assertIsNone(tracker.parse("ordinary issue without a marker"))
 
 
+    def test_upstream_title_with_html_comment_terminator_is_safe(self):
+        key = "okikorg/orca-harness:issue:42"
+        state = {"title": 'text "} --> injected tail', "updated_at": "today"}
+        body = tracker.marker(key, state)
+        self.assertEqual(body.count("-->"), 1)
+        self.assertEqual(tracker.parse(body), (key, state))
+
+    def test_preexisting_unescaped_marker_with_nested_json_is_readable(self):
+        key = "okikorg/orca-harness:pr:10"
+        body = ('<!-- finecore-upstream:' + key +
+                ' state:{"title":"value } --> suffix","nested":{"old":"new"}} -->')
+        self.assertEqual(tracker.parse(body),
+                         (key, {"title": "value } --> suffix", "nested": {"old": "new"}}))
+
+    def test_corrupt_tracking_marker_fails_closed(self):
+        with self.assertRaises((ValueError, __import__("json").JSONDecodeError)):
+            tracker.parse('<!-- finecore-upstream:repo:issue:1 state:{"broken": -->')
+
+
 class SnapshotTests(unittest.TestCase):
     def test_initial_tag_creates_one_issue(self):
         indexed = {}
