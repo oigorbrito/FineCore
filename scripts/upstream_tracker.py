@@ -18,9 +18,25 @@ TOKEN = os.environ.get("GH_TOKEN", "")
 DEST = os.environ.get("TRACKING_REPO", "")
 UPSTREAMS = [x.strip() for x in os.environ.get("UPSTREAM_REPOSITORIES", "okikorg/orca-harness").split(",") if x.strip()]
 MAX_PAGES = 30
+MIN_WRITE_SPACING_SECONDS = 1.0  # below GitHub secondary limit of ~80 content requests/min
+LAST_WRITE_STARTED = None
+
+
+def pace_write():
+    """Keep GitHub issue mutations below the documented secondary content limit."""
+    global LAST_WRITE_STARTED
+    now = time.monotonic()
+    if LAST_WRITE_STARTED is not None:
+        remaining = MIN_WRITE_SPACING_SECONDS - (now - LAST_WRITE_STARTED)
+        if remaining > 0:
+            time.sleep(remaining)
+            now = time.monotonic()
+    LAST_WRITE_STARTED = now
 
 
 def request(method, path, payload=None):
+    if method in ("POST", "PATCH", "PUT", "DELETE"):
+        pace_write()
     url = API + path
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "finecore-upstream-tracker/1", "X-GitHub-Api-Version": "2022-11-28"}
