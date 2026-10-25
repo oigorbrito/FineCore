@@ -141,3 +141,86 @@ class CollectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EndToEndTrackerTests(unittest.TestCase):
+    def test_three_polls_create_replay_and_update_without_upstream_writes(self):
+        """Exercise main() against a fully in-memory GitHub API on each fresh poll."""
+        from io import StringIO
+        from contextlib import redirect_stdout
+        import json
+
+        destination = "oigorbrito/finecore"
+        upstream = "okikorg/orca-harness"
+        created = {}
+        calls = []
+        state = {"pr_title": "Initial", "pr_head": "head-A", "branch_head": "branch-A"}
+
+        def fake_pages(path):
+            if path == f"/repos/{destination}/issues?state=all":
+                return list(created.values())
+            if path.startswith(f"/repos/{upstream}/issues?state=all"):
+                return [
+                    {"number": 22, "title": state["pr_title"], "updated_at": "2026-10-25T00:00:00Z",
+                     "state": "open", "html_url": f"https://github.com/{upstream}/pull/22", "pull_request": {}},
+                    {"number": 23, "title": "A real issue", "updated_at": "2026-10-25T00:00:00Z",
+                     "state": "open", "html_url": f"https://github.com/{upstream}/issues/23"},
+                ]
+            if path == f"/repos/{upstream}/pulls/22/commits":
+                return [{"sha": state["pr_head"]}]
+            if path == f"/repos/{upstream}/releases":
+                return [{"id": 8, "html_url": "https://example.com/release", "tag_name": "v1",
+                         "name": "Version 1", "published_at": "2026-10-01", "updated_at": "2026-10-01",
+                         "draft": False, "prerelease": False, "target_commitish": "main"}]
+            if path == f"/repos/{upstream}/tags":
+                return [{"name": "v1", "commit": {"sha": "tag-A"}}]
+            raise AssertionError(f"unexpected endpoint pages: {path}")
+
+        def fake_request(method, path, payload=None):
+            calls.append((method, path))
+            if path.startswith(f"/repos/{upstream}/") or path == f"/repos/{upstream}":
+                self.assertEqual(method, "GET", "never write to the upstream")
+                if path == f"/repos/{upstream}":
+                    return {"default_branch": "main"}
+                if path == f"/repos/{upstream}/commits/main":
+                    return {"sha": state["branch_head"], "html_url": f"https://example.com/{state['branch_head']}"}
+                if path == f"/repos/{upstream}/pulls/22":
+                    return {"head": {"sha": state["pr_head"]}, "base": {"sha": "base-A"},
+                            "draft": False, "merged_at": None}
+                raise AssertionError(path)
+            self.assertTrue(path.startswith(f"/repos/{destination}/issues"))
+            self.assertIn(method, {"POST", "PATCH"})
+            if method == "POST":
+                number = len(created) + 1
+                created[number] = {"number": number, "title": payload["title"], "body": payload["body"]}
+                return {"number": number}
+            number = int(path.rsplit("/", 1)[1])
+            created[number].update(payload)
+            return created[number]
+
+        with patch.object(tracker, "TOKEN", "test-token"), \
+             patch.object(tracker, "DEST", destination), \
+             patch.object(tracker, "UPSTREAMS", [upstream]), \
+             patch.object(tracker, "pages", side_effect=fake_pages), \
+             patch.object(tracker, "request", side_effect=fake_request):
+            def poll():
+                out = StringIO()
+                with redirect_stdout(out):
+                    tracker.main()
+                return json.loads(out.getvalue())
+
+            first = poll()
+            self.assertEqual(first["stats"], {"created": 5, "updated": 0, "unchanged": 0})
+            self.assertEqual(len(created), 5)
+            first_mutations = len([v for v in calls if v[0] in {"POST", "PATCH"}])
+            second = poll()
+            self.assertEqual(second["stats"], {"created": 0, "updated": 0, "unchanged": 5})
+            self.assertEqual(len([v for v in calls if v[0] in {"POST", "PATCH"}]), first_mutations)
+            state.update(pr_title="Renamed PR", pr_head="head-B", branch_head="branch-B")
+            third = poll()
+            self.assertEqual(third["stats"], {"created": 0, "updated": 2, "unchanged": 3})
+            self.assertEqual(len(created), 5)
+            mutations = [v for v in calls if v[0] in {"POST", "PATCH"}]
+            self.assertEqual(len(mutations), first_mutations + 2)
+            self.assertTrue(all(p.startswith(f"/repos/{destination}/issues") for m,p in mutations))
+            self.assertFalse(any("/comments" in p for _, p in mutations))
