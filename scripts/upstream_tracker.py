@@ -13,7 +13,7 @@ import urllib.parse
 import urllib.request
 
 API = "https://api.github.com"
-MARKER = re.compile(r"<!-- finecore-upstream:([^ ]+) state:(\{.*?\}) -->")
+MARKER = re.compile(r"<!-- finecore-upstream:([^ ]+) state:")
 TOKEN = os.environ.get("GH_TOKEN", "")
 DEST = os.environ.get("TRACKING_REPO", "")
 UPSTREAMS = [x.strip() for x in os.environ.get("UPSTREAM_REPOSITORIES", "okikorg/orca-harness").split(",") if x.strip()]
@@ -71,14 +71,23 @@ def pages(path):
 
 
 def marker(key, state):
-    return "<!-- finecore-upstream:" + key + " state:" + json.dumps(state, sort_keys=True, separators=(",", ":")) + " -->"
+    # Escape an HTML comment terminator inside upstream-controlled strings.
+    # This preserves JSON semantics and compatibility with existing markers.
+    payload = json.dumps(state, sort_keys=True, separators=(",", ":")).replace("-->", r"\u002d\u002d\u003e")
+    return "<!-- finecore-upstream:" + key + " state:" + payload + " -->"
 
 
 def parse(body):
     match = MARKER.search(body or "")
     if not match:
         return None
-    return match.group(1), json.loads(match.group(2))
+    # A non-greedy regex for JSON fails on nested states or titles containing
+    # a comment terminator. Decode JSON and validate the marker boundary.
+    payload = (body or "")[match.end():]
+    state, offset = json.JSONDecoder().raw_decode(payload)
+    if not isinstance(state, dict) or not payload[offset:].startswith(" -->"):
+        raise ValueError("Malformed FineCore upstream marker")
+    return match.group(1), state
 
 
 def snapshot(upstream, kind, item, previous=None):
