@@ -35,7 +35,7 @@ def request(method, path, payload=None):
                 raw = res.read()
                 return json.loads(raw) if raw else None
         except urllib.error.HTTPError as exc:
-            if exc.code in (403, 429, 500, 502, 503) and attempt < 3:
+            if method != "POST" and exc.code in (403, 429, 500, 502, 503) and attempt < 3:
                 time.sleep(2 ** attempt)
                 continue
             raise RuntimeError(f"GitHub {method} {path}: HTTP {exc.code}") from exc
