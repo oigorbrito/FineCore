@@ -1,0 +1,51 @@
+name: Orca independent upstream tracker
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/upstream-independent-tracker.yml'
+      - 'scripts/upstream_tracker.py'
+      - 'scripts/test_upstream_tracker.py'
+      - 'docs/engineering/upstream-tracker.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finecore-orca-upstream-tracker
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Test tracker contracts (offline)
+        run: python3 -m unittest discover -s scripts -p 'test_upstream_tracker.py' -v
+
+  track:
+    needs: validate
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Mirror Orca metadata (no code merges)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKING_REPO: ${{ github.repository }}
+          UPSTREAM_REPOSITORIES: okikorg/orca-harness
+        run: python3 scripts/upstream_tracker.py
