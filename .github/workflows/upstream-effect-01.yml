@@ -24,7 +24,6 @@ jobs:
     env:
       CARGO_TERM_COLOR: never
       RUST_BACKTRACE: '1'
-      CARGO_TARGET_DIR: ${{ github.workspace }}/shared-target
     steps:
       - name: Checkout experiment harness
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -67,6 +66,7 @@ jobs:
         shell: bash
         env:
           EXPECT_RETRY: '0'
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target-baseline
         run: |
           set -euo pipefail
           cargo test -p orca-harness-tools --test upstream_effect --locked -- --nocapture --test-threads=1 2>&1 | tee ../results/baseline.log
@@ -75,9 +75,25 @@ jobs:
         shell: bash
         env:
           EXPECT_RETRY: '1'
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target-candidate
         run: |
           set -euo pipefail
           cargo test -p orca-harness-tools --test upstream_effect --locked -- --nocapture --test-threads=1 2>&1 | tee ../results/retry.log
+      - name: Confirm independent Rust test executables
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d target-baseline/debug/deps
+          test -d target-candidate/debug/deps
+          BASE_EXE="$(find target-baseline/debug/deps -maxdepth 1 -type f -executable -name 'upstream_effect-*' | head -1)"
+          CAND_EXE="$(find target-candidate/debug/deps -maxdepth 1 -type f -executable -name 'upstream_effect-*' | head -1)"
+          test -n "$BASE_EXE"
+          test -n "$CAND_EXE"
+          sha256sum "$BASE_EXE" "$CAND_EXE" | tee results/test-executable-hashes.txt
+          if cmp -s "$BASE_EXE" "$CAND_EXE"; then
+            echo "FAIL: arms produced identical test executable bytes" >&2
+            exit 1
+          fi
       - name: Strict paired analysis
         shell: bash
         run: |
