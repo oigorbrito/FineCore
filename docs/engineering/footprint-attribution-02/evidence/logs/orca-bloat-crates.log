@@ -1,0 +1,51 @@
+warning: unused import: `std::process::Command`
+ --> crates/cli/src/tui/clipboard_image.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PNG_MAGIC` is never used
+ --> crates/cli/src/tui/clipboard_image.rs:6:7
+  |
+6 | const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
+  |       ^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `interpret` is never used
+  --> crates/cli/src/tui/clipboard_image.rs:45:4
+   |
+45 | fn interpret(success: bool, bytes: Vec<u8>, stderr: &[u8]) -> Result<Option<Vec<u8>>, String> {
+   |    ^^^^^^^^^
+
+warning: `orcacode` (bin "orcacode") generated 3 warnings (run `cargo fix --bin "orcacode" -p orcacode` to apply 1 suggestion)
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.10s
+    Analyzing /home/runner/work/_temp/footprint-attribution-02-targets/orca/release/orcacode
+
+File  .text     Size Crate
+1.4%  15.0% 758.8KiB [Unknown]
+1.2%  12.9% 649.8KiB orcacode
+1.1%  11.9% 601.9KiB std
+0.6%   6.7% 339.0KiB orca_harness_tools
+0.5%   6.0% 303.5KiB regex_automata
+0.5%   5.8% 292.6KiB html_to_markdown_rs
+0.4%   4.9% 245.3KiB rustls
+0.3%   3.6% 181.6KiB ring
+0.3%   3.6% 180.9KiB orca_harness_tool_extensions
+0.3%   3.1% 158.8KiB orca_harness_model_providers
+0.2%   2.3% 118.4KiB reqwest
+0.2%   2.3% 114.3KiB aho_corasick
+0.2%   2.2% 109.5KiB orca_harness_extensions
+0.2%   1.9%  97.7KiB regex_syntax
+0.1%   1.4%  71.9KiB tokio
+0.1%   1.2%  62.6KiB orca_harness_dag
+0.1%   0.9%  46.3KiB orca_harness_core
+0.1%   0.9%  44.5KiB syntect
+0.1%   0.8%  42.5KiB libsqlite3_sys
+0.1%   0.8%  39.0KiB serde_json
+1.1%  11.7% 589.7KiB And 104 more crates. Use -n N to show more.
+9.1% 100.0%   4.9MiB .text section size, the file size is 54.2MiB
+
+Note: numbers above are a result of guesswork. They are not 100% correct and never will be.

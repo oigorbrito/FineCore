@@ -1,0 +1,129 @@
+warning: unused import: `std::process::Command`
+ --> crates/cli/src/tui/clipboard_image.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PNG_MAGIC` is never used
+ --> crates/cli/src/tui/clipboard_image.rs:6:7
+  |
+6 | const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
+  |       ^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `interpret` is never used
+  --> crates/cli/src/tui/clipboard_image.rs:45:4
+   |
+45 | fn interpret(success: bool, bytes: Vec<u8>, stderr: &[u8]) -> Result<Option<Vec<u8>>, String> {
+   |    ^^^^^^^^^
+
+warning: `orcacode` (bin "orcacode") generated 3 warnings (run `cargo fix --bin "orcacode" -p orcacode` to apply 1 suggestion)
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.10s
+    Analyzing /home/runner/work/_temp/footprint-attribution-02-targets/orca/release/orcacode
+
+File  .text    Size                        Crate Name
+0.1%   1.6% 78.6KiB               regex_automata regex_automata::meta::strategy::new
+0.1%   1.2% 60.8KiB                     orcacode orcacode::tui::render::shell::live::live_region
+0.1%   0.9% 47.3KiB                     orcacode orcacode::runtime::worker::worker::<orcacode::runtime::interactive::run_mode::{closure#0}::{closure#7}>::{closure#0}
+0.1%   0.8% 41.3KiB          html_to_markdown_rs html_to_markdown_rs::converter::main::walk_node
+0.1%   0.8% 39.0KiB                     orcacode orcacode::runtime::interactive::run_mode::{closure#0}
+0.1%   0.6% 31.9KiB                       rustls <rustls::msgs::handshake::HandshakeMessagePayload>::read_version
+0.0%   0.5% 27.6KiB                    [Unknown] sqlite3VdbeExec
+0.0%   0.5% 26.1KiB          html_to_markdown_rs <html5ever::tree_builder::TreeBuilder<alloc::rc::Rc<html_to_markdown_rs::rcdom::Node>, html_to_markdown_rs::rcdom::RcDom>>::step
+0.0%   0.5% 26.0KiB orca_harness_tool_extensions orca_harness_tool_extensions::agent_plugins::load_agent_plugin
+0.0%   0.5% 22.9KiB           orca_harness_tools <orca_harness_tools::bun_repl::BunReplTool>::call_with::{closure#0}
+0.0%   0.4% 22.2KiB                     orcacode orcacode::tui::render::shell::draw
+0.0%   0.4% 20.6KiB           orca_harness_tools <orca_harness_tools::core_tools::process::ProcessTool as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.4% 19.5KiB                     orcacode orcacode::tui::commands::dispatch::slash_command
+0.0%   0.4% 18.6KiB                     orcacode orcacode::tui::events::ui_message::handle_ui_msg
+0.0%   0.4% 18.5KiB          html_to_markdown_rs html_to_markdown_rs::convert_api::convert_inner
+0.0%   0.4% 18.5KiB                     orcacode orcacode::tui::keys::overlays::handle_overlay_key
+0.0%   0.4% 18.0KiB                          std <std::backtrace_rs::symbolize::gimli::Cache>::with_global::<std::backtrace_rs::symbolize::gimli::resolve::{closure#1}>
+0.0%   0.3% 17.6KiB            orca_harness_core orca_harness_core::agent_loop::drive::<alloc::sync::Arc<dyn orca_harness_core::model::Model>>::{closure#0}
+0.0%   0.3% 17.4KiB               regex_automata <regex_automata::dfa::dense::Builder>::build_from_nfa
+0.0%   0.3% 17.3KiB          html_to_markdown_rs html_to_markdown_rs::converter::tier1::scanner::scan
+0.0%   0.3% 17.1KiB                     orcacode <orcacode::Endpoint>::list_models::{closure#0}
+0.0%   0.3% 16.3KiB                     orcacode orcacode::view::mermaid::render
+0.0%   0.3% 16.2KiB                     orcacode orcacode::tui::events::terminal::handle_terminal_event
+0.0%   0.3% 15.2KiB                    [Unknown] sqlite3Select
+0.0%   0.3% 15.1KiB                     orcacode orcacode::refine::proposer::run_proposer::{closure#0}
+0.0%   0.3% 15.1KiB                     orcacode orcacode::tui::inspector::tool_inspector_body_lines
+0.0%   0.3% 14.8KiB                      reqwest <reqwest::async_impl::client::ClientBuilder>::build
+0.0%   0.3% 14.7KiB                     orcacode <orcacode::mcp::McpServers>::reload_with_timeout::{closure#0}
+0.0%   0.3% 14.5KiB                     orcacode orcacode::runtime::app::entrypoint::{closure#0}
+0.0%   0.3% 14.4KiB                    [Unknown] sqlite3Pragma
+0.0%   0.3% 13.7KiB                    [Unknown] sqlite3WhereBegin
+0.0%   0.3% 13.3KiB                   hyper_util <hyper_util::client::legacy::client::Client<reqwest::connect::Connector, reqwest::async_impl::body::Body>>::send_request::{closure#0}
+0.0%   0.3% 13.0KiB                    [Unknown] sqlite3Parser
+0.0%   0.3% 12.9KiB                     orcacode <orcacode::auto_approval::AutoApproval as orca_harness_core::extension::Extension>::around_tool::{closure#0}
+0.0%   0.3% 12.9KiB          html_to_markdown_rs <html5ever::tokenizer::Tokenizer<html5ever::tree_builder::TreeBuilder<alloc::rc::Rc<html_to_markdown_rs::rcdom::Node>, html_to_markdown_rs::rcdom::RcDom>>>::step
+0.0%   0.2% 12.6KiB                     orcacode orcacode::tui::render::agents::draw_agent_browser
+0.0%   0.2% 12.5KiB           orca_harness_tools <orca_harness_tools::subagent::SubagentTool<alloc::sync::Arc<dyn orca_harness_core::model::Model>> as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.2% 12.3KiB           orca_harness_tools <orca_harness_tools::workflow::WorkflowTool<alloc::sync::Arc<dyn orca_harness_core::model::Model>> as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.2% 12.2KiB             orca_harness_dag <orca_harness_dag::engine::Dag>::from_stages
+0.0%   0.2% 12.2KiB                          std <std::backtrace_rs::symbolize::gimli::Context>::new
+0.0%   0.2% 12.0KiB                         ring ring_core_0_17_14__chacha20_poly1305_seal_avx2
+0.0%   0.2% 11.9KiB                      reqwest <hyper::proto::h1::dispatch::Dispatcher<hyper::proto::h1::dispatch::Client<reqwest::async_impl::body::Body>, reqwest::async_impl::body::Body, reqwest::connect::sealed::Conn, hyper::proto::h1::role::Client>>::poll_read
+0.0%   0.2% 11.3KiB      orca_harness_extensions <orca_harness_extensions::session::SessionFile>::load
+0.0%   0.2% 11.0KiB                      syntect <syntect::parsing::regex::Regex>::search
+0.0%   0.2% 11.0KiB           orca_harness_tools <orca_harness_tools::ask::AskTool as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.2% 10.8KiB                         http <http::header::name::StandardHeader>::from_bytes
+0.0%   0.2% 10.7KiB                      ratatui <std::thread::local::LocalKey<core::cell::RefCell<lru::LruCache<(ratatui::layout::rect::Rect, ratatui::layout::layout::Layout), (alloc::rc::Rc<[ratatui::layout::rect::Rect]>, alloc::rc::Rc<[ratatui::layout::rect::Rect]>)>>>>::with::<<std::thread::local::LocalKey<core::cell::RefCell<lru::LruCache<(ratatui::layout::rect::Rect, ratatui::layout::layout::Layout), (alloc::rc::Rc<[ratatui::layout::rect::Rect]>, alloc::rc::Rc<[ratatui::layout::rect::Rect]>)>>>>::with_borrow_mut<<ratatui::layout::layout::Layout>::split_with_spacers::{closure#0}, (alloc::rc::Rc<[ratatui::layout::rect::Rect]>, alloc::rc::Rc<[ratatui::layout::rect::Rect]>)>::{closure#0}, (alloc::rc::Rc<[ratatui::layout::rect::Rect]>, alloc::rc::Rc<[ratatui::layout::rect::Rect]>)>
+0.0%   0.2% 10.6KiB                     orcacode orcacode::headless::run::<alloc::sync::Arc<dyn orca_harness_core::model::Model>>::{closure#0}
+0.0%   0.2% 10.5KiB                     orcacode orcacode::tui::inspector::summary::append_result
+0.0%   0.2% 10.5KiB orca_harness_tool_extensions <orca_harness_tool_extensions::web::fetch::WebFetchTool as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.2% 10.5KiB           orca_harness_tools <orca_harness_tools::subagent::SubagentTool<alloc::sync::Arc<dyn orca_harness_core::model::Model>> as orca_harness_core::tool::Tool>::schema
+0.0%   0.2% 10.3KiB orca_harness_model_providers <orca_harness_model_providers::openai_codex::OpenAiCodexModel>::send_with::{closure#0}
+0.0%   0.2% 10.3KiB                     orcacode orcacode::plugin::commands::test::{closure#0}
+0.0%   0.2% 10.2KiB                     orcacode orcacode::tui::render::transcript::activity::activity_lines_from
+0.0%   0.2% 10.1KiB          html_to_markdown_rs html_to_markdown_rs::converter::main_helpers::repair_with_html5ever
+0.0%   0.2% 10.0KiB                       rustls <webpki::verify_cert::ChainOptions<webpki::verify_cert::KeyUsage>>::build_chain_inner
+0.0%   0.2%  9.9KiB               regex_automata <regex_automata::nfa::thompson::compiler::Compiler>::c
+0.0%   0.2%  9.6KiB orca_harness_model_providers <orca_harness_model_providers::openai::OpenAiModel>::request_body
+0.0%   0.2%  9.6KiB                         ring ring_core_0_17_14__chacha20_poly1305_open_avx2
+0.0%   0.2%  9.6KiB                       rustls <rustls::msgs::handshake::ServerExtensions as rustls::msgs::codec::Codec>::read
+0.0%   0.2%  9.5KiB           orca_harness_tools <orca_harness_tools::core_tools::edit::EditFileTool as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.2%  9.4KiB                       rustls rustls::client::hs::emit_client_hello_for_retry
+0.0%   0.2%  9.3KiB                     orcacode orcacode::main
+0.0%   0.2%  9.2KiB orca_harness_model_providers <orca_harness_model_providers::anthropic::AnthropicModel>::generate_with::{closure#0}
+0.0%   0.2%  9.2KiB               unsafe_libyaml unsafe_libyaml::parser::PEEK_TOKEN
+0.0%   0.2%  9.1KiB                          std <std::sys::process::unix::common::Command>::spawn
+0.0%   0.2%  9.1KiB                      syntect <syntect::easy::HighlightLines>::highlight_line
+0.0%   0.2%  9.0KiB                     orcacode orcacode::runtime::worker::worker::<orcacode::runtime::interactive::run_mode::{closure#0}::{closure#7}>::{closure#0}::{closure#7}
+0.0%   0.2%  8.9KiB orca_harness_model_providers <orca_harness_model_providers::anthropic::AnthropicModel>::request_body
+0.0%   0.2%  8.9KiB                       rustls <rustls::client::hs::ExpectServerHello as rustls::common_state::State<rustls::client::client_conn::ClientConnectionData>>::handle
+0.0%   0.2%  8.8KiB                          std <std::sync::once::Once>::call_once_force::<<std::sync::once_lock::OnceLock<syntect::highlighting::theme_set::ThemeSet>>::initialize<<std::sync::once_lock::OnceLock<syntect::highlighting::theme_set::ThemeSet>>::get_or_init<<syntect::highlighting::theme_set::ThemeSet>::load_defaults>::{closure#0}, !>::{closure#0}>::{closure#0}
+0.0%   0.2%  8.8KiB                       rustls <core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::slice::iter::Iter<rustls_pki_types::CertificateRevocationListDer>, rustls::webpki::parse_crls::{closure#0}>, core::result::Result<core::convert::Infallible, webpki::error::Error>> as core::iter::traits::iterator::Iterator>::next
+0.0%   0.2%  8.6KiB                          std <gimli::read::dwarf::Unit<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>, usize>>::new
+0.0%   0.2%  8.5KiB                         ring ring_core_0_17_14__chacha20_poly1305_seal_sse41
+0.0%   0.2%  8.4KiB                         ring ring_core_0_17_14__chacha20_poly1305_open_sse41
+0.0%   0.2%  8.0KiB                  fancy_regex <fancy_regex::parse::Parser>::parse_branch
+0.0%   0.2%  8.0KiB                    [Unknown] sqlite3Insert
+0.0%   0.2%  7.8KiB          html_to_markdown_rs html_to_markdown_rs::converter::block::table::builder::handle_table
+0.0%   0.2%  7.8KiB                    [Unknown] sqlite3Update.constprop.0
+0.0%   0.2%  7.6KiB           orca_harness_tools <orca_harness_tools::workflow::WorkflowTool<alloc::sync::Arc<dyn orca_harness_core::model::Model>> as orca_harness_core::tool::Tool>::schema
+0.0%   0.1%  7.5KiB                          std <core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::try_init::<<core::cell::once::OnceCell<core::result::Result<addr2line::line::Lines, gimli::read::Error>>>::get_or_init<<addr2line::line::LazyLines>::borrow<gimli::read::endian_slice::EndianSlice<gimli::endianity::LittleEndian>>::{closure#0}>::{closure#0}, !>
+0.0%   0.1%  7.4KiB               regex_automata <regex_automata::nfa::thompson::compiler::Compiler>::compile::<&regex_syntax::hir::Hir>
+0.0%   0.1%  7.4KiB orca_harness_tool_extensions <orca_harness_tool_extensions::mcp::client::McpClient>::connect_stdio::{closure#0}
+0.0%   0.1%  7.3KiB          html_to_markdown_rs html_to_markdown_rs::converter::semantic::dispatch_semantic_handler
+0.0%   0.1%  7.2KiB               regex_automata regex_automata::hybrid::search::find_fwd
+0.0%   0.1%  7.2KiB                     orcacode orcacode::view::markdown::markdown_lines
+0.0%   0.1%  7.2KiB                     textwrap textwrap::wrap::wrap::<usize>
+0.0%   0.1%  7.1KiB                       rustls <rustls::conn::ConnectionCommon<rustls::client::client_conn::ClientConnectionData>>::process_new_packets
+0.0%   0.1%  7.1KiB orca_harness_tool_extensions <orca_harness_tool_extensions::skills::tool::SkillTool as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.1%  7.1KiB           orca_harness_tools <orca_harness_tools::programmatic::ToolDispatch>::execute::{closure#0}::{closure#1}
+0.0%   0.1%  7.0KiB                  miniz_oxide miniz_oxide::inflate::core::decompress
+0.0%   0.1%  6.7KiB               libsqlite3_sys sqlite3_str_vappendf
+0.0%   0.1%  6.6KiB                    [Unknown] sqlite3Fts3Incrmerge
+0.0%   0.1%  6.6KiB                     orcacode orcacode::runtime::interactive::run_mode::{closure#0}::{closure#7}
+0.0%   0.1%  6.6KiB           orca_harness_tools <orca_harness_tools::kernel::PyKernelTool as orca_harness_core::tool::Tool>::call::{closure#0}
+0.0%   0.1%  6.5KiB                       webpki <webpki::cert::Cert>::from_input
+0.0%   0.1%  6.3KiB orca_harness_model_providers <orca_harness_model_providers::openai::OpenAiModel as orca_harness_core::model::Model>::generate::{closure#0}
+0.0%   0.1%  6.3KiB                    [Unknown] exprAnalyze
+0.0%   0.1%  6.2KiB           orca_harness_tools <orca_harness_tools::subagent::SubagentTool<alloc::sync::Arc<dyn orca_harness_core::model::Model>>>::prepare_spawn
+0.0%   0.1%  6.2KiB                    [Unknown] resolveExprStep
+6.6%  72.3%  3.6MiB                              And 15554 smaller methods. Use -n N to show more.
+9.1% 100.0%  4.9MiB                              .text section size, the file size is 54.2MiB
