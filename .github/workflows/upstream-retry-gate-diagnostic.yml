@@ -1,0 +1,88 @@
+name: UPSTREAM-EFFECT-01 diagnose retry gate (runner-only logging)
+
+on:
+  push:
+    branches: [experiment/upstream-effect-01]
+    paths:
+      - '.github/workflows/upstream-retry-gate-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: never
+      TRACE_RETRY_GATE: '1'
+    steps:
+      - name: Checkout immutable diagnostic fixture
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: harness
+          persist-credentials: false
+      - name: Checkout exact FineCore retry implementation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: oigorbrito/finecore
+          ref: 092ff1ff0fb654c814663a296318abc06266584f
+          path: candidate
+          persist-credentials: false
+      - name: Pinned Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: 1.99.1
+      - name: Apply diagnostic-only tracing to checkout (not committed to product)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = 092ff1ff0fb654c814663a296318abc06266584f
+          cp harness/docs/engineering/upstream-effect-01/upstream_effect.rs candidate/crates/tools/tests/upstream_effect.rs
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("candidate/crates/tools/src/workflow/runtime.rs")
+          src = p.read_text()
+          needle = "            let retry = match &result {"
+          trace = """            if std::env::var_os("TRACE_RETRY_GATE").is_some() {
+              eprintln!("UPSTREAM_RETRY_GATE match={} deadline_future={} state_running={}",
+                result.as_ref().err().is_some_and(|error| transient(error)),
+                run.deadline.is_none_or(|deadline| tokio::time::Instant::now() < deadline),
+                run.dag.state == RunState::Running);
+            }
+          """
+          assert src.count(needle) == 1
+          src = src.replace(needle, trace + needle)
+          needle2 = "            let advance = retry.unwrap_or_else(|| run.dag.complete(&stage, result));"
+          trace2 = """            if std::env::var_os("TRACE_RETRY_GATE").is_some() {
+              eprintln!("UPSTREAM_RETRY_GATE retry_chosen={}", retry.is_some());
+            }
+          """
+          assert src.count(needle2) == 1
+          src = src.replace(needle2, trace2 + needle2)
+          p.write_text(src)
+          PY
+      - name: Run 160 candidate fault trials with gate trace
+        working-directory: candidate
+        shell: bash
+        env:
+          EXPECT_RETRY: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p ../diagnostic-logs
+          cargo test -p orca-harness-tools --test upstream_effect --locked -- --nocapture --test-threads=1 2>&1 | tee ../diagnostic-logs/retry-gate.log
+      - name: Verify gate trace exists and preserve summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q UPSTREAM_RETRY_GATE diagnostic-logs/retry-gate.log
+          grep UPSTREAM_RETRY_GATE diagnostic-logs/retry-gate.log | sort | uniq -c | tee diagnostic-logs/gate-summary.txt
+      - name: Save diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finecore-upstream-retry-gate-diagnostic
+          path: diagnostic-logs/
+          if-no-files-found: warn
+          retention-days: 30
