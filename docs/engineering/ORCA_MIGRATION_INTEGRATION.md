@@ -1,6 +1,6 @@
 # FineCore — canonical `main` integration (Orca migration)
 
-**Status:** integration candidate on `integration/finecore-orca-main-review`; `main` remains unchanged. No PR or merge has been performed in this review block. The intended route is a normal review PR to `main`, never a forced history rewrite.
+**Status:** Draft PR [#111](https://github.com/oigorbrito/finecore/pull/111) from `integration/finecore-orca-main-review` to `main`; `main` remains unchanged. The PR is for review only; no merge or release has been performed. The route preserves normal `main` ancestry and does not rewrite history.
 
 ## Immutable inputs and lineage
 
@@ -28,11 +28,11 @@ No `git merge --allow-unrelated-histories`, rebase, force push or rewrite of `ma
 - Read-only npm registry metadata on 2026-10-26 confirms a separate public `finecore@0.0.1` bootstrap package for Rust toolchain diagnostics/workspace inspection. `npm/finecore/` is an internal placeholder, marked `private: true`; it is not the published package or the Rust CLI and must not be published.
 - Release and paid live-benchmark jobs remain guarded to `okikorg/orca-harness`; the independently tested upstream tracker remains intact. No external paid calls were made.
 
-## Remaining gates before a review PR
+## Review status and remaining gates
 
-- [x] Re-run `python3 scripts/verify_finecore_integration.py` after the overlay corrections.
-- [x] Obtain a successful read-only Linux/macOS integration workflow run for the corrected source/test head.
-- [x] Review the integration overlay, source attribution, identity corrections, retained main-only paths, and known inherited red workspace gates.
-- [ ] Open a **Draft PR** from `integration/finecore-orca-main-review` to `main` for review. This does not merge or change `main`.
+- [x] Offline verifier and corrected-source Linux/macOS workflow passed; details above.
+- [x] Draft PR [#111](https://github.com/oigorbrito/finecore/pull/111) opened against `main` for review.
+- [ ] Await manual review and any requested changes. Keep known inherited red workspace gates explicit.
+- [ ] Any eventual merge requires separate explicit authorization; do not auto-merge.
 
-Any merge to `main` remains manual and requires separate explicit authorization. This transport does not establish FineCore performance or live legal-quality claims.
+This transport does not establish FineCore performance or live legal-quality claims.
