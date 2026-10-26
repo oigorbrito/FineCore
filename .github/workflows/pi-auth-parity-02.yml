@@ -41,7 +41,7 @@ jobs:
       - name: Compile CLI
         run: cargo check -p finecore --locked
       - name: API-key manager and compatibility tests
-        run: cargo test -p finecore --locked auth:: -- --nocapture
+        run: "cargo test -p finecore --locked auth:: -- --nocapture"
       - name: Interactive login/logout UI tests
         run: cargo test -p finecore --locked login_ -- --nocapture
       - name: Logout UI test
