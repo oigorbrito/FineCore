@@ -6,8 +6,7 @@ fn matches_pi_browser_authorization_pkce_contract() {
     let flow = BrowserAuthorization::new("FineCore").unwrap();
     let url = reqwest::Url::parse(&flow.url).unwrap();
     assert_eq!(url.as_str().split('?').next(), Some(AUTH_URL));
-    let args: std::collections::HashMap<String, String> =
-        url.query_pairs().into_owned().collect();
+    let args: std::collections::HashMap<String, String> = url.query_pairs().into_owned().collect();
     for (key, value) in [
         ("response_type", "code"),
         ("client_id", CLIENT_ID),
@@ -22,7 +21,10 @@ fn matches_pi_browser_authorization_pkce_contract() {
         assert_eq!(args.get(key).map(String::as_str), Some(value), "{key}");
     }
     let digest = digest::digest(&digest::SHA256, flow.verifier.as_bytes());
-    assert_eq!(args["code_challenge"], URL_SAFE_NO_PAD.encode(digest.as_ref()));
+    assert_eq!(
+        args["code_challenge"],
+        URL_SAFE_NO_PAD.encode(digest.as_ref())
+    );
     assert_eq!(flow.verifier.len(), 43);
     assert_eq!(flow.state.len(), 32);
     let another = BrowserAuthorization::new("FineCore").unwrap();
@@ -74,7 +76,12 @@ async fn callback_enforces_path_state_host_and_single_completion() {
     let host = format!("localhost:{}", address.port());
     let malformed = request(address, "/auth/callback?code=forged&state=bad", &host).await;
     assert!(malformed.contains("400 Bad Request"));
-    let wrong_host = request(address, "/auth/callback?code=forged&state=good", "attacker.example").await;
+    let wrong_host = request(
+        address,
+        "/auth/callback?code=forged&state=good",
+        "attacker.example",
+    )
+    .await;
     assert!(wrong_host.contains("400 Bad Request"));
     let wrong_path = request(address, "/wrong?code=forged&state=good", &host).await;
     assert!(wrong_path.contains("404 Not Found"));
@@ -183,7 +190,11 @@ async fn token_exchange_failure_does_not_include_provider_response_or_secrets() 
     });
     let flow = BrowserAuthorization::new("FineCore").unwrap();
     let error = flow
-        .exchange_at(&reqwest::Client::new(), &format!("http://{addr}/token"), "secret-code")
+        .exchange_at(
+            &reqwest::Client::new(),
+            &format!("http://{addr}/token"),
+            "secret-code",
+        )
         .await
         .err()
         .unwrap();
