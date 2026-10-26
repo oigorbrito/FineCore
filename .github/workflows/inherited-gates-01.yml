@@ -1,0 +1,65 @@
+name: inherited-gates-01
+
+on:
+  pull_request:
+    branches:
+      - integration/finecore-orca-main-review
+    paths:
+      - .github/workflows/inherited-gates-01.yml
+      - scripts/compare_inherited_gates.py
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**
+      - ci/**
+      - benchmarks/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: FineCore vs canonical Orca (same Ubuntu runner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: checkout FineCore candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: finecore
+          persist-credentials: false
+
+      - name: checkout canonical Orca
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: okikorg/orca-harness
+          ref: 2a9fd399cfbbaad773e3cbed92bb6e24d7561f01
+          path: orca
+          persist-credentials: false
+
+      - name: install pinned repository toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy, rustfmt
+
+      - name: verify toolchain and run every gate
+        working-directory: finecore
+        run: |
+          rustc --version --verbose
+          cargo --version
+          cargo clippy --version
+          python3 scripts/compare_inherited_gates.py \
+            --finecore . \
+            --orca ../orca \
+            --out ../inherited-gates-evidence \
+            --samples 20
+
+      - name: upload raw logs and comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: inherited-gates-01-${{ github.run_id }}
+          path: inherited-gates-evidence/
+          if-no-files-found: error
+          retention-days: 90

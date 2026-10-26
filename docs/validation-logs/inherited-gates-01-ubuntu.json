@@ -1,0 +1,153 @@
+{
+  "workflow_run": "https://github.com/oigorbrito/finecore/actions/runs/40335956763",
+  "artifact": "inherited-gates-01-40335956763",
+  "finecore_head": "edd244d1b759925da786a4ce5ab011ecb543f318",
+  "orca_head": "2a9fd399cfbbaad773e3cbed92bb6e24d7561f01",
+  "environment": {
+    "runner": "ubuntu-24.04",
+    "host": "Linux x86_64, glibc 2.39",
+    "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo": "1.99.1 (5f94df478 2026-08-27)",
+    "clippy": "0.1.99 (58cf8f9c35 2026-10-13)",
+    "llvm": "23.1.1",
+    "rust_toolchain_contract_sha256_both": "f32338bdcf61d8100b7125baa6a4822dfb41c81c8299489df0475436c6218f7a",
+    "rustflags": null
+  },
+  "parity": {
+    "external_locked_packages": 281,
+    "external_lock_graph_sha256_both": "550beeb292e68ad77a25d44ff98642f6506a8c4e2ef7108f0d557dfe6e371b11",
+    "workspace_dependencies_equal": true,
+    "workspace_members_equal": true,
+    "release_profile_equal": true,
+    "release_profile": {
+      "lto": "fat",
+      "codegen-units": 1,
+      "opt-level": "z",
+      "panic": "abort",
+      "strip": true
+    }
+  },
+  "gates": {
+    "finecore": {
+      "fmt": "PASS",
+      "source_size": {
+        "result": "FAIL",
+        "violations": 14,
+        "exit_code": 1
+      },
+      "clippy": {
+        "result": "FAIL",
+        "result_large_err_diagnostics": 13,
+        "exit_code": 101
+      },
+      "workspace_tests": {
+        "result": "PASS",
+        "passed": 1515,
+        "failed": 0,
+        "ignored": 7,
+        "exit_code": 0
+      },
+      "mcp_immediate_exit": {
+        "passed": 20,
+        "attempts": 20
+      },
+      "benchmark_smoke": "PASS",
+      "release_build": "PASS",
+      "binary_size": {
+        "result": "FAIL",
+        "bytes": 9334616,
+        "limit_bytes_exclusive": 6700000,
+        "sha256": "0e5312c65da301fafa047d2ae99b0e2582ea2365e5e8fede4eb1186439dfd384",
+        "text_bytes": 5133016,
+        "rodata_bytes": 1704613,
+        "eh_frame_bytes": 884744,
+        "rela_dyn_bytes": 796104
+      }
+    },
+    "orca": {
+      "fmt": "PASS",
+      "source_size": {
+        "result": "FAIL",
+        "violations": 15,
+        "exit_code": 1
+      },
+      "clippy": {
+        "result": "FAIL",
+        "result_large_err_diagnostics": 13,
+        "exit_code": 101
+      },
+      "workspace_tests": {
+        "result": "PASS",
+        "passed": 1516,
+        "failed": 0,
+        "ignored": 7,
+        "exit_code": 0
+      },
+      "mcp_immediate_exit": {
+        "passed": 20,
+        "attempts": 20
+      },
+      "benchmark_smoke": "PASS",
+      "release_build": "PASS",
+      "binary_size": {
+        "result": "FAIL",
+        "bytes": 9342840,
+        "limit_bytes_exclusive": 6700000,
+        "sha256": "e066560901e9d7292dbe87a6de316aba0075a1733c18ab255cec9c014a563fad",
+        "text_bytes": 5139416,
+        "rodata_bytes": 1704613,
+        "eh_frame_bytes": 886040,
+        "rela_dyn_bytes": 796584
+      }
+    }
+  },
+  "binary_size_delta_finecore_minus_orca_bytes": -8224,
+  "benchmark": {
+    "samples_per_harness": 20,
+    "order": "alternating, paired, same runner",
+    "provider_calls": 0,
+    "finecore_vs_orca_median_percent_change": {
+      "distinct_wall": -0.69,
+      "distinct_single_average": 0.286,
+      "guarded_distinct_wall": -0.997,
+      "guarded_distinct_single_average": -0.785,
+      "batch_files_wall": -1.197,
+      "repeated_file_wall": 0.043,
+      "append_files_wall": -1.505
+    },
+    "paired_bootstrap_95_ci_percent": {
+      "distinct_wall": [
+        -4.558,
+        20.218
+      ],
+      "distinct_single_average": [
+        -1.498,
+        2.025
+      ],
+      "guarded_distinct_wall": [
+        -10.194,
+        6.187
+      ],
+      "guarded_distinct_single_average": [
+        -2.888,
+        0.785
+      ],
+      "batch_files_wall": [
+        -2.278,
+        0.394
+      ],
+      "repeated_file_wall": [
+        -1.526,
+        1.066
+      ],
+      "append_files_wall": [
+        -4.4,
+        0.445
+      ]
+    },
+    "all_95_percent_paired_bootstrap_intervals_include_zero": true,
+    "interpretation": "Exploratory; second independent 20-pair run, with runner/noise variability; no speedup or regression claim."
+  },
+  "test_count_difference": "FineCore replaces two canonical updater tests with one fail-closed test because no FineCore release channel is configured; this test-set change is already documented in the migration record.",
+  "overall_workflow": "FAIL, preserved because source-size, Clippy, and binary-size gates fail in both trees."
+}

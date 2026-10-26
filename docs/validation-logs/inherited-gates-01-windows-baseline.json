@@ -1,0 +1,70 @@
+{
+  "finecore_head": "2f980015a733ec449ca1ea8be51e97da08220fb1",
+  "orca_head": "2a9fd399cfbbaad773e3cbed92bb6e24d7561f01",
+  "platform": "Windows x86_64-pc-windows-msvc",
+  "compiler": {
+    "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo": "1.99.1 (5f94df478 2026-08-27)",
+    "clippy": "0.1.99 (58cf8f9c3 2026-10-13)",
+    "llvm": "23.1.1"
+  },
+  "dependency_and_build_parity": {
+    "external_locked_packages": 281,
+    "external_lock_graph_sha256": "550beeb292e68ad77a25d44ff98642f6506a8c4e2ef7108f0d557dfe6e371b11",
+    "release_profile": {
+      "lto": "fat",
+      "codegen-units": 1,
+      "opt-level": "z",
+      "panic": "abort",
+      "strip": true
+    },
+    "source_size_gate_sha256_both": "a274d2eba5536a784417f054c4ac75e42c2b7573ab6e6f086819d7fcdee48249",
+    "binary_size_gate_sha256": {
+      "finecore": "6487920ea5fb8fed2c4712e287c752c4c5183343b7f2d3f54a3ff52e355fa2ca",
+      "orca": "ff6ac3c5c1afe59bab41fc12e59daf59363d48c122cf0f973f6c549dec04c2b1"
+    }
+  },
+  "gates": {
+    "finecore": {
+      "source_size": {"exit_code": 1, "violations": 15},
+      "clippy": {"exit_code": 101, "result_large_err_diagnostics": 13},
+      "release_build": {"exit_code": 0},
+      "binary_size": {
+        "exit_code": 1,
+        "bytes": 7861248,
+        "limit_bytes_exclusive": 6700000,
+        "sha256": "f7cf81e442620da0aa38f8fb855b137bec5395468510ecfc38997d87ccecd50a"
+      }
+    },
+    "orca": {
+      "source_size": {"exit_code": 1, "violations": 15},
+      "clippy": {"exit_code": 101, "result_large_err_diagnostics": 13},
+      "release_build": {"exit_code": 0},
+      "binary_size": {
+        "exit_code": 1,
+        "bytes": 7868416,
+        "limit_bytes_exclusive": 6700000,
+        "sha256": "68a0de92cb74a76388d6a5816174395d81cc47b0d209c36537e92477863c4d69"
+      }
+    }
+  },
+  "source_size_violations": [
+    ["crates/cli/src/main.rs", 662, false],
+    ["crates/cli/src/main_tests.rs", 644, true],
+    ["crates/cli/src/runtime/worker.rs", 750, true],
+    ["crates/cli/src/tui/commands/dispatch.rs", 600, false],
+    ["crates/cli/src/tui/events/harness.rs", 686, true],
+    ["crates/cli/src/tui/state.rs", 618, true],
+    ["crates/cli/src/tui/tests/background_subagents.rs", 777, true],
+    ["crates/extensions/src/memory.rs", 600, true],
+    ["crates/sdk/examples/host_assembly.rs", 622, true],
+    ["crates/tool-extensions/src/mcp/client.rs", 649, true],
+    ["crates/tools/examples/bench_workflow_graph.rs", 643, true],
+    ["crates/tools/src/subagent/background/manager.rs", 722, true],
+    ["crates/tools/src/subagent/host.rs", 909, true],
+    ["crates/tools/tests/subagent/host.rs", 944, true],
+    ["crates/tools/tests/tools/glob_process_admin.rs", 601, true]
+  ],
+  "binary_size_delta_finecore_minus_orca_bytes": -7168,
+  "interpretation": "Paired local baseline only; no performance inference. Full raw command logs are retained outside the repository at D:/temp/finecore-inherited-gates-evidence/windows-baseline. The reproducible Ubuntu workflow uploads its raw logs and comparison artifact."
+}
