@@ -65,9 +65,19 @@ This follow-up audits original PR #112 head `080ddb9b0ddd8d00ffb1abc743d024fb08f
 
 That derivative added only the matrix workflow; the dependency graph was identical to the original PR head. This follow-up changes the root `engines.node` in both manifest and lock to `^20.0.0 || ^22.0.0 || >=24.0.0`, updates the generated README and scaffold assertions, and adds `.github/workflows/finecore-node-template-compat-112.yml` so the exact contract is checked on this PR for those five runner/Node combinations. The workflow runs `npm ci --engine-strict`, Vitest, build, TypeScript, and both npm audits. It verifies generated manifest/lock parity before installing.
 
-After this change, the scaffold integration test and `cargo fmt --all -- --check` pass locally. A fresh CLI-generated Node 26.10.0 scaffold passed strict install, Vitest (1/1), build, TypeScript, `finecore plugin validate`, `finecore plugin test`, and full/production npm audits (both zero). The updated audit JSON is retained in `npm-audit/contract-node26-*.json`. The five-runner matrix for the corrected engine contract is recorded in the hosted workflow linked from PR #112; results are to be read from that run, not inferred from the earlier 40272555471 run.
+The corrected five-environment matrix passed in [run 40273325510](https://github.com/oigorbrito/finecore/actions/runs/40273325510) on implementation commit `327f6279f9f9dbcf3ee56eb5668472e35313e835`. Every job verified scaffold/manifest-lock parity, ran `npm ci --engine-strict`, Vitest (1/1), build, TypeScript, full audit, and production-only audit; both audits reported zero vulnerabilities.
 
-The dependency lock graph and resolved package versions are unchanged from original PR head `080ddb9`; no runtime or security behavior changed. The only shipped contract change narrows the declared Node range to versions admitted by the required test tools. Node 20 remains technically supported by the template and passed the strict matrix, but it is EOL and this is not a security-support claim. The official schedule records 2026-04-30; the request's March date does not match that source.
+| Runner | Node | npm | Result |
+|---|---:|---:|---|
+| Ubuntu 24.04 | 20.20.2 | 10.8.2 | PASS |
+| Ubuntu 24.04 | 22.23.4 | 10.9.9 | PASS |
+| Ubuntu 24.04 | 24.22.1 | 11.19.1 | PASS |
+| Ubuntu 24.04 | 26.12.1 | 11.20.0 | PASS |
+| Windows 2022 | 22.23.4 | 10.9.9 | PASS |
+
+Locally, the scaffold integration test and `cargo fmt --all -- --check` pass. A fresh FineCore CLI-generated Node 26.10.0 scaffold also passed strict install, Vitest, build, TypeScript, `finecore plugin validate`, `finecore plugin test`, and both npm audits. The updated audit JSON is retained in `npm-audit/contract-node26-*.json`.
+
+Compared with original PR #112 head `080ddb9`, the resolved dependency graph and package versions are unchanged. The contract-only diff updates `engines.node` in both manifest and lockfile, synchronizes the scaffold assertion and generated README, and adds the focused matrix workflow/evidence. Node 20 is technically compatible and matrix-tested, but is EOL and receives no official security updates. The official schedule records 2026-04-30; the request's March date does not match that source.
 
 ## Review boundary
 
