@@ -1,0 +1,53 @@
+name: FOOTPRINT-01 preserved evidence replay (no builds)
+
+on:
+  push:
+    branches: [experiment/footprint-01-runtime]
+    paths:
+      - 'scripts/footprint_01.py'
+      - 'scripts/validate_footprint_artifact.py'
+      - 'scripts/test_footprint_01.py'
+      - 'docs/engineering/FOOTPRINT_01_RESULTS_40351250854.md'
+      - '.github/workflows/footprint-01-preserved-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout draft recovery only
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Offline Python regression tests and syntax
+        run: |
+          python3 -m py_compile scripts/footprint_01.py scripts/validate_footprint_artifact.py
+          python3 -m unittest scripts/test_footprint_01.py
+      - name: Retrieve original frozen experiment artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 40351250854 --repo oigorbrito/finecore \
+            --name footprint-01-40351250854 --dir preserved
+          json_file="$(find preserved -type f -name footprint-01-results.json -print -quit)"
+          test -n "$json_file" || { echo "Original JSON absent"; exit 1; }
+          printf 'EVIDENCE_DIR=%s\n' "$(dirname "$json_file")" >> "$GITHUB_ENV"
+      - name: Verify exact nine released binaries, 653 logs, repeat builds, and pairs
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_footprint_artifact.py "$EVIDENCE_DIR"
+      - name: Reproduce report without inference, builds, or benchmarks
+        run: |
+          set -euo pipefail
+          python3 scripts/footprint_01.py \
+            --render-existing "$EVIDENCE_DIR/footprint-01-results.json" \
+            --out rendered \
+            --artifact-url "https://github.com/oigorbrito/finecore/actions/runs/40351250854/artifacts/12678024189" \
+            --run-failure "The final report step raised FileNotFoundError for logs/logs/tool-version-rustc.log: the log reference already contained logs/ and the renderer added it again. All experiments completed and their evidence was uploaded."
+          diff -u docs/engineering/FOOTPRINT_01_RESULTS_40351250854.md rendered/FOOTPRINT_01_REPORT.md
