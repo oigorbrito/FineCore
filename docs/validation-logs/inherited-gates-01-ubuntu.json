@@ -1,6 +1,6 @@
 {
   "workflow_run": "https://github.com/oigorbrito/finecore/actions/runs/40335956763",
-  "artifact": "inherited-gates-01-40332327658",
+  "artifact": "inherited-gates-01-40335956763",
   "finecore_head": "edd244d1b759925da786a4ce5ab011ecb543f318",
   "orca_head": "2a9fd399cfbbaad773e3cbed92bb6e24d7561f01",
   "environment": {
@@ -30,10 +30,27 @@
   "gates": {
     "finecore": {
       "fmt": "PASS",
-      "source_size": {"result": "FAIL", "violations": 14, "exit_code": 1},
-      "clippy": {"result": "FAIL", "result_large_err_diagnostics": 13, "exit_code": 101},
-      "workspace_tests": {"result": "PASS", "passed": 1515, "failed": 0, "ignored": 7, "exit_code": 0},
-      "mcp_immediate_exit": {"passed": 20, "attempts": 20},
+      "source_size": {
+        "result": "FAIL",
+        "violations": 14,
+        "exit_code": 1
+      },
+      "clippy": {
+        "result": "FAIL",
+        "result_large_err_diagnostics": 13,
+        "exit_code": 101
+      },
+      "workspace_tests": {
+        "result": "PASS",
+        "passed": 1515,
+        "failed": 0,
+        "ignored": 7,
+        "exit_code": 0
+      },
+      "mcp_immediate_exit": {
+        "passed": 20,
+        "attempts": 20
+      },
       "benchmark_smoke": "PASS",
       "release_build": "PASS",
       "binary_size": {
@@ -49,10 +66,27 @@
     },
     "orca": {
       "fmt": "PASS",
-      "source_size": {"result": "FAIL", "violations": 15, "exit_code": 1},
-      "clippy": {"result": "FAIL", "result_large_err_diagnostics": 13, "exit_code": 101},
-      "workspace_tests": {"result": "PASS", "passed": 1516, "failed": 0, "ignored": 7, "exit_code": 0},
-      "mcp_immediate_exit": {"passed": 20, "attempts": 20},
+      "source_size": {
+        "result": "FAIL",
+        "violations": 15,
+        "exit_code": 1
+      },
+      "clippy": {
+        "result": "FAIL",
+        "result_large_err_diagnostics": 13,
+        "exit_code": 101
+      },
+      "workspace_tests": {
+        "result": "PASS",
+        "passed": 1516,
+        "failed": 0,
+        "ignored": 7,
+        "exit_code": 0
+      },
+      "mcp_immediate_exit": {
+        "passed": 20,
+        "attempts": 20
+      },
       "benchmark_smoke": "PASS",
       "release_build": "PASS",
       "binary_size": {
@@ -82,13 +116,34 @@
       "append_files_wall": -1.505
     },
     "paired_bootstrap_95_ci_percent": {
-      "distinct_wall": [-4.558, 20.218],
-      "distinct_single_average": [-1.498, 2.025],
-      "guarded_distinct_wall": [-10.194, 6.187],
-      "guarded_distinct_single_average": [-2.888, 0.785],
-      "batch_files_wall": [-2.278, 0.394],
-      "repeated_file_wall": [-1.526, 1.066],
-      "append_files_wall": [-4.4, 0.445]
+      "distinct_wall": [
+        -4.558,
+        20.218
+      ],
+      "distinct_single_average": [
+        -1.498,
+        2.025
+      ],
+      "guarded_distinct_wall": [
+        -10.194,
+        6.187
+      ],
+      "guarded_distinct_single_average": [
+        -2.888,
+        0.785
+      ],
+      "batch_files_wall": [
+        -2.278,
+        0.394
+      ],
+      "repeated_file_wall": [
+        -1.526,
+        1.066
+      ],
+      "append_files_wall": [
+        -4.4,
+        0.445
+      ]
     },
     "all_95_percent_paired_bootstrap_intervals_include_zero": true,
     "interpretation": "Exploratory; second independent 20-pair run, with runner/noise variability; no speedup or regression claim."
