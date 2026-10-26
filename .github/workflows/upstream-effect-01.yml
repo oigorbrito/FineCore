@@ -62,7 +62,7 @@ jobs:
           cp harness/docs/engineering/upstream-effect-01/upstream_effect.rs candidate/crates/tools/tests/upstream_effect.rs
           sha256sum base/crates/tools/tests/upstream_effect.rs candidate/crates/tools/tests/upstream_effect.rs | tee results/fixture-hashes.txt
           cmp base/crates/tools/tests/upstream_effect.rs candidate/crates/tools/tests/upstream_effect.rs
-      - name: FineCore baseline 100 reproducible workflow trials
+      - name: FineCore baseline 160 reproducible workflow trials
         working-directory: base
         shell: bash
         env:
@@ -70,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo test -p orca-harness-tools --test upstream_effect --locked -- --nocapture --test-threads=1 2>&1 | tee ../results/baseline.log
-      - name: Retry candidate 100 identical workflow trials
+      - name: Retry candidate 160 identical workflow trials
         working-directory: candidate
         shell: bash
         env:
