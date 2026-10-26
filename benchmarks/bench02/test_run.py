@@ -8,9 +8,9 @@ class Bench02StatisticsTest(unittest.TestCase):
     def test_parses_real_rust_harness_prefixes_before_reporting(self):
         report = run.load_report_module(Path(__file__).resolve().parents[2])
         record = '{"tool":"edit_file","scenario":"distinct","wall_seconds":0.1}'
-        prefixed = f"test distinct_file_latency_accuracy_and_concurrency ... {report.PREFIX}{record}\\nok\\n"
+        prefixed = f"test distinct_file_latency_accuracy_and_concurrency ... {report.PREFIX}{record}\nok\n"
         self.assertEqual(report.parse(prefixed), {})
-        for output in (prefixed, f"{report.PREFIX}{record}\\n", f".{report.PREFIX}{record}\\n"):
+        for output in (prefixed, f"{report.PREFIX}{record}\n", f".{report.PREFIX}{record}\n"):
             with self.subTest(output=output[:60]):
                 parsed = run.parse_core_tools_output(report, output)
                 self.assertEqual(parsed[("edit_file", "distinct")][0]["wall_seconds"], 0.1)
