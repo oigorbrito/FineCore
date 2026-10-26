@@ -373,6 +373,10 @@ fn python_and_typescript_scaffolds_have_expected_layout_and_do_not_overwrite() {
         lock["packages"][""]["devDependencies"],
         package["devDependencies"]
     );
+    assert_eq!(
+        lock["packages"][""]["engines"]["node"],
+        package["engines"]["node"]
+    );
     assert!(package["dependencies"]["@modelcontextprotocol/sdk"]
         .as_str()
         .unwrap()
@@ -392,23 +396,26 @@ fn python_and_typescript_scaffolds_have_expected_layout_and_do_not_overwrite() {
             "lock is missing {dependency}"
         );
     }
-    assert_eq!(package["engines"]["node"], ">=20");
+    assert_eq!(package["engines"]["node"], "^20.0.0 || ^22.0.0 || >=24.0.0");
     for (path, engine) in [
         ("node_modules/@modelcontextprotocol/sdk", ">=18"),
-        ("node_modules/vitest", "^18.0.0 || >=20.0.0"),
-        (
-            "node_modules/vitest/node_modules/vite",
-            "^18.0.0 || >=20.0.0",
-        ),
-        ("node_modules/vite-node", "^18.0.0 || >=20.0.0"),
-        (
-            "node_modules/vite-node/node_modules/vite",
-            "^18.0.0 || >=20.0.0",
-        ),
+        ("node_modules/vitest", "^20.0.0 || ^22.0.0 || >=24.0.0"),
+        ("node_modules/vite", "^18.0.0 || ^20.0.0 || >=22.0.0"),
         ("node_modules/esbuild", ">=18"),
         ("node_modules/typescript", ">=14.17"),
     ] {
         assert_eq!(lock["packages"][path]["engines"]["node"], engine, "{path}");
+    }
+    for path in [
+        "node_modules/vitest",
+        "node_modules/vite",
+        "node_modules/postcss",
+        "node_modules/source-map-js",
+    ] {
+        assert_eq!(
+            lock["packages"][path]["dev"], true,
+            "{path} must be dev-only"
+        );
     }
 
     let no_build = fixture.run(&fixture.root, &["plugin", "test", ts.to_str().unwrap()]);
