@@ -356,8 +356,86 @@ pub async fn run<M: Model + Clone + 'static>(
     match result {
         Ok(_) => 0,
         Err(err) => {
-            eprintln!("error: {err}");
+            eprintln!("error: {}", present_run_error(&err.to_string()));
             1
+        }
+    }
+}
+
+/// Render a terminal provider failure readably, without changing the NDJSON
+/// event stream or the exit status of headless runs.
+///
+/// Provider adapters carry encoded HTTP metadata in ModelError strings;
+/// non-provider failures (including cancellation) must remain untouched.
+fn present_run_error(error: &str) -> String {
+    let Some(explained) = orca_harness_model_providers::http_error::explain(error) else {
+        return error.to_owned();
+    };
+    let mut rendered = format!("{}: {}", explained.headline, explained.detail);
+    if let Some(hint) = explained.hint {
+        rendered.push_str("\nhint: ");
+        rendered.push_str(&hint);
+    }
+    rendered
+}
+
+#[cfg(test)]
+mod provider_error_tests {
+    use super::present_run_error;
+    use orca_harness_core::HarnessError;
+    use orca_harness_model_providers::http_error::request_error;
+
+    #[test]
+    fn headless_reports_rate_limit_with_provider_message_and_retry_hint() {
+        let failure = HarnessError::Model(request_error(
+            429,
+            Some("7"),
+            r#"{"error":{"message":"Too many requests"}}"#,
+        ));
+        let message = present_run_error(&failure.to_string());
+        assert!(message.contains("HTTP 429"), "{message}");
+        assert!(message.contains("rate limited"), "{message}");
+        assert!(message.contains("Too many requests"), "{message}");
+        assert!(message.contains("hint: retry in 7s"), "{message}");
+        assert!(!message.contains("provider HTTP error:"), "{message}");
+        assert!(!message.contains(r#""error":"#), "{message}");
+    }
+
+    #[test]
+    fn headless_reports_authentication_failure_without_raw_json() {
+        let failure = HarnessError::Model(request_error(
+            401,
+            None,
+            r#"{"error":{"message":"Invalid API key"}}"#,
+        ));
+        let message = present_run_error(&failure.to_string());
+        assert!(message.contains("HTTP 401"), "{message}");
+        assert!(message.contains("not authenticated"), "{message}");
+        assert!(message.contains("Invalid API key"), "{message}");
+        assert!(message.contains("check the API key"), "{message}");
+        assert!(!message.contains(r#""error":"#), "{message}");
+    }
+
+    #[test]
+    fn headless_unwraps_nested_provider_message() {
+        let inner = serde_json::json!({"error": {"message": "Region denied"}}).to_string();
+        let body = serde_json::json!({"error": {"message": inner}}).to_string();
+        let failure = HarnessError::Model(request_error(403, None, &body));
+        let message = present_run_error(&failure.to_string());
+        assert!(message.contains("HTTP 403"), "{message}");
+        assert!(message.contains("Region denied"), "{message}");
+        assert!(!message.contains(r#""error":"#), "{message}");
+    }
+
+    #[test]
+    fn headless_preserves_plain_errors_and_cancellation() {
+        for failure in [
+            HarnessError::Cancelled,
+            HarnessError::DeadlineExceeded,
+            HarnessError::Internal("unexpected condition".into()),
+        ] {
+            let original = failure.to_string();
+            assert_eq!(present_run_error(&original), original);
         }
     }
 }
