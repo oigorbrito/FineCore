@@ -138,7 +138,15 @@ pub(crate) fn parse_run_args(args: Vec<String>) -> Result<Config, String> {
         return Err("--max-output-tokens is not supported by openai-codex".into());
     }
 
-    let api_key = api_key.or_else(|| provider.resolve_key());
+    // Reading another application's auth file is strictly opt-in. Only
+    // Pi API-key entries are accepted; OAuth grants are not bearer API keys.
+    // An explicitly specified --api-key always wins.
+    let pi_key = if api_key.is_none() && provider.key_env().is_some() {
+        crate::auth::pi_compat::configured_key(provider.label())?
+    } else {
+        None
+    };
+    let api_key = api_key.or(pi_key).or_else(|| provider.resolve_key());
     let firecrawl_key = firecrawl_key.or_else(|| std::env::var("FIRECRAWL_API_KEY").ok());
     let base_url = base_url.unwrap_or_else(|| match provider {
         Provider::OpenRouter => openrouter::OPENROUTER_BASE_URL.into(),
