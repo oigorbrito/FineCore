@@ -15,9 +15,11 @@ import os
 import platform
 import random
 import re
+import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from pathlib import Path
@@ -257,8 +259,9 @@ def main() -> int:
     (out / "tool-versions.json").write_text(json.dumps(versions, indent=2) + "\n", encoding="utf-8")
 
     all_results = {}
+    target_root = Path(tempfile.mkdtemp(prefix="inherited-gates-targets-")).resolve()
     for name, root in roots.items():
-        target = (out / "target" / name).resolve()
+        target = (target_root / name).resolve()
         env = os.environ.copy()
         env["CARGO_TARGET_DIR"] = str(target)
         results: list[dict] = []
@@ -373,7 +376,7 @@ def main() -> int:
     # bootstrap interval is exploratory: it is not a performance claim.
     bench = {name: [] for name in roots}
     for name, root in roots.items():
-        target = (out / "target" / name).resolve()
+        target = (target_root / name).resolve()
         env = os.environ.copy()
         env["CARGO_TARGET_DIR"] = str(target)
         record_gate(f"{name}-benchmark-warmup", BENCH_CMD, root, env, logs, all_results[name]["gates"])
@@ -382,7 +385,7 @@ def main() -> int:
         for name in order:
             root = roots[name]
             env = os.environ.copy()
-            env["CARGO_TARGET_DIR"] = str((out / "target" / name).resolve())
+            env["CARGO_TARGET_DIR"] = str((target_root / name).resolve())
             label = f"benchmark-{name}-{sample:02d}"
             code, output = record_gate(label, BENCH_CMD, root, env, logs, all_results[name]["gates"])
             if code == 0:
@@ -417,6 +420,7 @@ def main() -> int:
         "ordinary_gate_failures_are_preserved": True,
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    shutil.rmtree(target_root, ignore_errors=True)
     provenance_checks = (
         "same_external_dependency_graph",
         "same_workspace_dependencies",
