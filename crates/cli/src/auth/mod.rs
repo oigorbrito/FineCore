@@ -1,6 +1,7 @@
 //! Provider-neutral host authentication dispatch.
 
 mod oauth_device;
+pub(crate) mod pi_compat;
 mod openai_codex;
 mod store;
 
