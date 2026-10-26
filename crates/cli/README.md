@@ -1,6 +1,6 @@
-# `orcacode`
+# `finecore`
 
-`orcacode` is the reference terminal host for Orca Harness. It wires together the execution kernel, model providers, authentication, baseline and optional tools, lifecycle extensions, session storage, and a Ratatui-based interactive UI.
+`finecore` is FineCore's terminal host, derived from the Orcacode host in Orca Harness. It wires together the execution kernel, model providers, authentication, baseline and optional tools, lifecycle extensions, session storage, and a Ratatui-based interactive UI. The `orca-harness-*` library crate names and existing runtime configuration identifiers are retained for compatibility and provenance.
 
 ## Modes
 
@@ -13,10 +13,10 @@
 ## Usage
 
 ```bash
-cargo run --release -p orcacode
-cargo run --release -p orcacode -- -p "your prompt"
-cargo run --release -p orcacode -- --json -p "your prompt"
-cargo run --release -p orcacode -- --plan -p "design the change"
+cargo run --release -p finecore
+cargo run --release -p finecore -- -p "your prompt"
+cargo run --release -p finecore -- --json -p "your prompt"
+cargo run --release -p finecore -- --plan -p "design the change"
 ```
 
 Session modes are selected with `/mode` interactively or startup flags; when
@@ -34,17 +34,17 @@ at a worker command boundary and preserve local processes and interpreter
 state. Headless runs await initialization before running the prompt. See the
 workspace [MCP documentation](../../README.md) for configuration and limits.
 
-Common options include `--model`, `--base-url`, `--api-key`, `--openrouter`, `--workspace`, `--tools`, `--bare`, `--max-steps`, `--continue`, `--resume`, and `--no-session`. Run `orcacode --help` for the complete list.
+Common options include `--model`, `--base-url`, `--api-key`, `--openrouter`, `--workspace`, `--tools`, `--bare`, `--max-steps`, `--continue`, `--resume`, and `--no-session`. Run `finecore --help` for the complete list.
 
-Provider settings, themes, API keys, approval rules, and selected models are persisted under `~/.config/orcacode`; flags and environment variables take precedence. Vercel AI Gateway uses `AI_GATEWAY_API_KEY` and its OpenAI-compatible endpoint. Sessions are stored per workspace and can be listed, resumed, rewound, or forked from the TUI. OpenAI Codex can use the device-login flow and does not require an API key.
+FineCore has no configured self-update/release channel yet; the `update` command fails closed and automatic upstream update checks are disabled. Provider settings, themes, API keys, approval rules, and selected models remain persisted under `~/.config/orcacode` for compatibility; flags and environment variables take precedence. Vercel AI Gateway uses `AI_GATEWAY_API_KEY` and its OpenAI-compatible endpoint. Sessions are stored per workspace and can be listed, resumed, rewound, or forked from the TUI. OpenAI Codex can use the device-login flow and does not require an API key.
 
 ```bash
-cargo test -p orcacode
+cargo test -p finecore
 ```
 
 ## Orchestrate mode
 
-Start with `orcacode --orchestrate`, select `/mode orchestrate` in the terminal,
+Start with `finecore --orchestrate`, select `/mode orchestrate` in the terminal,
 or choose it from the bare `/mode` picker. Leave with `/mode normal`. This mode
 is session-local and is not saved to configuration; normal remains the startup
 default without a mode flag.
@@ -62,7 +62,7 @@ workers view orchestrate as normal, but switching to plan restricts their next
 tool calls too. Parent gated calls still need approval. For headless delegation:
 
 ```bash
-orcacode --orchestrate --auto-approve -p "Delegate focused tests and summarize the results"
+finecore --orchestrate --auto-approve -p "Delegate focused tests and summarize the results"
 ```
 
 `--auto-approve` permits gated calls without removing the parent allowlist.
@@ -78,6 +78,6 @@ and [worker configuration](../../docs/external/index.html#subagents).
 
 ## Workspace role
 
-The binary is a host and reference application, not the execution kernel. It supplies the terminal UX and chooses the default provider, tools, extensions, approval behavior, and session storage. Embed Orca Harness through [`orca-harness-sdk`](../sdk) or the lower-level crates when you need a different host.
+The FineCore binary is a host application, not the execution kernel. It supplies terminal UX and chooses the default provider, tools, extensions, approval behavior, and session storage. Embed the underlying Orca Harness through [`orca-harness-sdk`](../sdk) or the lower-level crates when you need a different host.
 
 Related documentation: the workspace [README](../../README.md) and [crate diagram](../../docs/crate-diagram.md).

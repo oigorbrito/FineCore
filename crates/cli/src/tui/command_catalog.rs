@@ -332,7 +332,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "quit",
-        description: "exit orcacode",
+        description: "exit finecore",
         category: "General",
         takes_args: false,
     },

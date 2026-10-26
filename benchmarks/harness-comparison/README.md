@@ -1,11 +1,17 @@
-# Orcacode versus Pi versus Oh My Pi versus Claude Code live benchmark
+# FineCore versus Pi versus Oh My Pi versus Claude Code live benchmark
 
-This suite compares the complete Orcacode, Pi, Oh My Pi (`omp`), and Claude Code
-headless harnesses on the same isolated workload. It measures correctness,
+> Checked-in result files are historical Orcacode evidence, not FineCore
+> measurements. The runner preserves the `orca` series key for schema
+> compatibility, but new runs resolve the FineCore binary; the run manifest's
+> binary path, version, and hash identify the actual executable. No FineCore
+> live benchmark has been recorded during this migration.
+
+This inherited suite compares the complete FineCore, Pi, Oh My Pi (`omp`), and
+Claude Code headless harnesses on the same isolated workload. It measures correctness,
 latency, tool behavior, token use, cache behavior, and normalized token cost. It
 does not run a server and never points any harness at the repository checkout.
 
-`--harness orca-kiss` runs Orcacode against
+`--harness orca-kiss` runs FineCore against
 [KISS](https://github.com/racetozero/kiss) alone; `all` includes KISS as a fifth harness. KISS mirrors Pi's CLI and JSON event stream, so it reuses Pi's parser and
 shares Pi's caveat about step and output-token ceilings.
 
@@ -15,7 +21,7 @@ The benchmark is scripted before execution:
   order, captures timestamped raw streams, enforces timeouts, and validates
   changed files.
 - [`analyze.py`](analyze.py) derives correctness, TTFT, wall time, tool timing,
-  token economics, per-task medians, and paired Orcacode deltas.
+  token economics, per-task medians, and paired FineCore deltas.
 - [`render_html.py`](render_html.py) exports a dependency-free static report from
   the analyzed JSON artifacts.
 - [`tasks.json`](tasks.json) is the reviewable workload and scoring contract.
@@ -31,7 +37,7 @@ The runner defaults to:
 
 | Setting | Value |
 | :-- | :-- |
-| Harnesses | Orcacode, Pi, Oh My Pi, and Claude Code |
+| Harnesses | FineCore, Pi, Oh My Pi, and Claude Code |
 | Gateway | OpenRouter; underlying provider endpoint is not pinned |
 | Model | `anthropic/claude-haiku-4.5` |
 | Reasoning effort | `low` |
@@ -40,8 +46,8 @@ The runner defaults to:
 | Total attempts | 192 |
 | Order | Alternates by task and repetition |
 | Attempt timeout | 45 seconds |
-| Model-step ceiling | 24 for Orcacode and Claude Code; external timeout bounds Pi and Oh My Pi |
-| Output-token ceiling | 1,536 for Orcacode and Claude Code; provider defaults for Pi and Oh My Pi |
+| Model-step ceiling | 24 for FineCore and Claude Code; external timeout bounds Pi and Oh My Pi |
+| Output-token ceiling | 1,536 for FineCore and Claude Code; provider defaults for Pi and Oh My Pi |
 | Prompt caching | On; opt out with `--no-prompt-cache` where supported |
 | User extensions and context | Disabled |
 
@@ -51,7 +57,7 @@ historical run. The model remains overrideable so a recorded run never depends
 on an implicit catalog choice.
 
 Pi and Oh My Pi do not expose the same print-mode step and output-token flags as
-Orcacode and Claude Code. The common parent-process timeout remains enforced for
+FineCore and Claude Code. The common parent-process timeout remains enforced for
 every attempt, and each raw record retains the exact command. Do not interpret
 the manifest's requested ceilings as provider-side controls where the command
 does not contain them.
@@ -94,9 +100,10 @@ python3 benchmarks/harness-comparison/run.py --dry-run --harness orca-kiss
 
 ## Run and analyze
 
-Build Orcacode separately, make `pi`, `omp`, and `claude` available, export the
+Build FineCore separately, make `pi`, `omp`, and `claude` available, export the
 OpenRouter key through the environment, then start the benchmark from the
-repository root:
+repository root. Use `--finecore-bin PATH` to select a binary explicitly;
+`--orca-bin` remains an alias for compatibility:
 
 ```bash
 export OPENROUTER_API_KEY='...'
@@ -104,7 +111,7 @@ python3 benchmarks/harness-comparison/run.py
 ```
 
 The key is never placed in a prompt, command argument, manifest, or raw record.
-The runner resolves `target/release/orcacode`, `pi`, `omp`, and `claude`, records
+The runner resolves `target/release/finecore`, `pi`, `omp`, and `claude`, records
 their versions, and creates a timestamped directory under
 `benchmarks/results/harness-comparison/`.
 
@@ -167,12 +174,12 @@ The runner applies these controls to all four harnesses:
   run timeout;
 - fresh ephemeral workspace and session for every attempt;
 - sequential attempts to avoid local resource contention;
-- rotating Orcacode/Pi/Oh My Pi/Claude Code order across tasks and repetitions;
+- rotating FineCore/Pi/Oh My Pi/Claude Code order across tasks and repetitions;
 - no shell, process, server, web, MCP, skill, plugin, or subagent tools;
 - no retries that could replace a failed primary attempt;
 - raw output retained even when an attempt times out or fails validation.
 
-Orcacode uses `--bare` with an explicit tool allowlist. Pi disables extensions,
+FineCore uses `--bare` with an explicit tool allowlist. Pi disables extensions,
 skills, prompt templates, themes, context files, project approvals, and session
 persistence. Oh My Pi uses JSON print mode with isolated state and `HOME`,
 explicit tools, and extensions, skills, rules, context discovery, LSP, PTY,
@@ -219,14 +226,14 @@ portion, but it is still not a provider-side network trace.
 Tool-duration sums can exceed wall time when independent tools run in parallel.
 Use the maximum tool duration and raw timeline when diagnosing concurrency.
 Claude Code's stream exposes model-side `tool_use` and a later `tool_result`, but
-not execution start/end events equivalent to Orcacode, Pi, and Oh My Pi. Its tool
+not execution start/end events equivalent to FineCore, Pi, and Oh My Pi. Its tool
 count is reported; first-tool and tool-duration metrics are left unavailable.
 
 ## Token economics
 
 Provider-reported usage is mapped consistently:
 
-| Metric | Orcacode | Pi | Oh My Pi | Claude Code |
+| Metric | FineCore | Pi | Oh My Pi | Claude Code |
 | :-- | :-- | :-- | :-- | :-- |
 | Uncached input | Final summary `inputTokens` | Sum assistant usage `input` | Sum assistant usage `input` | Final result `input_tokens` |
 | Output | Final summary `outputTokens` | Sum assistant usage `output` | Sum assistant usage `output` | Final result `output_tokens` |
@@ -288,7 +295,7 @@ Export a reviewed HTML report separately when a result is ready to publish.
   open-ended coding quality.
 - Edit validation proves the declared fixture change, not compilation or test
   success, because shell and code execution are intentionally excluded.
-- Orcacode prompt caching is on by default. Haiku 4.5 requires a 4,096-token
+- FineCore prompt caching is on by default. Haiku 4.5 requires a 4,096-token
   cacheable prefix, so short attempts can still report zero reads and writes.
   Use a controlled long-prefix profile before drawing cache-economics conclusions.
 

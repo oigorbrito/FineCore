@@ -167,7 +167,7 @@ mod tests {
     fn prompt() -> ApprovalPrompt<'static> {
         ApprovalPrompt {
             tool_name: "shell",
-            detail: "shell $ cargo test -p orcacode tui::components -- --nocapture",
+            detail: "shell $ cargo test -p finecore tui::components -- --nocapture",
             yes_no: false,
             selected: None,
         }

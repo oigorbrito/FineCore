@@ -397,9 +397,9 @@
         app.last_answer = Some("the answer text in the left pane".into());
         app.activity_tools.push(ToolActivity {
             call_id: "call-shell".into(),
-            call_line: "shell $ cargo run --release -p orcacode".into(),
+            call_line: "shell $ cargo run --release -p finecore".into(),
             tool_name: "shell".into(),
-            input: serde_json::json!({"command": "cargo run --release -p orcacode"}),
+            input: serde_json::json!({"command": "cargo run --release -p finecore"}),
             started: Instant::now(),
             execution_started: None,
             execution_elapsed: None,
@@ -414,7 +414,7 @@
         let copied = app.clipboard_pending.take().expect("tool copy");
 
         assert!(
-            copied.contains("cargo run --release -p orcacode") && copied.contains("compiling"),
+            copied.contains("cargo run --release -p finecore") && copied.contains("compiling"),
             "inspector pane should come out whole: {copied}"
         );
         assert!(

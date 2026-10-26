@@ -17,8 +17,8 @@ members = [
 version = "0.9.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/okikorg/orca-harness"
-homepage = "https://orcapods.ai/orcacode"
+repository = "https://github.com/oigorbrito/finecore"
+homepage = "https://github.com/oigorbrito/finecore"
 
 [workspace.dependencies]
 async-trait = "0.1"

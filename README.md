@@ -1,17 +1,17 @@
 <div align="center">
 
-# Orcacode
+# FineCore
 
-**A small, fast coding agent for your terminal, built on an embeddable Rust agent harness.**
+**FineCore is a coding agent derived from Orcacode and built on the Orca Harness Rust workspace.**
 
-One static binary (6.5 MB on macOS). One process. Any model.
+This migration is based on `okikorg/orca-harness` commit `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`. FineCore preserves upstream notices and crate/API identifiers where changing them would break compatibility. The installers, release links, external field manual, and historical showcases below refer to upstream Orcacode; they are not FineCore releases or support claims.
 
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/okikorg/orca-harness?label=release)](https://github.com/okikorg/orca-harness/releases)
-[![Docs](https://img.shields.io/badge/docs-field%20manual-black.svg)](https://orcapods.ai/orcacode/docs/#start)
+[![Upstream Orcacode release](https://img.shields.io/github/v/release/okikorg/orca-harness?label=upstream%20release)](https://github.com/okikorg/orca-harness/releases)
+[![Upstream Orcacode docs](https://img.shields.io/badge/docs-upstream%20field%20manual-black.svg)](https://orcapods.ai/orcacode/docs/#start)
 [![Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](rust-toolchain.toml)
 
-[Install](#install) · [Quick start](#quick-start) · [Docs](https://orcapods.ai/orcacode/docs/#start) · [Embed the harness](#embed-the-harness) · [Contributing](#contributing)
+[Install](#install) · [Quick start](#quick-start) · [Upstream docs](https://orcapods.ai/orcacode/docs/#start) · [Embed the harness](#embed-the-harness) · [Contributing](#contributing)
 
 </div>
 
@@ -38,20 +38,20 @@ One static binary (6.5 MB on macOS). One process. Any model.
 
 </div>
 
-Orcacode is a terminal coding agent. It reads your repo, runs commands, edits
-files, and delegates work to parallel subagents, and it asks before any of
-that touches your machine. You can sign in with ChatGPT, use an API key, or
-point it at a local model.
+FineCore is a terminal coding agent derived from the Orcacode host. It reads
+your repo, runs commands, edits files, and delegates work to parallel
+subagents, with approval controls for actions that touch your machine. You can
+sign in with ChatGPT, use an API key, or point it at a local model.
 
 Underneath is **Orca Harness**, a minimal agent execution kernel. The loop is
 small and fast: it fans out 100 parallel tool calls in well under a
 millisecond. Everything else (memory, MCP, policy, retries, sessions) plugs in
-as an extension. Orcacode is one host built on it, and you can build your own
+as an extension. FineCore is one host built on it, and you can build your own
 through the Rust SDK.
 
 > **The loop is sacred. Everything around it is extensible.**
 
-## Why Orcacode
+## Why FineCore
 
 - **Tiny and native.** A single static binary with no Node, Python or Bun
   runtime to install. It idles at about 26 MB. See the
@@ -71,6 +71,9 @@ through the Rust SDK.
 
 ## Install
 
+> The installers below install upstream Orcacode, **not FineCore**. FineCore
+> does not yet have an official release or installer; build it from source below.
+
 macOS and Linux:
 
 ```sh
@@ -86,14 +89,14 @@ irm https://orcapods.ai/orcacode.ps1 | iex
 The installer picks the right build for your OS and architecture, checks its
 SHA-256 checksum, and writes one executable to `~/.local/bin`. Every release
 is also on the [releases page](https://github.com/okikorg/orca-harness/releases)
-with a `SHA256SUMS` file. `orcacode update` upgrades in place.
+with a `SHA256SUMS` file. The inherited `orcacode update` command does not update FineCore.
 
 From source (Rust stable, selected by `rust-toolchain.toml`):
 
 ```sh
-git clone https://github.com/okikorg/orca-harness
-cd orca-harness
-cargo run --release -p orcacode
+git clone https://github.com/oigorbrito/finecore
+cd finecore
+cargo run --release -p finecore
 ```
 
 ## Quick start
@@ -102,14 +105,14 @@ Run it from the repository you want it to work in:
 
 ```sh
 cd your-repo
-orcacode --plan        # read-only first session: it explores and proposes, never edits
+finecore --plan        # read-only first session: it explores and proposes, never edits
 ```
 
 Pick a model:
 
 | Provider             | How                                                                            |
 | :------------------- | :----------------------------------------------------------------------------- |
-| ChatGPT subscription | run `orcacode`, type `/provider`, pick `openai-codex`, complete the device login |
+| ChatGPT subscription | run `finecore`, type `/provider`, pick `openai-codex`, complete the device login |
 | OpenAI API           | set `OPENAI_API_KEY`                                                           |
 | Anthropic            | set `ANTHROPIC_API_KEY` and pass `--anthropic`                                  |
 | OpenRouter           | set `OPENROUTER_API_KEY` and pass `--openrouter`                               |
@@ -128,13 +131,13 @@ grant for this workspace, and `n` denies. Switch modes live with `/mode`.
 Run a prompt unattended, for scripts and CI:
 
 ```sh
-orcacode -p "Summarize the failing tests"            # transcript to the terminal
-orcacode --json -p "Summarize the failing tests"     # one NDJSON event per line
-orcacode --bare --no-session -p "List the files here" # read-only tools, no extras
+finecore -p "Summarize the failing tests"            # transcript to the terminal
+finecore --json -p "Summarize the failing tests"     # one NDJSON event per line
+finecore --bare --no-session -p "List the files here" # read-only tools, no extras
 ```
 
-The [start guide](https://orcapods.ai/orcacode/docs/#start) goes from here to
-a full multi-provider setup in three steps.
+The [upstream Orcacode start guide](https://orcapods.ai/orcacode/docs/#start)
+contains inherited setup instructions; it is not FineCore-specific documentation.
 
 ## Features
 
@@ -152,10 +155,11 @@ a full multi-provider setup in three steps.
 
 ## Embed the harness
 
-Orcacode is a reference host. The same kernel is a library.
+FineCore is a reference host. The same kernel is a library.
 `orca-harness-sdk` composes models, tools, sessions, memory, skills, MCP,
-subagents and workflows behind one dependency. It isn't on crates.io yet, so
-depend on it by tag:
+subagents and workflows behind one dependency. The following is the upstream
+Orca Harness dependency example, not a FineCore release; FineCore has not
+published Rust SDK packages. It isn't on crates.io yet, so depend on it by tag:
 
 ```toml
 [dependencies]
@@ -237,7 +241,7 @@ container through an `Executor` (`Executor::ssh("user@host")`,
 | `crates/extensions`         | events, policy, memory, compaction, truncation, retry, usage, sessions          |
 | `crates/harness-dag`        | validated DAG workflows with dynamic map expansion                              |
 | `crates/sdk`                | the high-level Rust facade                                                      |
-| `crates/cli`                | `orcacode`, the terminal host                                                   |
+| `crates/cli`                | `finecore`, the terminal host                                                   |
 
 [`docs/crate-diagram.md`](docs/crate-diagram.md) has the dependency graph and
 [`docs/design.html`](docs/design.html) walks through the design.
@@ -386,7 +390,7 @@ cancellation tests prove propagation into in-flight fan-out.
 Contributions are welcome: bug reports, docs fixes, new providers, tools and
 extensions.
 
-1. Open an [issue](https://github.com/okikorg/orca-harness/issues) to report a
+1. Open a [FineCore issue](https://github.com/oigorbrito/finecore/issues) to report a
    bug or discuss a change before you build it.
 2. Fork, branch, and keep the change focused. Match the surrounding code and
    add tests for behavior you change.
@@ -401,13 +405,13 @@ Apache License 2.0.
 
 ## Get involved
 
-- **Try it:** `curl -fsSL https://orcapods.ai/orcacode.sh | sh`, then `orcacode --plan` in any repo.
-- **Star the repo** if Orcacode is useful to you. It helps other people find it.
-- **Read the [field manual](https://orcapods.ai/orcacode/docs/#start)** for every mode, tool and command.
-- **Tell us what broke** or what you want next in [issues](https://github.com/okikorg/orca-harness/issues).
+- **Try FineCore:** build from source with `cargo run --release -p finecore -- --plan`.
+- **Star the FineCore repo** if it is useful to you; it helps others find the project.
+- **Read the [upstream Orcacode field manual](https://orcapods.ai/orcacode/docs/#start)** for inherited documentation; it is not FineCore-specific.
+- **Tell us what broke** or what you want next in [FineCore issues](https://github.com/oigorbrito/finecore/issues).
 
 ## License
 
-Orcacode and Orca Harness are licensed under the
+FineCore, Orcacode, and Orca Harness are licensed under the
 [Apache License, Version 2.0](LICENSE). Copyright 2026 Okik Org. See
 [`NOTICE`](NOTICE).

@@ -1,10 +1,10 @@
-# Orca Harness crate diagram
+# FineCore workspace crate diagram
 
 This diagram shows the workspace's **runtime internal crate dependencies**. External crates from crates.io are omitted. Development-only dependencies are listed below because they do not participate in the shipped dependency graph.
 
 ```mermaid
 flowchart TD
-    CLI[orcacode\ninteractive CLI / host]
+    CLI[finecore\ninteractive CLI / host]
     CORE[orca-harness-core\nagent execution kernel\ndeterministic tool dispatcher]
     EXT[orca-harness-extensions\nevent stream / policy / retries\ntruncation / usage metering]
     TOOLS[orca-harness-tools\nshell / file I/O / search]
@@ -35,7 +35,7 @@ flowchart TD
 - `orca-harness-extensions`, the baseline tools, and optional tool-extensions depend directly on the core.
 - `orca-harness-model-providers` depends on the core execution contracts and the provider-neutral authentication boundary.
 - Provider modules share protocol implementations internally; OpenRouter reuses the OpenAI-compatible adapter.
-- `orcacode` is the composition root: it wires the kernel, authentication, extensions, tools, model adapters, and terminal UI together.
+- `finecore` is the composition root: it wires the kernel, authentication, extensions, tools, model adapters, and terminal UI together.
 
 ## Development-only dependencies
 

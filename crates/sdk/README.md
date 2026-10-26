@@ -27,7 +27,7 @@ Each of the four namespaces below is the complete grouping for its area:
 - `orchestration`: subagent, background process, and workflow handles.
 - `integrations`: MCP, skills, web, memory, session recording, and reusable extension handles (events, policy, usage, retries, truncation, compaction).
 
-`tests/consumer_api.rs` is the baseline: it depends on `orca_harness_sdk` alone and implements every contract. Use `orcacode` when you want the reference terminal host rather than a Rust embedding API.
+`tests/consumer_api.rs` is the baseline: it depends on `orca_harness_sdk` alone and implements every contract. Use the `finecore` binary when you want FineCore's terminal host rather than a Rust embedding API.
 
 ```bash
 cargo test -p orca-harness-sdk
@@ -117,7 +117,7 @@ thinks streams reasoning as `ModelDelta::Reasoning`, and its signed thinking
 blocks are replayed on the assistant turn that produced them. Provider-hosted
 tools are not supported in this version.
 
-In the CLI, use `orcacode --anthropic -p "Hello"` with `ANTHROPIC_API_KEY`, or select
+In the FineCore CLI, use `finecore --anthropic -p "Hello"` with `ANTHROPIC_API_KEY`, or select
 `anthropic` through `/provider`. The CLI enables prompt-cache hints by default;
 `--no-prompt-cache` disables them.
 

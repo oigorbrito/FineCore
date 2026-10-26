@@ -34,14 +34,14 @@ BENCH_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Seconds. Basic and new-session startup are strict product targets;
 # other scenarios retain their existing regression ceilings.
 STARTUP_BUDGETS = {
-    "orcacode --help": 0.010,
-    "orcacode (startup)": 0.00327,
-    "orcacode (startup, new session)": 0.00327,
-    "orcacode (startup, skills)": 0.016,
-    "orcacode (resume)": 0.020,
+    "finecore --help": 0.010,
+    "finecore (startup)": 0.00327,
+    "finecore (startup, new session)": 0.00327,
+    "finecore (startup, skills)": 0.016,
+    "finecore (resume)": 0.020,
 }
 DEFAULT_STARTUP_BUDGET = 0.012
-STRICT_BUDGETS = {"orcacode (startup)", "orcacode (startup, new session)"}
+STRICT_BUDGETS = {"finecore (startup)", "finecore (startup, new session)"}
 
 # Seconds. p99 over the iteration count kernel/run.sh runs (5000 in --ci), so
 # these are percentiles rather than worst samples. Roughly 5-20x what a

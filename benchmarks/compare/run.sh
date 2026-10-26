@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Head-to-head startup comparison: orcacode against fx
+# Head-to-head startup comparison: FineCore against fx
 # (https://github.com/vercel-labs/fx), the other native-binary agent CLI
 # this project measures itself against.
 #
@@ -9,7 +9,7 @@
 # The obvious pairing is wrong. Both binaries have a benchmark env var,
 # but they do not mean the same thing:
 #
-#   ORCA_BENCH=1 orcacode   runs the whole cold start — config, six skill
+#   ORCA_BENCH=1 FineCore   runs the whole cold start — config, six skill
 #                           roots, system prompt, tool and extension
 #                           registries, agent build — then exits before the
 #                           terminal UI.
@@ -20,7 +20,7 @@
 #                           `shouldRunBenchmarkNoArgRaw` in src/main.zig,
 #                           which calls cli_surface.parse and exitFast(0).
 #
-# Pairing those two would compare orcacode's full startup against fx's
+# Pairing those two would compare FineCore's full startup against fx's
 # argument parser and make fx look ~2.5x faster than the comparison
 # supports. So this script groups commands by the work they actually do:
 #
@@ -28,7 +28,7 @@
 #   tier 2  settings loaded, filesystem touched, then exit
 #
 # Even within a tier the work is not identical — fx's status probes auth
-# and the workspace, orcacode's startup builds an agent — so treat this as
+# and the workspace, FineCore's startup builds an agent — so treat this as
 # "what each product's cold start costs", never as "this path is better
 # engineered". Report the build mode of both binaries alongside any number.
 #
@@ -47,7 +47,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BENCH_DIR="${REPO_ROOT}/benchmarks"
-ORCA_BIN="${ORCA_BIN:-${REPO_ROOT}/target/release/orcacode}"
+FINECORE_BIN="${FINECORE_BIN:-${ORCA_BIN:-${REPO_ROOT}/target/release/finecore}}"
 FX_BIN="${FX_BIN:-$(command -v fx || true)}"
 RESULTS_DIR="${BENCH_DIR}/results/compare"
 FIXTURE_ROOT="${TMPDIR:-/tmp}/orca-compare-benchmark-$$"
@@ -65,8 +65,8 @@ if [ -z "$FX_BIN" ] || [ ! -x "$FX_BIN" ]; then
   echo "error: no fx binary found — set FX_BIN=/path/to/fx"
   exit 1
 fi
-if [ ! -x "$ORCA_BIN" ]; then
-  echo "error: orcacode binary not found at $ORCA_BIN (cargo build --release -p orcacode)"
+if [ ! -x "$FINECORE_BIN" ]; then
+  echo "error: FineCore binary not found at $FINECORE_BIN (cargo build --release -p finecore)"
   exit 1
 fi
 
@@ -136,8 +136,8 @@ bench() {
 fx_env=("HOME=${FX_HOME}")
 orca_env=("HOME=${FIXTURE_HOME}" "ORCA_CONFIG_DIR=${FIXTURE_CONFIG}")
 
-echo "=== orcacode vs fx: cold start ==="
-echo "orcacode: $ORCA_BIN"
+echo "=== FineCore vs fx: cold start ==="
+echo "FineCore: $FINECORE_BIN"
 echo "fx:       $FX_BIN"
 echo "runs:     $RUNS (warmup: $WARMUP)"
 echo ""
@@ -146,17 +146,17 @@ bench "process baseline" 0-baseline "$TRUE_BIN"
 
 # Tier 1: argv parsed, nothing read.
 bench "fx (arg parse)" 1-fx-parse "$(quoted "$FX_BIN")" "${fx_env[@]}" FX_BENCH=1
-bench "orcacode --help" 2-orca-help "$(quoted "$ORCA_BIN") --help" "${orca_env[@]}"
+bench "finecore --help" 2-orca-help "$(quoted "$FINECORE_BIN") --help" "${orca_env[@]}"
 
 # Tier 2: settings loaded, filesystem touched, exit.
 bench "fx status --json" 3-fx-status "$(quoted "$FX_BIN") status --json" "${fx_env[@]}"
 bench "fx doctor --json" 4-fx-doctor "$(quoted "$FX_BIN") doctor --json" "${fx_env[@]}"
-bench "orcacode (startup)" 5-orca-startup \
-  "$(quoted "$ORCA_BIN") --no-session --workspace $(quoted "$FIXTURE_WORKSPACE")" \
+bench "finecore (startup)" 5-orca-startup \
+  "$(quoted "$FINECORE_BIN") --no-session --workspace $(quoted "$FIXTURE_WORKSPACE")" \
   "${orca_env[@]}" ORCA_BENCH=1
 
 echo "--- binary size ---"
-python3 - "$ORCA_BIN" "$FX_BIN" <<'PY'
+python3 - "$FINECORE_BIN" "$FX_BIN" <<'PY'
 import os
 import sys
 

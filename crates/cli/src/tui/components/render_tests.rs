@@ -140,7 +140,7 @@ fn component_widths_and_cursor_stay_inside_the_pane() {
         lines.extend(
             approval::ApprovalPrompt {
                 tool_name: "shell",
-                detail: "cargo test -p orcacode components",
+                detail: "cargo test -p finecore components",
                 yes_no: false,
                 selected: None,
             }

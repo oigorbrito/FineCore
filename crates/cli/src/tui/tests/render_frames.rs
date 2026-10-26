@@ -46,7 +46,7 @@ flowchart TB
         direction TB
 
         subgraph Host["Host layer"]
-            CLI["crates/cli\norcacode terminal host"]
+            CLI["crates/cli\nfinecore terminal host"]
             SDK["crates/sdk\nembedding API"]
         end
 
@@ -158,7 +158,7 @@ fn approval_choices_list_inside_a_sixty_column_frame() {
     let mut app = test_app();
     app.approval = Some(crate::msg::ApprovalRequest {
         tool_name: "shell".into(),
-        detail: "shell $ cargo test -p orcacode tui::components -- --nocapture".into(),
+        detail: "shell $ cargo test -p finecore tui::components -- --nocapture".into(),
         yes_no: false,
         respond,
     });

@@ -161,7 +161,7 @@ pub(crate) fn slash_command(
                         format!("extension {name} {state} (applies to the next run)"),
                     );
                     if worker.send(WorkerCmd::ReloadExtensions).is_err() {
-                        push_error(app, "worker is gone; restart orcacode");
+                        push_error(app, "worker is gone; restart finecore");
                     }
                 }
                 Err(err) => {
@@ -232,7 +232,7 @@ pub(crate) fn slash_command(
             .is_err()
         {
             app.picker_pending = None;
-            push_error(app, "worker is gone; restart orcacode");
+            push_error(app, "worker is gone; restart finecore");
         } else {
             push_notice(app, "fetching model efforts…");
         }
@@ -258,7 +258,7 @@ pub(crate) fn slash_command(
                 .is_err()
             {
                 app.picker_pending = None;
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "fetching models…");
             }
@@ -305,7 +305,7 @@ pub(crate) fn slash_command(
                     })
                     .is_err()
                 {
-                    push_error(app, "worker is gone; restart orcacode");
+                    push_error(app, "worker is gone; restart finecore");
                 } else {
                     push_notice(app, format!("loading session {}…", session.meta.id));
                 }
@@ -355,7 +355,7 @@ pub(crate) fn slash_command(
         "quit" | "exit" | "q" => app.quit = true,
         "clear" => {
             if worker.send(WorkerCmd::Clear).is_err() {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             }
         }
         "usage" => {
@@ -363,14 +363,14 @@ pub(crate) fn slash_command(
         }
         "compact" => {
             if worker.send(WorkerCmd::Compact).is_err() {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "compacting conversation…");
             }
         }
         "fork" => {
             if worker.send(WorkerCmd::Fork).is_err() {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "forking session…");
             }
@@ -455,7 +455,7 @@ fn sidekick_command(app: &mut App, args: &str, worker: &mpsc::UnboundedSender<Wo
         .send(WorkerCmd::SidekickStart { task, tier })
         .is_err()
     {
-        push_error(app, "worker is gone; restart orcacode");
+        push_error(app, "worker is gone; restart finecore");
     }
 }
 
@@ -572,7 +572,7 @@ pub(crate) fn rewind_command(app: &mut App, arg: &str, worker: &mpsc::UnboundedS
         }
     };
     if worker.send(WorkerCmd::Rewind { turns }).is_err() {
-        push_error(app, "worker is gone; restart orcacode");
+        push_error(app, "worker is gone; restart finecore");
     }
 }
 

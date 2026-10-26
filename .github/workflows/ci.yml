@@ -106,7 +106,7 @@ jobs:
           key: release
 
       - name: build
-        run: cargo build --release -p orcacode
+        run: cargo build --release -p finecore
 
       - name: release binary size
-        run: ./ci/check-binary-size.sh
+        run: ./ci/check-binary-size.sh target/release/finecore

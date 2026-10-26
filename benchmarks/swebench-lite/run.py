@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Orcacode patches for a small SWE-bench Lite development smoke run."""
+"""Generate FineCore patches for a small SWE-bench Lite development smoke run."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--count", type=int, default=DEFAULT_COUNT)
     parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--orcacode", help="Path to the Orcacode binary")
+    parser.add_argument("--finecore", "--orcacode", dest="finecore", help="Path to the FineCore binary")
     parser.add_argument("--output", type=Path, help="Result directory")
     parser.add_argument("--max-steps", type=int, default=DEFAULT_MAX_STEPS)
     parser.add_argument("--max-output-tokens", type=int, default=8192)
@@ -81,12 +81,12 @@ def select_instances(instances: list[dict], count: int) -> list[dict]:
     return instances[:count]
 
 
-def resolve_orcacode(explicit: str | None) -> str:
-    candidates = [explicit, "target/release/orcacode", shutil.which("orcacode")]
+def resolve_finecore(explicit: str | None) -> str:
+    candidates = [explicit, "target/release/finecore", shutil.which("finecore")]
     for candidate in candidates:
         if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
             return str(Path(candidate).resolve())
-    raise FileNotFoundError("orcacode not found; build it or pass --orcacode")
+    raise FileNotFoundError("FineCore not found; build it or pass --finecore")
 
 
 def build_prompt(instance: dict) -> str:
@@ -176,7 +176,7 @@ def parse_summary(stdout: str) -> dict:
 def prediction(instance: dict, model: str, patch: str) -> dict:
     return {
         "instance_id": instance["instance_id"],
-        "model_name_or_path": f"orcacode+{model}",
+        "model_name_or_path": f"finecore+{model}",
         "model_patch": patch,
     }
 
@@ -192,7 +192,7 @@ def main() -> int:
     args = parse_args()
     try:
         instances = select_instances(fetch_instances(args.count), args.count)
-        binary = resolve_orcacode(args.orcacode)
+        binary = resolve_finecore(args.finecore)
     except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -269,7 +269,7 @@ def main() -> int:
         "dataset": DATASET,
         "split": SPLIT,
         "model": args.model,
-        "harness": "orcacode",
+        "harness": "finecore",
         "runs": runs,
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

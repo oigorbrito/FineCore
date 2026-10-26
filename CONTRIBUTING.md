@@ -1,11 +1,11 @@
-# Contributing to Orca Harness
+# Contributing to FineCore
 
 Contributions are welcome: bug reports, docs fixes, new providers, tools and
 extensions.
 
 ## Workflow
 
-1. Open an [issue](https://github.com/okikorg/orca-harness/issues) to report a
+1. Open an [issue](https://github.com/oigorbrito/finecore/issues) to report a
    bug or discuss a change before you build it.
 2. Fork, branch, and keep the change focused. Match the surrounding code and
    add tests for behavior you change.
@@ -14,7 +14,7 @@ extensions.
 
 ## Using AI tools and agents
 
-Using AI coding tools and agents (Claude Code, Orcacode, Copilot, Cursor and
+Using AI coding tools and agents (Claude Code, FineCore, Copilot, Cursor and
 similar) is fine for most contributions, including providers, tools,
 extensions, the CLI, workflows, tests and docs. The usual bar still applies:
 you are the author of the pull request, so read and understand every line you

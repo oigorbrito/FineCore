@@ -6,7 +6,7 @@ name: bench
 #
 # Gated (the job fails on regression):
 #   kernel      dispatch and fan-out p99 at 5 000 iterations, plus criterion
-#   startup     orcacode cold-start wall clock under hyperfine
+#   startup     FineCore cold-start wall clock under hyperfine
 #   core-tools  apply_patch / multi_edit real-file p50 wall clock
 #   mcp         deterministic search metrics asserted by the suite's tests
 # Informational (reported, uploaded, never gated):
@@ -74,7 +74,7 @@ jobs:
       # suite that follows. The subagent runners build their own probes.
       - name: build
         run: |
-          cargo build --release -p orcacode
+          cargo build --release -p finecore
           cargo build --release -p orca-harness-core --example fanout_probe
           cargo build --release -p orca-harness-tools --example tool_fanout_perf
 

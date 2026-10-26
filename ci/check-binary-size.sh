@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-binary="${1:-target/release/orcacode}"
+binary="${1:-target/release/finecore}"
 # Static musl builds carry their own libc and allocator, about 2 MB more
-# than the macOS binary; 0.6.2 shipped at 8.62 MB.
+# than the macOS binary. The inherited 6.7/9 MB limits are upstream
+# release constraints; FineCore has not yet established a release baseline.
 case "$binary" in
   *-linux-musl/*) limit=9000000 ;;
   *) limit=6700000 ;;

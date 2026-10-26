@@ -39,6 +39,7 @@ cmd="${1:-}"
 version="${2:-}"
 [[ -n "$cmd" ]] || usage 1
 [[ "$cmd" == "-h" || "$cmd" == "--help" ]] && usage 0
+die "Orcacode release operations are upstream-only and disabled in FineCore; no FineCore release channel is configured."
 [[ -n "$version" ]] || die "usage: ci/release.sh $cmd <version>   (for example 0.3.0)"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || die "version must look like X.Y.Z, got '$version'"
 tag="${TAG_PREFIX}${version}"

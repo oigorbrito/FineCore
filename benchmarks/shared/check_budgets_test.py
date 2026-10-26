@@ -64,14 +64,14 @@ class GateTests(unittest.TestCase):
 
     def test_startup_within_budget_passes(self) -> None:
         result = self.run_gate(
-            "startup", {"startup.json": hyperfine_result("orcacode (startup)", 0.003)}
+            "startup", {"startup.json": hyperfine_result("finecore (startup)", 0.003)}
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("PASS", result.stdout)
 
     def test_startup_over_budget_fails(self) -> None:
         result = self.run_gate(
-            "startup", {"startup.json": hyperfine_result("orcacode (startup)", 0.5)}
+            "startup", {"startup.json": hyperfine_result("finecore (startup)", 0.5)}
         )
         self.assertEqual(1, result.returncode, result.stdout)
         self.assertIn("FAIL", result.stdout)
@@ -79,7 +79,7 @@ class GateTests(unittest.TestCase):
 
     def test_unbudgeted_startup_command_falls_back_to_the_default(self) -> None:
         result = self.run_gate(
-            "startup", {"new.json": hyperfine_result("orcacode (something new)", 0.5)}
+            "startup", {"new.json": hyperfine_result("finecore (something new)", 0.5)}
         )
         self.assertEqual(1, result.returncode, result.stdout)
 
@@ -94,10 +94,10 @@ class GateTests(unittest.TestCase):
         result = self.run_gate(
             "startup",
             {
-                "startup.json": hyperfine_result("orcacode (startup)", 0.003),
+                "startup.json": hyperfine_result("finecore (startup)", 0.003),
                 # Written by summarize.py into the same directory; it has no
                 # "results" key and would crash a naive glob.
-                "summary.json": [{"name": "orcacode (startup)", "unit": "s", "value": 0.003}],
+                "summary.json": [{"name": "finecore (startup)", "unit": "s", "value": 0.003}],
             },
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
@@ -228,7 +228,7 @@ class GateTests(unittest.TestCase):
 
     def test_budgets_are_not_enforced_off_linux_by_default(self) -> None:
         result = self.run_gate(
-            "startup", {"startup.json": hyperfine_result("orcacode (startup)", 0.5)}, enforce=False
+            "startup", {"startup.json": hyperfine_result("finecore (startup)", 0.5)}, enforce=False
         )
         expected = 1 if check_budgets.platform.system() == "Linux" else 0
         self.assertEqual(expected, result.returncode, result.stdout)
@@ -236,7 +236,7 @@ class GateTests(unittest.TestCase):
 
 class UnitTests(unittest.TestCase):
     def gate(self, value: float) -> bool:
-        measurement = check_budgets.Measurement("orcacode (startup)", value, "")
+        measurement = check_budgets.Measurement("finecore (startup)", value, "")
         with contextlib.redirect_stdout(io.StringIO()):
             return check_budgets.check([measurement], check_budgets.STARTUP_BUDGETS, None, True)
 
@@ -253,14 +253,14 @@ class UnitTests(unittest.TestCase):
     def test_new_session_budget_is_strict(self) -> None:
         for value, expected in [(0.003269, True), (0.00327, False), (0.003271, False)]:
             with self.subTest(value=value), contextlib.redirect_stdout(io.StringIO()):
-                measurement = check_budgets.Measurement("orcacode (startup, new session)", value, "")
+                measurement = check_budgets.Measurement("finecore (startup, new session)", value, "")
                 self.assertEqual(expected, check_budgets.check(
                     [measurement], check_budgets.STARTUP_BUDGETS, None, True
                 ))
 
     def test_other_budgets_remain_inclusive(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()):
-            measurement = check_budgets.Measurement("orcacode (resume)", 0.020, "")
+            measurement = check_budgets.Measurement("finecore (resume)", 0.020, "")
             self.assertTrue(check_budgets.check(
                 [measurement], check_budgets.STARTUP_BUDGETS, None, True
             ))

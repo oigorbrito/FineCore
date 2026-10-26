@@ -19,7 +19,7 @@ pub(crate) fn refine_command(app: &mut App, args: &str, worker: &mpsc::Unbounded
     };
     let starting = matches!(cmd, WorkerCmd::Refine);
     if worker.send(cmd).is_err() {
-        push_error(app, "worker is gone; restart orcacode");
+        push_error(app, "worker is gone; restart finecore");
         return;
     }
     if starting {

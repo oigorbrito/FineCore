@@ -27,6 +27,6 @@ cargo test -p orca-harness-provider-auth
 
 ## Workspace role
 
-This crate is intentionally small and provider-neutral. Model adapters depend on it, while hosts such as `orcacode` provide the real login and persistence implementation. Do not put API-key discovery or credential files in this crate.
+This crate is intentionally small and provider-neutral. Model adapters depend on it, while hosts such as FineCore provide the real login and persistence implementation. Do not put API-key discovery or credential files in this crate.
 
 Related crate: [`orca-harness-model-providers`](../model-providers).

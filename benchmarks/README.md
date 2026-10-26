@@ -1,5 +1,10 @@
 # Benchmarks
 
+> **Provenance:** this benchmark suite and its published result tables were
+> inherited from Orca Harness. The numeric results below are historical Orca
+> measurements, not FineCore measurements. The active startup runner now builds
+> and measures `finecore`; no new FineCore performance baseline has been recorded.
+
 The benchmark tree is organized by workload. Kernel and startup are the two
 regression-gated suites; comparison, MCP search, and subagent stress are
 informational or deterministic evaluation suites:
@@ -7,14 +12,14 @@ informational or deterministic evaluation suites:
 | Suite      | Script                    | Measures                                                     |
 | :--------- | :------------------------ | :----------------------------------------------------------- |
 | **kernel** | `./benchmarks/kernel/run.sh`  | overhead between a model emitting tool calls and tools running |
-| startup    | `./benchmarks/startup/run.sh` | fixed cost the `orcacode` host pays before accepting input     |
+| startup    | `./benchmarks/startup/run.sh` | fixed cost the FineCore host pays before accepting input       |
 | MCP search | `benchmarks/mcp/`          | metadata-search cutoff distribution and labeled query accuracy  |
 | subagent   | `benchmarks/subagent/`     | fake-model in-flight concurrency, latency, and failure observations |
 | workflow   | `benchmarks/workflow/`     | fake-model graph scale, dispatch latency, and deterministic engine-correctness defects |
 | core tool mutations | `./benchmarks/core-tools/run.sh` | real-file latency, throughput, accuracy, and distinct-path concurrency for `edit_file` |
 | harness comparison | [`benchmarks/harness-comparison/`](harness-comparison/README.md) | informational live-model cost, cache, tool, turn, correctness, and wall-time comparison |
 
-Plus `./benchmarks/compare/run.sh`, which puts orcacode next to `fx` on the
+Plus `./benchmarks/compare/run.sh`, which puts FineCore next to `fx` on the
 same host — see [Comparing against fx](#comparing-against-fx), and read it
 before quoting a number from it.
 
@@ -117,7 +122,7 @@ beside the code it exercises:
 
 ## The startup suite
 
-`startup/run.sh` benchmarks the `orcacode` binary against a fixture tree built
+`startup/run.sh` benchmarks the `finecore` binary against a fixture tree built
 by `shared/fixtures.py` — a private HOME, config dir, sessions and skills — so the
 numbers do not depend on what the developer happens to have installed.
 

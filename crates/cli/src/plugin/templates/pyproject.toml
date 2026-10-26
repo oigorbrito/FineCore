@@ -1,7 +1,7 @@
 [project]
 name = "{{NAME}}"
 version = "0.1.0"
-description = "An Agent Plugin for Orcacode"
+description = "An Agent Plugin for FineCore"
 requires-python = ">=3.11"
 dependencies = ["mcp>=1,<2"]
 

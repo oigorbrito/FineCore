@@ -6,7 +6,7 @@ pub(crate) fn send_or_report(
     cmd: WorkerCmd,
 ) {
     if worker.send(cmd).is_err() {
-        push_error(app, "worker is gone; restart orcacode");
+        push_error(app, "worker is gone; restart finecore");
     }
 }
 

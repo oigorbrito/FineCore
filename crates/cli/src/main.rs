@@ -1,7 +1,7 @@
-// `orcacode` — the interactive terminal host for Orca Harness.
+// `finecore` — the FineCore terminal host for Orca Harness.
 //
-// Interactive: `orcacode` starts a streaming REPL with tool approvals.
-// Headless:    `orcacode -p "prompt"` runs once and streams to stdout.
+// Interactive: `finecore` starts a streaming REPL with tool approvals.
+// Headless:    `finecore -p "prompt"` runs once and streams to stdout.
 
 mod approval;
 mod auth;
@@ -78,14 +78,14 @@ impl Planning {
 }
 
 const USAGE: &str = "\
-orcacode — terminal host for Orca Harness
+finecore — FineCore terminal coding agent
 
 USAGE:
-  orcacode [OPTIONS]                interactive session
-  orcacode [OPTIONS] -p \"prompt\"    headless single run (streams to stdout)
-  orcacode resume ID [OPTIONS]      resume a recorded session (same as --resume ID)
-  orcacode update                   install the latest release
-  orcacode plugin <COMMAND>         manage Agent Plugin packages
+  finecore [OPTIONS]                interactive session
+  finecore [OPTIONS] -p \"prompt\"    headless single run (streams to stdout)
+  finecore resume ID [OPTIONS]      resume a recorded session (same as --resume ID)
+  finecore update                   unavailable until a FineCore release channel is configured
+  finecore plugin <COMMAND>         manage Agent Plugin packages
 
 OPTIONS:
   --model NAME       model id (env ORCA_MODEL; otherwise selected from the
@@ -143,7 +143,7 @@ OPTIONS:
 
 In the TUI, /provider selects local, OpenAI API, OpenRouter, Vercel AI Gateway,
 CheaperInference, Anthropic, or the OpenAI Codex ChatGPT-subscription provider.
-Selecting openai-codex starts Orcacode's device login; an existing
+Selecting openai-codex starts FineCore's device login; an existing
 official Codex login is also imported.
 No API key is required. /models [filter] opens the model catalog,
 and /settings changes the provider, model, theme, and API key.

@@ -262,14 +262,14 @@ mod tests {
     fn markdown_ordered_sections_render_nested_emphasis_without_markers() {
         let _theme = crate::tui::THEME_GUARD.lock().unwrap_or_else(|err| err.into_inner());
         let lines = markdown_lines(
-            "1. **Agent**\n8. **Host / CLI (`orcacode`)**\n   continued explanation",
+            "1. **Agent**\n8. **Host / CLI (`finecore`)**\n   continued explanation",
             80,
             "  ",
         );
         let texts: Vec<String> = lines.iter().map(flat).collect();
 
         assert_eq!(texts[0], "  1. Agent");
-        assert_eq!(texts[1], "  8. Host / CLI (orcacode)");
+        assert_eq!(texts[1], "  8. Host / CLI (finecore)");
         assert_eq!(texts[2], "     continued explanation");
         assert!(
             texts
