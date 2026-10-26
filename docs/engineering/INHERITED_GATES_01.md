@@ -13,8 +13,10 @@ branch was created directly from the integration review branch at
 `2f980015a733ec449ca1ea8be51e97da08220fb1` (`integration/finecore-orca-main-review`).
 The comparison source is the canonical Orca commit
 `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01` (`okikorg/orca-harness`). The
-comparison does not change `main` or PRs #110–#113. It makes no production Rust
-changes and does not merge, publish a release, or waive a gate.
+comparison does not change `main` or PRs #110–#113. It does not merge,
+publish a release, or waive a gate. One narrow MCP stdio error-classification
+fix is included because the full-workspace run exposed an inherited broken-pipe
+classification race; no other production Rust source is changed.
 
 The comparison runner is `scripts/compare_inherited_gates.py`. The pinned
 `inherited-gates-01` GitHub Actions workflow checks out both revisions and runs
@@ -54,8 +56,9 @@ logs and section breakdown.
 ### 1. Source-size — inherited policy/content mismatch
 
 The rule in `ci/check-source-size.sh` is byte-for-byte the same in both trees:
-every `.rs`, `.inc`, or `.part` under `crates/` must be at most 599 lines. Both
-runs report the same 15 paths and line counts:
+every `.rs`, `.inc`, or `.part` under `crates/` must be at most 599 lines. The
+initial paired run at the integration base reported these same 15 paths and
+line counts in both repositories:
 
 | Lines | File |
 | ---: | --- |
@@ -75,13 +78,17 @@ runs report the same 15 paths and line counts:
 | 944 | `crates/tools/tests/subagent/host.rs` |
 | 601 | `crates/tools/tests/tools/glob_process_admin.rs` |
 
-Thirteen over-limit files are byte-identical to the canonical donor. The other
-two (`main.rs` and `dispatch.rs`) have only FineCore CLI naming/help/error
-message substitutions; neither changes line count or control flow. Thus none of
-the violations was introduced by the FineCore transplant. Splitting 15 files
-solely to satisfy a universal line count would be a wide module/test refactor,
-not a minimal migration fix. Mechanical chunking or `include!` fragments would
-only disguise the same maintainability problem. No such changes were made.
+At the investigation base, 13 over-limit files were byte-identical to the
+canonical donor. The other two (`main.rs` and `dispatch.rs`) had only FineCore
+CLI naming/help/error-message substitutions; neither changed line count or
+control flow. One natural extraction is justified by the MCP failure above:
+the line-oriented `Wire` transport now lives in `mcp/wire.rs`, and
+`mcp/client.rs` drops from 649 to 563 lines. That reduces FineCore to 14
+source-size violations while Orca remains at 15; the new module is 122 lines.
+The other 14 paths still exceed the limit. This is a cohesive transport
+boundary, not chunking solely to satisfy a check. Splitting the remaining files
+only for a universal line count would be a broad module/test refactor, so no
+further splits were made.
 
 ### 2. Clippy — inherited public error-type layout
 
@@ -104,9 +111,9 @@ silence the lint. The log/artifact is the authoritative list of all 13 sites.
 The two release profiles, workspace dependency declarations, and external
 locked dependency graph match. Both builds use size-oriented optimization,
 fat LTO, a single codegen unit, abort-on-panic, and symbol stripping, yet both
-Windows binaries exceed the shared non-musl `<6,700,000` byte check by more than
-1.16 MB. The CI Linux build is also measured by the same check in the paired
-workflow.
+baseline Windows binaries exceed the shared non-musl `<6,700,000` byte check by
+more than 1.16 MB. The paired Linux run measures the post-fix FineCore binary
+and canonical Orca on the same check.
 
 The check itself documents the 6.7/9 MB values as inherited Orca release
 constraints and says FineCore has no established release baseline. The data
@@ -119,25 +126,43 @@ measured bytes reside.
 
 ## Tests and performance
 
-The paired workflow runs, in order for each repository: formatting, source
-size, strict Clippy, full workspace tests, benchmark smoke tests, release build,
-and binary-size gate. It then warms both `core_tools_perf` test binaries and
-runs 20 alternating FineCore/Orca samples of five local-filesystem scenarios.
-The benchmark makes no model/provider calls. Paired median percentage changes
-and deterministic bootstrap intervals are evidence only; one shared runner is
-not enough to claim a speedup or regressions. The current branch makes no
-runtime code change, so there is no code-level before/after optimization to
-attribute to this PR.
+The first paired Ubuntu run completed formatting, both gate sets, full workspace
+tests, benchmark smoke, release builds, and the 20-pair microbenchmark. FineCore's
+workspace tests had one failure in
+`a_command_that_exits_immediately_fails_the_handshake`; the canonical donor's
+full suite passed. The failing test and MCP client implementation were
+byte-identical at the investigation base. When child `true` exits before the
+initial write, `BrokenPipe` was converted by `McpError::Spawn(#[from] io::Error)`,
+so the test sometimes received `Spawn` instead of the expected protocol-level
+"server closed" error. This is an inherited race/incorrect error classification,
+not a FineCore-specific change.
 
-**Ubuntu paired-run evidence:** pending the workflow on the published Draft PR.
-The overall workflow is expected to remain FAIL if the inherited source-size,
-Clippy, or binary-size checks reproduce; all logs are uploaded regardless.
+The review extracts the low-level JSON-RPC stdio transport into
+`mcp/wire.rs` and maps stdio read/write I/O failures to `McpError::Protocol`
+(with closed-connection errors named as such), reserving `McpError::Spawn` for
+actual process-spawn failures. It preserves the public error enum/API, affects
+only error paths, and matches the existing test contract. The paired runner
+repeats the immediate-exit test 20 times in both trees and retains every result.
+No success-path or runtime-performance improvement is claimed.
+
+After full tests, benchmark smoke, builds, and size gates, the runner warms both
+`core_tools_perf` test binaries and runs 20 alternating FineCore/Orca samples of
+five local-filesystem scenarios. The benchmark makes no model/provider calls.
+Paired median percentage changes and deterministic bootstrap intervals are
+exploratory evidence only; the one-run, multiple-scenario comparison does not
+establish a speedup or regression. It compares the migration identity overlay
+and MCP error fix against canonical Orca, not an optimization before/after.
+
+**Ubuntu paired-run evidence:** corrected-run results and raw artifacts are
+linked in PR #114. The expected source-size, strict Clippy, and binary-size
+checks remain FAIL; ordinary test/build results and the differential benchmark
+are reported separately.
 
 ## Decision
 
 | Gate | Decision |
 | --- | --- |
-| Source size | Preserve FAIL. Inherited in the canonical donor; no safe minimal split justified in this migration review. |
+| Source size | FAIL remains. The cohesive MCP transport extraction removes one FineCore violation (14 remain; donor has 15); further broad splits are not justified solely by the line cap. |
 | Clippy | Preserve FAIL. Diagnostics are inherited; the clean fix would alter public error API. No lint waiver. |
 | Binary size | Preserve FAIL. Both canonical and FineCore builds exceed the inherited limit; no justified limit change or measured safe optimization yet. |
 

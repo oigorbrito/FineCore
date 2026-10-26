@@ -41,6 +41,20 @@ BENCH_CMD = [
 ]
 SOURCE_FINDING = re.compile(r"^(crates/.+?): (\d+) lines \(maximum 599;")
 BENCH_LINE = "[core-tools-bench] "
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+FOCUSED_EXIT_CMD = [
+    "cargo",
+    "test",
+    "--locked",
+    "-p",
+    "orca-harness-tool-extensions",
+    "--test",
+    "mcp_stdio",
+    "a_command_that_exits_immediately_fails_the_handshake",
+    "--",
+    "--exact",
+    "--nocapture",
+]
 
 
 def sha256(data: bytes) -> str:
@@ -264,6 +278,7 @@ def main() -> int:
         target = (target_root / name).resolve()
         env = os.environ.copy()
         env["CARGO_TARGET_DIR"] = str(target)
+        env["CARGO_TERM_COLOR"] = "never"
         results: list[dict] = []
         gates = [
             ("fmt", ["cargo", "fmt", "--all", "--", "--check"]),
@@ -274,6 +289,28 @@ def main() -> int:
         ]
         for label, command in gates:
             record_gate(f"{name}-{label}", command, root, env, logs, results)
+
+        focused_passes = 0
+        for attempt in range(1, 21):
+            code, _ = record_gate(
+                f"{name}-mcp-immediate-exit-{attempt:02d}",
+                FOCUSED_EXIT_CMD,
+                root,
+                env,
+                logs,
+                results,
+            )
+            focused_passes += code == 0
+        results.append(
+            {
+                "gate": f"{name}-mcp-immediate-exit-aggregate",
+                "command": FOCUSED_EXIT_CMD,
+                "exit_code": 0 if focused_passes == 20 else 1,
+                "attempts": 20,
+                "passed": focused_passes,
+            }
+        )
+        print(f"{name}-mcp-immediate-exit-aggregate: {focused_passes}/20 passed")
 
         binary = "finecore" if name == "finecore" else "orcacode"
         build_code, _ = record_gate(
@@ -357,6 +394,7 @@ def main() -> int:
     clippy_counts = {}
     for name in roots:
         text = (logs / f"{name}-clippy.log").read_text(encoding="utf-8", errors="replace")
+        text = ANSI_ESCAPE.sub("", text)
         clippy_counts[name] = {
             "result_large_err_diagnostics": text.count("error: the `Err`-variant returned"),
             "lint": "clippy::result_large_err" if "clippy::result_large_err" in text else None,
@@ -379,6 +417,7 @@ def main() -> int:
         target = (target_root / name).resolve()
         env = os.environ.copy()
         env["CARGO_TARGET_DIR"] = str(target)
+        env["CARGO_TERM_COLOR"] = "never"
         record_gate(f"{name}-benchmark-warmup", BENCH_CMD, root, env, logs, all_results[name]["gates"])
     for sample in range(1, args.samples + 1):
         order = ["finecore", "orca"] if sample % 2 else ["orca", "finecore"]
@@ -386,6 +425,7 @@ def main() -> int:
             root = roots[name]
             env = os.environ.copy()
             env["CARGO_TARGET_DIR"] = str((target_root / name).resolve())
+            env["CARGO_TERM_COLOR"] = "never"
             label = f"benchmark-{name}-{sample:02d}"
             code, output = record_gate(label, BENCH_CMD, root, env, logs, all_results[name]["gates"])
             if code == 0:
@@ -405,6 +445,18 @@ def main() -> int:
                 metrics[metric] = bootstrap_summary(pairs, 112 + len(scenario) + len(metric))
         if metrics:
             benchmark_results[scenario] = metrics
+    comparison["mcp_immediate_exit_repeats"] = {
+        name: {
+            "attempts": 20,
+            "passed": sum(
+                gate.get("exit_code") == 0
+                for gate in all_results[name]["gates"]
+                if gate["gate"].startswith(f"{name}-mcp-immediate-exit-")
+                and not gate["gate"].endswith("-aggregate")
+            ),
+        }
+        for name in roots
+    }
     comparison["benchmark"] = {
         "samples_requested_per_harness": args.samples,
         "samples_completed": {name: len(bench[name]) for name in roots},
