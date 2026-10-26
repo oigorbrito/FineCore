@@ -114,6 +114,9 @@ async fn run_trial(label: &str, fault: Fault, failures: usize, retry: bool, tria
     let subagent = Arc::new(
         SubagentTool::with_tools(model, Arc::new(move || vec![side_effect.clone()]))
             .background(SubagentManager::new(2), move |notification| {
+                if notification.spawn.run.is_some() && notification.result.is_err() {
+                    eprintln!("UPSTREAM_RAW_STAGE_ERROR {:?}", notification.result.as_ref().err());
+                }
                 let _ = tx.send(notification);
             }),
     );
@@ -207,6 +210,9 @@ async fn run_pretool_trial(label: &str, fault: Fault, failures: usize, retry: bo
             Arc::new(|| Vec::<Arc<dyn Tool>>::new()),
         )
         .background(SubagentManager::new(2), move |notification| {
+            if notification.spawn.run.is_some() && notification.result.is_err() {
+                eprintln!("UPSTREAM_RAW_STAGE_ERROR {:?}", notification.result.as_ref().err());
+            }
             let _ = tx.send(notification);
         }),
     );
