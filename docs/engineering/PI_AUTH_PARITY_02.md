@@ -22,7 +22,7 @@ Keys are masked in the TUI while entered; rendered provider/logout rows expose s
 
 ## Windows comparison
 
-The full FineCore CLI suite was compared sequentially on the same Windows host, Rust/Cargo 1.99.1, and separate worktrees/target directories: PR #120 head `06226adecce1671205607c8c79e42dbcb339c05c` versus PR #121 head `551ff28a0eaa5a235735db37cf02813d27339023`. The baseline reported 620 passed, 10 failed, 1 ignored. The candidate reported 625 passed, 11 failed, 1 ignored. All ten baseline failures also occurred on the candidate; the candidate additionally hit `tui::tests::streaming_frame_deadline_flushes_without_another_event`, an existing timing-sensitive test. That test passed 3/3 targeted baseline repetitions and 2/3 candidate repetitions in the same local environment, so the extra failure is an observed flake, not established as an auth regression. The six tests added by PR #121 all passed in the candidate run. Full output is retained locally for this review; the manual paired Windows workflow and artifact capture make later comparisons reproducible. This local comparison is not a claim that the suite is clean on Windows.
+The full FineCore CLI suite was compared sequentially on one GitHub-hosted `windows-2025` runner with Rust/Cargo 1.99.1 and separate checkouts/targets: PR #120 head `06226adecce1671205607c8c79e42dbcb339c05c` versus PR #121 head `a98ad059e776ccb7723445324c1a980091f82a32`. Baseline: 620 passed, 10 failed, 1 ignored. Candidate: 628 passed, 10 failed, 1 ignored. All ten failing test names are identical; neither side had unique failures. The comparison run is red because both full suites exit 101, and the workflow intentionally preserves that failure rather than masking it. The candidate's eight additional passing tests include the Windows ACL check. Summary evidence is in `pi-auth-parity-02/evidence/windows-comparison-40415410811.json`; [run 40415410811](https://github.com/oigorbrito/finecore/actions/runs/40415410811) preserves raw logs in artifact `12695912983`. This supports classifying the ten Windows failures as already present at PR #120's tested head, not as regressions in the compared PR #121 head. It does not establish that either suite is Windows-clean.
 
 ## Scope and remaining gaps
 
@@ -34,6 +34,8 @@ No claims are made about full Pi parity. Keep the implementation Draft until pro
 
 - `cargo fmt --all -- --check`
 - `cargo check -p finecore --locked`
-- Focused auth and TUI tests; the full FineCore test binary was also attempted on Windows. Existing platform-sensitive tests failed there (including path separators, file permissions, plugin/image handling, and unrelated shell-policy behavior); the newly added auth and login/logout TUI tests passed. Linux CI is required for the authoritative full suite.
+- Focused auth, login/logout UI, and Windows config-DACL tests passed locally.
+- Linux Actions run [40415410713](https://github.com/oigorbrito/finecore/actions/runs/40415410713) passed formatting, comparison-script tests, compilation, auth/UI tests, and the full CLI regression suite.
+- The paired Windows comparison above is intentionally failing because both revisions retain the same ten Windows failures; see its evidence artifact.
 
 The login/logout tests exercise local storage and UI command routing only. They do not invoke a model, provider, or OAuth endpoint.
