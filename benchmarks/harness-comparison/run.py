@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import queue
 import shlex
 import shutil
@@ -26,6 +27,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_MODEL = "anthropic/claude-haiku-4.5"
+ORCA_DONOR_COMMIT = "2a9fd399cfbbaad773e3cbed92bb6e24d7561f01"
 OMP_DISCOVERY_PROVIDERS = (
     "native",
     "claude",
@@ -60,9 +62,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--harness",
-        choices=("all", "both", "orca-kiss", "orca", "pi", "omp", "claude", "kiss"),
+        choices=("all", "both", "triad", "finecore", "orcacode", "orca-kiss", "orca", "pi", "omp", "claude", "kiss"),
         default="all",
-        help="'both' retains the FineCore/Pi-only profile; 'orca-kiss' pairs FineCore with KISS",
+        help="'triad' compares FineCore, pinned Orca, and Pi; 'both' retains FineCore/Pi; 'orca-kiss' pairs FineCore with KISS",
     )
     parser.add_argument(
         "--task",
@@ -87,6 +89,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--finecore-bin", "--orca-bin", dest="finecore_bin", default="target/release/finecore"
     )
+    parser.add_argument("--orcacode-bin", default="../donor/target/release/orcacode")
     parser.add_argument("--pi-bin", default="pi")
     parser.add_argument("--omp-bin", default="omp")
     parser.add_argument("--claude-bin", default="claude")
@@ -172,6 +175,8 @@ def harnesses(choice: str) -> list[str]:
         return ["orca", "pi", "omp", "claude", "kiss"]
     if choice == "both":
         return ["orca", "pi"]
+    if choice == "triad":
+        return ["finecore", "orcacode", "pi"]
     if choice == "orca-kiss":
         return ["orca", "kiss"]
     return [choice]
@@ -204,7 +209,7 @@ def build_command(
     omp_config: Path | None = None,
 ) -> list[str]:
     prompt = task_prompt(task)
-    if name == "orca":
+    if name in {"orca", "finecore", "orcacode"}:
         tools = ["read_file", "grep", "glob"]
         if task["mode"] == "edit":
             tools.extend(("edit_file", "write_file"))
@@ -364,10 +369,10 @@ def prepare_environment(
         environment["PI_CACHE_RETENTION"] = (
             "short" if args.prompt_cache else "none"
         )
-    if name == "orca":
+    if name in {"orca", "finecore", "orcacode"}:
         # The user's config.json can add startup work even under --bare (for
-        # example subagent_models entries), so give every attempt a fresh one.
-        environment["ORCA_CONFIG_DIR"] = str(temp_root / "orca-config")
+        # example subagent_models entries), so give every candidate a fresh one.
+        environment["ORCA_CONFIG_DIR"] = str(temp_root / f"{name}-config")
         Path(environment["ORCA_CONFIG_DIR"]).mkdir(parents=True, exist_ok=True)
         return environment
     if name == "kiss":
@@ -550,6 +555,26 @@ def run_process(
     return result
 
 
+def binary_source_identity(binary: str) -> dict[str, Any]:
+    path = Path(binary).resolve()
+    try:
+        root = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], cwd=path.parent,
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root,
+            capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+        dirty = bool(subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=normal"],
+            cwd=root, capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip())
+        return {"repository": root, "revision": revision, "dirty": dirty}
+    except (OSError, subprocess.SubprocessError):
+        return {"repository": None, "revision": "unavailable", "dirty": None}
+
+
 def command_version(
     binary: str, environment: dict[str, str] | None = None
 ) -> str:
@@ -653,8 +678,10 @@ def main() -> int:
             "OPENROUTER_API_KEY is required but must not be passed on the command line"
         )
     binary_args = {
-        # Keep the inherited "orca" result key stable for historical comparison data.
+        # Keep the inherited "orca" series as a compatibility alias for FineCore.
         "orca": args.finecore_bin,
+        "finecore": args.finecore_bin,
+        "orcacode": args.orcacode_bin,
         "pi": args.pi_bin,
         "omp": args.omp_bin,
         "claude": args.claude_bin,
@@ -690,12 +717,27 @@ def main() -> int:
                 "binary": binaries[name],
                 "version": command_version(binaries[name], version_environment),
                 "sha256": sha256(Path(binaries[name])),
+                "source": binary_source_identity(binaries[name]),
             }
             for name in selected_harnesses
         }
+    if "orcacode" in selected_harnesses:
+        donor_revision = version_records["orcacode"]["source"]["revision"]
+        if donor_revision != ORCA_DONOR_COMMIT:
+            raise RuntimeError(
+                f"orcacode binary must come from pinned donor {ORCA_DONOR_COMMIT}; "
+                f"found {donor_revision}"
+            )
     manifest = {
-        "schema_version": 4,
+        "schema_version": 5,
         "created_at": utc_now(),
+        "environment": {
+            "platform": platform.platform(),
+            "machine": platform.machine(),
+            "python": platform.python_version(),
+            "logical_cpus": os.cpu_count(),
+            "os_name": os.name,
+        },
         "model": args.model,
         "provider": "openrouter",
         "provider_routing": {
@@ -712,6 +754,7 @@ def main() -> int:
         "max_output_tokens": args.max_output_tokens,
         "pricing": pricing,
         "source": source_identity(),
+        "orcacode_donor_pin": ORCA_DONOR_COMMIT if "orcacode" in selected_harnesses else None,
         "harnesses": version_records,
         "tasks": tasks,
         "plan": planned,

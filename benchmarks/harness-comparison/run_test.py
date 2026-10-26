@@ -13,6 +13,7 @@ class RunTest(unittest.TestCase):
     def test_harness_selection_and_order_rotate(self):
         self.assertEqual(run.harnesses("all"), ["orca", "pi", "omp", "claude", "kiss"])
         self.assertEqual(run.harnesses("both"), ["orca", "pi"])
+        self.assertEqual(run.harnesses("triad"), ["finecore", "orcacode", "pi"])
         selected = run.harnesses("all")
         self.assertEqual(
             run.balanced_order(selected, 0, 0), ["orca", "pi", "omp", "claude", "kiss"]
@@ -32,6 +33,8 @@ class RunTest(unittest.TestCase):
                 sys, "argv", ["run.py", option, "/tmp/finecore"]
             ):
                 self.assertEqual(run.parse_args().finecore_bin, "/tmp/finecore")
+        with patch.object(sys, "argv", ["run.py", "--orcacode-bin", "/tmp/orcacode"]):
+            self.assertEqual(run.parse_args().orcacode_bin, "/tmp/orcacode")
 
     def test_prompt_cache_defaults_on_and_can_be_disabled(self):
         with patch.object(sys, "argv", ["run.py"]):
@@ -58,7 +61,9 @@ class RunTest(unittest.TestCase):
             max_steps=24,
             prompt_cache=False,
         )
-        orca = run.build_command("orca", "/tmp/orcacode", task, Path("/tmp/work"), args)
+        orca = run.build_command("orca", "/tmp/finecore", task, Path("/tmp/work"), args)
+        finecore = run.build_command("finecore", "/tmp/finecore", task, Path("/tmp/work"), args)
+        orcacode = run.build_command("orcacode", "/tmp/orcacode", task, Path("/tmp/work"), args)
         pi = run.build_command("pi", "/tmp/pi", task, Path("/tmp/work"), args)
         omp = run.build_command(
             "omp",
@@ -69,8 +74,9 @@ class RunTest(unittest.TestCase):
             omp_config=Path("/tmp/omp-config.yml"),
         )
         claude = run.build_command("claude", "/tmp/claude", task, Path("/tmp/work"), args)
-        self.assertIn("edit_file", orca[orca.index("--tools") + 1])
-        self.assertNotIn("shell", orca[orca.index("--tools") + 1])
+        for command in (orca, finecore, orcacode):
+            self.assertIn("edit_file", command[command.index("--tools") + 1])
+            self.assertNotIn("shell", command[command.index("--tools") + 1])
         self.assertIn("--no-prompt-cache", orca)
         self.assertIn("edit", pi[pi.index("--tools") + 1])
         self.assertNotIn("bash", pi[pi.index("--tools") + 1])
@@ -83,7 +89,7 @@ class RunTest(unittest.TestCase):
         self.assertIn("--no-lsp", omp)
         self.assertIn("--no-pty", omp)
         self.assertIn("--auto-approve", omp)
-        self.assertEqual(omp[omp.index("--config") + 1], "/tmp/omp-config.yml")
+        self.assertEqual(omp[omp.index("--config") + 1], str(Path("/tmp/omp-config.yml")))
         self.assertIn("--bare", claude)
         self.assertIn("--restricted", claude)
         self.assertIn("--strict-mcp-config", claude)

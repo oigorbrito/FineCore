@@ -1,0 +1,75 @@
+name: BENCH-02 controlled FineCore vs Orca
+
+on:
+  push:
+    branches: [experiment/bench-02-controlled]
+  workflow_dispatch:
+
+concurrency:
+  group: bench02-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  paired-linux:
+    name: paired Linux comparison and independent suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Checkout FineCore candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Checkout pinned Orca donor
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: okikorg/orca-harness
+          ref: 2a9fd399cfbbaad773e3cbed92bb6e24d7561f01
+          path: donor
+          persist-credentials: false
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Record runner and toolchain
+        run: |
+          rustc --version --verbose
+          cargo --version
+          python3 --version
+          uname -a
+          lscpu
+          free -h
+          cat /etc/os-release
+
+      # This step records each suite independently and intentionally returns
+      # success after collecting all results. The final verdict is applied
+      # only after core-tools, MCP, and subagent have all run on both trees.
+      - name: Run paired core-tools and independent MCP/subagent suites
+        run: >-
+          python3 candidate/benchmarks/bench02/run.py
+          --candidate candidate
+          --donor donor
+          --output "${RUNNER_TEMP}/bench02-results"
+          --samples 20
+
+      - name: Consolidated verdict
+        if: always()
+        run: >-
+          python3 candidate/benchmarks/bench02/finalize.py
+          "${RUNNER_TEMP}/bench02-results/manifest.json"
+
+      - name: Upload current-run evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bench02-${{ github.sha }}
+          path: ${{ runner.temp }}/bench02-results/
+          if-no-files-found: warn
+          retention-days: 90

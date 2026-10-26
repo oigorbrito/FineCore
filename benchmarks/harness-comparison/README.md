@@ -6,10 +6,12 @@
 > binary path, version, and hash identify the actual executable. No FineCore
 > live benchmark has been recorded during this migration.
 
-This inherited suite compares the complete FineCore, Pi, Oh My Pi (`omp`), and
-Claude Code headless harnesses on the same isolated workload. It measures correctness,
-latency, tool behavior, token use, cache behavior, and normalized token cost. It
-does not run a server and never points any harness at the repository checkout.
+This inherited suite compares complete headless harnesses on the same isolated
+workload. It measures correctness, latency, tool behavior, token use, cache
+behavior, and normalized token cost. The legacy `orca` result key resolves to the
+FineCore binary for schema compatibility; new runs record the binary hash and
+source commit. It does not run a server and never points any harness at the
+repository checkout.
 
 `--harness orca-kiss` runs FineCore against
 [KISS](https://github.com/racetozero/kiss) alone; `all` includes KISS as a fifth harness. KISS mirrors Pi's CLI and JSON event stream, so it reuses Pi's parser and
@@ -21,7 +23,9 @@ The benchmark is scripted before execution:
   order, captures timestamped raw streams, enforces timeouts, and validates
   changed files.
 - [`analyze.py`](analyze.py) derives correctness, TTFT, wall time, tool timing,
-  token economics, per-task medians, and paired FineCore deltas.
+  token economics, per-task medians, paired deltas, and 95% task-cluster bootstrap
+  intervals for correctness, latency on jointly correct attempts, and cost per
+  correctly solved task.
 - [`render_html.py`](render_html.py) exports a dependency-free static report from
   the analyzed JSON artifacts.
 - [`tasks.json`](tasks.json) is the reviewable workload and scoring contract.
@@ -37,19 +41,47 @@ The runner defaults to:
 
 | Setting | Value |
 | :-- | :-- |
-| Harnesses | FineCore, Pi, Oh My Pi, and Claude Code |
+| Harnesses | FineCore, Pi, Oh My Pi, Claude Code, and KISS |
 | Gateway | OpenRouter; underlying provider endpoint is not pinned |
 | Model | `anthropic/claude-haiku-4.5` |
 | Reasoning effort | `low` |
 | Tasks | 16 |
 | Repetitions | 3 |
-| Total attempts | 192 |
+| Total attempts | 240 |
 | Order | Alternates by task and repetition |
 | Attempt timeout | 45 seconds |
 | Model-step ceiling | 24 for FineCore and Claude Code; external timeout bounds Pi and Oh My Pi |
 | Output-token ceiling | 1,536 for FineCore and Claude Code; provider defaults for Pi and Oh My Pi |
 | Prompt caching | On; opt out with `--no-prompt-cache` where supported |
 | User extensions and context | Disabled |
+
+## BENCH-02 FineCore / pinned Orca / Pi profile
+
+The experimental `--harness triad` profile runs FineCore, Orca built from the
+pinned donor commit `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`, and Pi against
+the same fixture and tasks. The runner refuses to execute `orcacode` unless its
+binary is located in a Git checkout at that exact commit. It records each
+binary's path, version, SHA-256, source commit and dirty state, plus platform,
+model, task order, timeout, tool allowlist, and pricing configuration.
+
+From a workspace containing sibling `candidate/` and `donor/` checkouts:
+
+```bash
+(cd candidate && cargo build --release --locked -p finecore)
+(cd donor && cargo build --release --locked -p orcacode)
+python3 candidate/benchmarks/harness-comparison/run.py --dry-run --harness triad --repetitions 1
+```
+
+A real run additionally requires the pinned Pi executable and a provider key.
+The full default profile is 16 tasks × 3 repetitions × 3 harnesses (144
+attempts). Review the exact plan, verify current model pricing and permitted
+spend, and select the number of repetitions before any live run. Supply explicit
+binary paths and `--output` to keep artifacts separate. The default normalized
+price schedule is a historical snapshot, not an invoice; check current prices
+and override all applicable price flags. Gateway routing does not pin the
+underlying inference endpoint. Dry-run performs no credential reads or model/API
+calls. Do not infer comparative agent performance from a dry run or the
+no-provider microbenchmarks.
 
 Haiku 4.5 is the low-cost default because its current OpenRouter catalog entry
 advertises tool calling and prices input below the Sonnet model used in the

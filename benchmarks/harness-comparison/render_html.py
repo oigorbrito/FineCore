@@ -11,15 +11,16 @@ import os
 from pathlib import Path
 from typing import Any
 
-
 NAMES = {
-    "orca": "Orcacode",
+    "finecore": "FineCore",
+    "orcacode": "Orca (pinned donor)",
+    "orca": "FineCore / Orcacode (legacy key)",
     "pi": "Pi",
     "omp": "Oh My Pi",
     "kiss": "KISS",
     "claude": "Claude Code",
 }
-ORDER = ("orca", "pi", "omp", "claude", "kiss")
+ORDER = ("finecore", "orcacode", "orca", "pi", "omp", "claude", "kiss")
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,7 +34,7 @@ def milliseconds(value: float | None) -> str:
     return f"{value / 1000:.2f}s" if value is not None else "n/a"
 
 
-def integer(value: int | float | None) -> str:
+def integer(value: float | None) -> str:
     return f"{int(value):,}" if value is not None else "n/a"
 
 
@@ -43,6 +44,15 @@ def dollars(value: float | None) -> str:
 
 def percentage(value: float | None) -> str:
     return f"{value:.1%}" if value is not None else "n/a"
+
+
+def confidence(value: float | None, interval: list[float] | None, digits: int = 3) -> str:
+    if value is None:
+        return "n/a"
+    point = f"{value:.{digits}f}"
+    if interval is None:
+        return point + " (no interval)"
+    return f"{point} [{interval[0]:.{digits}f}, {interval[1]:.{digits}f}]"
 
 
 def cell(value: Any) -> str:
@@ -172,6 +182,19 @@ def render(
             "</tr>"
         )
 
+    paired_rows = []
+    for item in summary.get("paired_task_comparisons", []):
+        pair_name = f"{NAMES.get(item['anchor'], item['anchor'])} − {NAMES.get(item['peer'], item['peer'])}"
+        paired_rows.append(
+            "<tr>"
+            f"<th>{cell(pair_name)}</th><td>{item['matched_tasks']}</td>"
+            f"<td>{confidence(item['correctness_rate_delta'], item['correctness_rate_delta_ci95_cluster_bootstrap'])}</td>"
+            f"<td>{confidence(item['both_correct_wall_median_task_delta_ms'], item['both_correct_wall_delta_ci95_cluster_bootstrap_ms'])}</td>"
+            f"<td>{confidence(item['both_correct_ttft_median_task_delta_ms'], item['both_correct_ttft_delta_ci95_cluster_bootstrap_ms'])}</td>"
+            f"<td>{confidence(item['normalized_cost_per_correct_delta_usd'], item['normalized_cost_per_correct_delta_ci95_cluster_bootstrap_usd'], 6)}</td>"
+            "</tr>"
+        )
+
     token_rows = []
     for name in order:
         item = harnesses[name]
@@ -273,8 +296,8 @@ def render(
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{cell(english_list([NAMES[name] for name in order]))} benchmark</title>
 <style>
-:root{{--bg:#090c10;--panel:#11171e;--panel2:#161e27;--line:#293542;--text:#edf3f8;--muted:#9baaba;--orca:#67d7ad;--pi:#e4b65b;--omp:#8fb3ff;--claude:#df8769;--kiss:#c89bf0;--good:#70d6a5;--bad:#f08787}}
-*{{box-sizing:border-box}} body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}} a{{color:var(--orca)}} code{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe8f2}} main{{max-width:1440px;margin:auto;padding:56px 28px 80px}} header{{max-width:980px;margin-bottom:38px}} .eyebrow{{color:var(--orca);font-size:12px;font-weight:750;letter-spacing:.14em;text-transform:uppercase}} h1{{font-size:clamp(36px,6vw,76px);line-height:1.02;letter-spacing:-.045em;margin:12px 0 18px}} .lede{{color:var(--muted);font-size:19px;max-width:850px}} section{{margin-top:42px}} h2{{font-size:24px;margin:0 0 8px}} .intro{{color:var(--muted);max-width:900px;margin:0 0 18px}} .cards{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}} .card,.task-card{{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:20px}} .card strong{{display:block;font-size:34px;letter-spacing:-.04em}} .card span,.task-card small{{color:var(--muted)}} .pareto{{max-width:1040px;padding:18px 18px 8px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,var(--panel2),var(--panel))}} .pareto svg{{display:block;width:100%;height:auto}} .pareto-grid line{{stroke:var(--line);stroke-width:1}} .pareto-grid text,.axis-label,.point-detail{{fill:var(--muted);font-size:12px}} .frontier-line{{fill:none;stroke:var(--orca);stroke-width:3;stroke-dasharray:8 7}} .pareto-point circle{{stroke:var(--bg);stroke-width:4}} .pareto-point text{{fill:var(--text);font-size:13px;font-weight:750}} .pareto-point.orca circle{{fill:var(--orca)}} .pareto-point.pi circle{{fill:var(--pi)}} .pareto-point.omp circle{{fill:var(--omp)}} .pareto-point.claude circle{{fill:var(--claude)}} .pareto-point.kiss circle{{fill:var(--kiss)}} .pareto-point .point-detail{{fill:var(--muted);font-size:11px;font-weight:500}} .table-wrap{{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}} table{{border-collapse:collapse;width:100%;min-width:980px}} th,td{{padding:12px 14px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}} th:first-child,td:first-child{{text-align:left}} thead th{{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2);position:sticky;top:0}} tbody tr:last-child th,tbody tr:last-child td{{border-bottom:0}} .dot{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:9px}} .dot.orca{{background:var(--orca)}} .dot.pi{{background:var(--pi)}} .dot.omp{{background:var(--omp)}} .dot.claude{{background:var(--claude)}} .dot.kiss{{background:var(--kiss)}} .status{{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}} .status.pass{{color:var(--good)}} .status.fail{{color:var(--bad)}} .tasks{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}} .task-card div{{display:flex;justify-content:space-between;gap:12px}} .task-card div span{{color:var(--muted);font-size:12px;text-transform:uppercase}} .task-card h3{{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px}} .task-card p{{margin:0 0 12px}} .task-card small{{display:block;overflow-wrap:anywhere}} .method{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}} .method article{{border-left:2px solid var(--line);padding:2px 18px}} .method h3{{margin:0 0 6px;font-size:15px}} .method p{{margin:0;color:var(--muted)}} footer{{margin-top:48px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted)}} @media(max-width:800px){{main{{padding:36px 16px 60px}}.cards,.tasks,.method{{grid-template-columns:1fr}}.pareto{{padding:8px}}}}
+:root{{--bg:#090c10;--panel:#11171e;--panel2:#161e27;--line:#293542;--text:#edf3f8;--muted:#9baaba;--finecore:#72b7ff;--orcacode:#67d7ad;--orca:#67d7ad;--pi:#e4b65b;--omp:#8fb3ff;--claude:#df8769;--kiss:#c89bf0;--good:#70d6a5;--bad:#f08787}}
+*{{box-sizing:border-box}} body{{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}} a{{color:var(--orca)}} code{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#dbe8f2}} main{{max-width:1440px;margin:auto;padding:56px 28px 80px}} header{{max-width:980px;margin-bottom:38px}} .eyebrow{{color:var(--orca);font-size:12px;font-weight:750;letter-spacing:.14em;text-transform:uppercase}} h1{{font-size:clamp(36px,6vw,76px);line-height:1.02;letter-spacing:-.045em;margin:12px 0 18px}} .lede{{color:var(--muted);font-size:19px;max-width:850px}} section{{margin-top:42px}} h2{{font-size:24px;margin:0 0 8px}} .intro{{color:var(--muted);max-width:900px;margin:0 0 18px}} .cards{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}} .card,.task-card{{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:20px}} .card strong{{display:block;font-size:34px;letter-spacing:-.04em}} .card span,.task-card small{{color:var(--muted)}} .pareto{{max-width:1040px;padding:18px 18px 8px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,var(--panel2),var(--panel))}} .pareto svg{{display:block;width:100%;height:auto}} .pareto-grid line{{stroke:var(--line);stroke-width:1}} .pareto-grid text,.axis-label,.point-detail{{fill:var(--muted);font-size:12px}} .frontier-line{{fill:none;stroke:var(--orca);stroke-width:3;stroke-dasharray:8 7}} .pareto-point circle{{stroke:var(--bg);stroke-width:4}} .pareto-point text{{fill:var(--text);font-size:13px;font-weight:750}} .pareto-point.finecore circle{{fill:var(--finecore)}} .pareto-point.orcacode circle{{fill:var(--orcacode)}} .pareto-point.orca circle{{fill:var(--orca)}} .pareto-point.pi circle{{fill:var(--pi)}} .pareto-point.omp circle{{fill:var(--omp)}} .pareto-point.claude circle{{fill:var(--claude)}} .pareto-point.kiss circle{{fill:var(--kiss)}} .pareto-point .point-detail{{fill:var(--muted);font-size:11px;font-weight:500}} .table-wrap{{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}} table{{border-collapse:collapse;width:100%;min-width:980px}} th,td{{padding:12px 14px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}} th:first-child,td:first-child{{text-align:left}} thead th{{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;background:var(--panel2);position:sticky;top:0}} tbody tr:last-child th,tbody tr:last-child td{{border-bottom:0}} .dot{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:9px}} .dot.finecore{{background:var(--finecore)}} .dot.orcacode{{background:var(--orcacode)}} .dot.orca{{background:var(--orca)}} .dot.pi{{background:var(--pi)}} .dot.omp{{background:var(--omp)}} .dot.claude{{background:var(--claude)}} .dot.kiss{{background:var(--kiss)}} .status{{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}} .status.pass{{color:var(--good)}} .status.fail{{color:var(--bad)}} .tasks{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}} .task-card div{{display:flex;justify-content:space-between;gap:12px}} .task-card div span{{color:var(--muted);font-size:12px;text-transform:uppercase}} .task-card h3{{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px}} .task-card p{{margin:0 0 12px}} .task-card small{{display:block;overflow-wrap:anywhere}} .method{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}} .method article{{border-left:2px solid var(--line);padding:2px 18px}} .method h3{{margin:0 0 6px;font-size:15px}} .method p{{margin:0;color:var(--muted)}} footer{{margin-top:48px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted)}} @media(max-width:800px){{main{{padding:36px 16px 60px}}.cards,.tasks,.method{{grid-template-columns:1fr}}.pareto{{padding:8px}}}}
 </style>
 </head>
 <body><main>
@@ -289,6 +312,8 @@ def render(
 <section><h2>Cost–correctness Pareto frontier</h2><p class="intro">Lower cost and higher correctness are better. {pareto_summary}</p><div class="pareto">{pareto}</div></section>
 
 <section><h2>Aggregate performance</h2><p class="intro">Correctness is the primary guardrail. Wall and TTFT are medians across the {len(tasks)}-task workload; totals include failed and timed-out attempts.</p><div class="table-wrap"><table><thead><tr><th>Harness</th><th>Correct</th><th>Timeouts</th><th>Wall median</th><th>E2E TTFT</th><th>Model TTFT</th><th>Total tokens</th><th>Tools</th><th>Turns</th><th>Normalized cost</th></tr></thead><tbody>{''.join(aggregate_rows)}</tbody></table></div></section>
+
+<section><h2>Paired task deltas</h2><p class="intro">95% task-cluster bootstrap intervals use 10,000 resamples. Latency and TTFT include only pairs where both harnesses solved correctly; cost per correct includes spend on failed attempts.</p><div class="table-wrap"><table><thead><tr><th>Pair (left − right)</th><th>Tasks</th><th>Correctness Δ [CI]</th><th>Wall ms Δ [CI]</th><th>TTFT ms Δ [CI]</th><th>Cost/correct USD Δ [CI]</th></tr></thead><tbody>{''.join(paired_rows)}</tbody></table></div></section>
 
 <section><h2>Token economics and caching</h2><p class="intro">Provider-reported token classes are normalized using the recorded Haiku 4.5 schedule. Cache reads are cheaper than uncached input, but still represent context processed and are included in total prompt tokens.</p><div class="table-wrap"><table><thead><tr><th>Harness</th><th>Uncached input</th><th>Output</th><th>Cache read</th><th>Cache write</th><th>Cache-read share</th><th>Reported provider</th></tr></thead><tbody>{''.join(token_rows)}</tbody></table></div></section>
 

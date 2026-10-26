@@ -5,17 +5,21 @@ from __future__ import annotations
 
 import argparse
 import csv
+import itertools
 import json
 import math
+import random
 import statistics
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
-
-HARNESS_ORDER = ("orca", "pi", "omp", "claude", "kiss")
+HARNESS_ORDER = ("finecore", "orcacode", "orca", "pi", "omp", "claude", "kiss")
 HARNESS_NAMES = {
-    "orca": "Orcacode",
+    "finecore": "FineCore",
+    "orcacode": "Orca (pinned donor)",
+    "orca": "FineCore (legacy series)",
     "pi": "Pi",
     "omp": "Oh My Pi",
     "kiss": "KISS",
@@ -103,7 +107,7 @@ def tool_timings(
     first_start: float | None = None
     first_end: float | None = None
     for elapsed, event in events:
-        if harness == "orca":
+        if harness in {"orca", "finecore", "orcacode"}:
             if event.get("type") == "tool_call":
                 tool_id = event.get("tool_call_id")
                 if isinstance(tool_id, str):
@@ -135,7 +139,7 @@ def first_delta_times(
     first_model: float | None = None
     first_answer: float | None = None
     for elapsed, event in events:
-        if harness == "orca":
+        if harness in {"orca", "finecore", "orcacode"}:
             event_type = event.get("type")
             if event_type == "agent_start":
                 agent_start = elapsed if agent_start is None else agent_start
@@ -323,6 +327,8 @@ def parse_raw(path: Path, manifest: dict[str, Any]) -> dict[str, Any]:
     harness = start["harness"]
     parsers = {
         "orca": orca_metrics,
+        "finecore": orca_metrics,
+        "orcacode": orca_metrics,
         "pi": pi_metrics,
         "omp": pi_metrics,
         "kiss": pi_metrics,
@@ -498,19 +504,110 @@ def task_comparison(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tools_median": median(row["tool_calls"] for row in harness_rows),
                 "turns_median": median(row["turns"] for row in harness_rows),
             }
-        for peer in ("pi", "omp", "claude", "kiss"):
-            if "orca" not in item or peer not in item:
-                continue
-            item[f"orca_minus_{peer}_wall_ms"] = difference(
-                item["orca"]["wall_median_ms"], item[peer]["wall_median_ms"]
-            )
-            item[f"orca_minus_{peer}_ttft_ms"] = difference(
-                item["orca"]["ttft_median_ms"], item[peer]["ttft_median_ms"]
-            )
-            item[f"orca_minus_{peer}_cost_usd"] = difference(
-                item["orca"]["cost_median_usd"], item[peer]["cost_median_usd"]
-            )
+        for anchor in ("finecore", "orcacode", "orca"):
+            for peer in ("finecore", "orcacode", "orca", "pi", "omp", "claude", "kiss"):
+                if anchor == peer or anchor not in item or peer not in item:
+                    continue
+                item[f"{anchor}_minus_{peer}_wall_ms"] = difference(
+                    item[anchor]["wall_median_ms"], item[peer]["wall_median_ms"]
+                )
+                item[f"{anchor}_minus_{peer}_ttft_ms"] = difference(
+                    item[anchor]["ttft_median_ms"], item[peer]["ttft_median_ms"]
+                )
+                item[f"{anchor}_minus_{peer}_cost_usd"] = difference(
+                    item[anchor]["cost_median_usd"], item[peer]["cost_median_usd"]
+                )
         comparisons.append(item)
+    return comparisons
+
+
+def paired_task_comparisons(rows: list[dict[str, Any]], seed: int = 20261026) -> list[dict[str, Any]]:
+    by_attempt: dict[tuple[str, int], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in rows:
+        by_attempt[(row["task"], row["repetition"])][row["harness"]] = row
+    available = {row["harness"] for row in rows}
+    order = [name for name in ("finecore", "orcacode", "orca", "pi", "omp", "claude", "kiss")
+             if name in available]
+    comparisons = []
+
+    def interval(clusters: list[list[Any]], metric, random_seed: int):
+        if len(clusters) < 2:
+            return None
+        rng = random.Random(random_seed)
+        draws = []
+        for _ in range(10_000):
+            selected = [rng.choice(clusters) for _ in clusters]
+            value = metric(selected)
+            if value is not None and math.isfinite(value):
+                draws.append(value)
+        if not draws:
+            return None
+        return [percentile(draws, 0.025), percentile(draws, 0.975)]
+
+    for anchor, peer in itertools.combinations(order, 2):
+            grouped: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = defaultdict(list)
+            for (task, _repetition), harness_rows in by_attempt.items():
+                if anchor in harness_rows and peer in harness_rows:
+                    grouped[task].append((harness_rows[anchor], harness_rows[peer]))
+            clusters = list(grouped.values())
+            accuracy_delta = [
+                sum(float(a["success"]) - float(b["success"]) for a, b in cluster) / len(cluster)
+                for cluster in clusters
+            ]
+            wall_clusters = [[a["wall_ms"] - b["wall_ms"] for a, b in cluster
+                              if a["success"] and b["success"]] for cluster in clusters]
+            ttft_clusters = [[a["ttft_ms"] - b["ttft_ms"] for a, b in cluster
+                              if a["success"] and b["success"]
+                              and a["ttft_ms"] is not None and b["ttft_ms"] is not None]
+                             for cluster in clusters]
+
+            def median_cluster_delta(selected):
+                values = [statistics.median(cluster) for cluster in selected if cluster]
+                return statistics.median(values) if values else None
+
+            def cost_delta(selected):
+                a_cost = sum(a["normalized_cost_usd"] for cluster in selected for a, _ in cluster)
+                b_cost = sum(b["normalized_cost_usd"] for cluster in selected for _, b in cluster)
+                a_success = sum(a["success"] for cluster in selected for a, _ in cluster)
+                b_success = sum(b["success"] for cluster in selected for _, b in cluster)
+                if not a_success or not b_success:
+                    return None
+                return a_cost / a_success - b_cost / b_success
+
+            paired = [(a, b) for cluster in clusters for a, b in cluster]
+            both_correct = sum(a["success"] and b["success"] for a, b in paired)
+            accuracy_observed = statistics.mean(accuracy_delta) if accuracy_delta else None
+            latency_task_medians = [statistics.median(c) for c in wall_clusters if c]
+            ttft_task_medians = [statistics.median(c) for c in ttft_clusters if c]
+            wall_observed = statistics.median(latency_task_medians) if latency_task_medians else None
+            ttft_observed = statistics.median(ttft_task_medians) if ttft_task_medians else None
+            total_a_success = sum(a["success"] for a, _ in paired)
+            total_b_success = sum(b["success"] for _, b in paired)
+            cost_observed = None
+            if total_a_success and total_b_success:
+                cost_observed = (
+                    sum(a["normalized_cost_usd"] for a, _ in paired) / total_a_success
+                    - sum(b["normalized_cost_usd"] for _, b in paired) / total_b_success
+                )
+            comparisons.append({
+                "difference": f"{anchor} - {peer}", "anchor": anchor, "peer": peer,
+                "matched_tasks": len(clusters), "matched_attempts": len(paired),
+                "both_correct_attempts": both_correct,
+                "correctness_rate_delta": accuracy_observed,
+                "correctness_rate_delta_ci95_cluster_bootstrap": interval(
+                    [[value] for value in accuracy_delta],
+                    lambda selected: statistics.mean(cluster[0] for cluster in selected), seed + len(comparisons)),
+                "both_correct_wall_median_task_delta_ms": wall_observed,
+                "both_correct_wall_delta_ci95_cluster_bootstrap_ms": interval(
+                    wall_clusters, median_cluster_delta, seed + 100 + len(comparisons)),
+                "both_correct_ttft_median_task_delta_ms": ttft_observed,
+                "both_correct_ttft_delta_ci95_cluster_bootstrap_ms": interval(
+                    ttft_clusters, median_cluster_delta, seed + 200 + len(comparisons)),
+                "normalized_cost_per_correct_delta_usd": cost_observed,
+                "normalized_cost_per_correct_delta_ci95_cluster_bootstrap_usd": interval(
+                    clusters, cost_delta, seed + 300 + len(comparisons)),
+                "bootstrap": "10,000 task-cluster resamples; percentile 95% interval",
+            })
     return comparisons
 
 
@@ -542,6 +639,31 @@ def markdown(summary: dict[str, Any]) -> str:
             f"{milliseconds(item['model_ttft_median_ms'])} | "
             f"{milliseconds(item['time_to_answer_median_ms'])} | {item['total_tokens']:,} | "
             f"{item['tool_calls']} | {item['turns']} | ${item['normalized_cost_usd']:.6f} |"
+        )
+    def interval_text(value, interval_values, digits=3):
+        if value is None:
+            return "n/a"
+        point = f"{value:.{digits}f}"
+        if interval_values is None:
+            return point + " (no interval)"
+        return f"{point} [{interval_values[0]:.{digits}f}, {interval_values[1]:.{digits}f}]"
+
+    lines.extend([
+        "",
+        "## Paired task comparisons",
+        "",
+        "Intervals are 95% task-cluster bootstrap intervals (10,000 resamples). Latency and TTFT include only pairs where both harnesses solved the task correctly.",
+        "",
+        "| Pair | Matched tasks | Correctness Δ [95% CI] | Wall Δ ms [95% CI] | TTFT Δ ms [95% CI] | Cost/correct Δ USD [95% CI] |",
+        "| :-- | --: | --: | --: | --: | --: |",
+    ])
+    for item in summary.get("paired_task_comparisons", []):
+        lines.append(
+            f"| {item['difference']} | {item['matched_tasks']} | "
+            f"{interval_text(item['correctness_rate_delta'], item['correctness_rate_delta_ci95_cluster_bootstrap'])} | "
+            f"{interval_text(item['both_correct_wall_median_task_delta_ms'], item['both_correct_wall_delta_ci95_cluster_bootstrap_ms'])} | "
+            f"{interval_text(item['both_correct_ttft_median_task_delta_ms'], item['both_correct_ttft_delta_ci95_cluster_bootstrap_ms'])} | "
+            f"{interval_text(item['normalized_cost_per_correct_delta_usd'], item['normalized_cost_per_correct_delta_ci95_cluster_bootstrap_usd'], 6)} |"
         )
     lines.extend(
         [
@@ -583,7 +705,7 @@ def main() -> int:
     for row in rows:
         harness_rows[row["harness"]].append(row)
     summary = {
-        "schema_version": 4,
+        "schema_version": 5,
         "model": manifest["model"],
         "provider": manifest["provider"],
         "provider_routing": manifest.get("provider_routing"),
@@ -596,6 +718,7 @@ def main() -> int:
             harness: summarize_harness(items) for harness, items in sorted(harness_rows.items())
         },
         "tasks": task_comparison(rows),
+        "paired_task_comparisons": paired_task_comparisons(rows),
     }
     (run_dir / "runs.json").write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
     (run_dir / "summary.json").write_text(

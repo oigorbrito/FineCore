@@ -61,12 +61,13 @@ class RenderHtmlTest(unittest.TestCase):
             ]
         }
 
-    def render(self, harnesses):
+    def render(self, harnesses, paired=None):
         summary = {
             "model": "anthropic/claude-haiku-4.5",
             "effort": "low",
             "repetitions": 1,
             "harnesses": harnesses,
+            "paired_task_comparisons": paired or [],
         }
         runs = [
             run_row(name, item["successful"] == item["runs"])
@@ -87,6 +88,29 @@ class RenderHtmlTest(unittest.TestCase):
         self.assertIn("Oh My Pi", report)
         self.assertIn("1 tasks × 4 harnesses × 1 repetition = 4 sequential attempts", report)
         self.assertEqual(report.count("class='pareto-point "), 4)
+
+    def test_triad_report_renders_paired_task_intervals(self):
+        harnesses = {
+            "finecore": harness_summary(1, 0.001, 400.0),
+            "orcacode": harness_summary(1, 0.002, 420.0),
+            "pi": harness_summary(1, 0.003, 500.0),
+        }
+        paired = [{
+            "anchor": "finecore", "peer": "orcacode", "difference": "finecore - orcacode",
+            "matched_tasks": 16, "correctness_rate_delta": 0.0,
+            "correctness_rate_delta_ci95_cluster_bootstrap": [0.0, 0.0],
+            "both_correct_wall_median_task_delta_ms": -20.0,
+            "both_correct_wall_delta_ci95_cluster_bootstrap_ms": [-30.0, -10.0],
+            "both_correct_ttft_median_task_delta_ms": -5.0,
+            "both_correct_ttft_delta_ci95_cluster_bootstrap_ms": [-10.0, -1.0],
+            "normalized_cost_per_correct_delta_usd": -0.001,
+            "normalized_cost_per_correct_delta_ci95_cluster_bootstrap_usd": [-0.002, -0.0005],
+        }]
+        report = self.render(harnesses, paired)
+        self.assertIn("FineCore", report)
+        self.assertIn("Orca (pinned donor)", report)
+        self.assertIn("Paired task deltas", report)
+        self.assertIn("-20.000 [-30.000, -10.000]", report)
 
     def test_historical_three_harness_report_still_renders(self):
         harnesses = {

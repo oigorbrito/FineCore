@@ -5,7 +5,6 @@ from pathlib import Path
 
 import analyze
 
-
 PRICING = {
     "input_usd_per_million": 1.0,
     "output_usd_per_million": 5.0,
@@ -102,6 +101,61 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(row["tool_duration_sum_ms"], 20.0)
         self.assertAlmostEqual(row["input_cost_usd"], 0.0001)
         self.assertAlmostEqual(row["output_cost_usd"], 0.0001)
+
+    def test_finecore_and_pinned_orca_share_event_parser_but_keep_distinct_ids(self):
+        for harness in ("finecore", "orcacode"):
+            with self.subTest(harness=harness):
+                path = self.write_raw(
+                    f"rep-01-lookup-{harness}.jsonl",
+                    harness,
+                    [
+                        wrapped_line(10.0, {"type": "agent_start"}),
+                        wrapped_line(20.0, {"type": "assistant_delta", "text": "answer=42"}),
+                        wrapped_line(30.0, {"type": "result", "message": "answer=42"}),
+                    ],
+                )
+                row = analyze.parse_raw(path, self.manifest)
+                self.assertEqual(row["harness"], harness)
+                self.assertTrue(row["success"])
+                self.assertEqual(row["model_ttft_ms"], 10.0)
+
+    def test_paired_task_comparisons_include_finecore_orca_and_pi(self):
+        rows = []
+        for harness, wall, cost in (("finecore", 100.0, 0.001),
+                                    ("orcacode", 120.0, 0.002),
+                                    ("pi", 150.0, 0.003)):
+            rows.append({
+                "task": "lookup", "category": "retrieval", "mode": "read",
+                "harness": harness, "success": True, "wall_ms": wall,
+                "ttft_ms": wall / 2, "normalized_cost_usd": cost,
+                "tool_calls": 1, "turns": 1,
+            })
+        result = analyze.task_comparison(rows)[0]
+        self.assertEqual(result["finecore_minus_orcacode_wall_ms"], -20.0)
+        self.assertEqual(result["finecore_minus_pi_cost_usd"], -0.002)
+        self.assertEqual(result["orcacode_minus_pi_wall_ms"], -30.0)
+
+    def test_paired_bootstrap_intervals_resample_task_clusters(self):
+        rows = []
+        for task in ("lookup-a", "lookup-b"):
+            for repetition in (1, 2):
+                for harness, wall, cost in (("finecore", 100.0, 0.001),
+                                            ("orcacode", 120.0, 0.002),
+                                            ("pi", 150.0, 0.003)):
+                    rows.append({
+                        "task": task, "repetition": repetition, "harness": harness,
+                        "success": True, "wall_ms": wall, "ttft_ms": wall / 2,
+                        "normalized_cost_usd": cost,
+                    })
+        comparisons = analyze.paired_task_comparisons(rows)
+        finecore_orca = next(item for item in comparisons
+                             if item["difference"] == "finecore - orcacode")
+        self.assertEqual(finecore_orca["matched_tasks"], 2)
+        self.assertEqual(finecore_orca["matched_attempts"], 4)
+        self.assertEqual(finecore_orca["correctness_rate_delta"], 0.0)
+        self.assertEqual(finecore_orca["both_correct_wall_median_task_delta_ms"], -20.0)
+        self.assertEqual(finecore_orca["both_correct_wall_delta_ci95_cluster_bootstrap_ms"], [-20.0, -20.0])
+        self.assertEqual(finecore_orca["normalized_cost_per_correct_delta_usd"], -0.001)
 
     def test_pi_ttft_usage_and_correctness(self):
         path = self.write_raw(
