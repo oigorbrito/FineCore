@@ -76,6 +76,29 @@ pub fn save_key(provider: &str, key: &str) -> io::Result<PathBuf> {
     save_str(Some("api_keys"), provider, key)
 }
 
+/// Remove only the FineCore-saved API key for one provider. Environment
+/// variables and external Pi auth files are deliberately left untouched.
+pub fn remove_key(provider: &str) -> io::Result<bool> {
+    if stored_key(provider).is_none() {
+        return Ok(false);
+    }
+    let provider = provider.to_string();
+    let mut removed = false;
+    mutate_root(|root| {
+        let remove_section =
+            if let Some(keys) = root.get_mut("api_keys").and_then(Value::as_object_mut) {
+                removed = keys.remove(&provider).is_some();
+                keys.is_empty()
+            } else {
+                false
+            };
+        if remove_section {
+            root.remove("api_keys");
+        }
+    })?;
+    Ok(removed)
+}
+
 /// The model last picked while this provider was active.
 pub fn stored_model(provider: &str) -> Option<String> {
     stored_str(Some("models"), provider)

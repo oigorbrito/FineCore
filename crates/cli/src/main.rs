@@ -147,10 +147,14 @@ Selecting openai-codex starts FineCore's device login; an existing
 official Codex login is also imported.
 No API key is required. /models [filter] opens the model catalog,
 and /settings changes the provider, model, theme, and API key.
+/login [provider] saves an API key or starts a supported native login;
+/logout removes only FineCore-saved API keys. Environment variables,
+explicit Pi auth files, and Codex CLI credentials are not deleted by logout.
 API keys entered in the TUI, the active provider, the theme, and the
 last model picked per provider are saved to
-~/.config/orcacode/config.json and reused on later runs; flags and
-environment variables above always win over the saved values.
+~/.config/orcacode/config.json and reused on later runs. Explicit --api-key
+wins; an explicitly opted-in Pi auth file precedes the existing environment
+and FineCore-config fallback.
 Approval prompts accept y (once), a (always, this session), A (always,
 saved for this workspace only; revoke in /settings), and n (deny).
 Sessions are recorded under ~/.config/orcacode/sessions/ per workspace;

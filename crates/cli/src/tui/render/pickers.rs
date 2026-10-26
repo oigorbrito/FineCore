@@ -55,29 +55,76 @@ pub(crate) fn help_picker_lines(
     )
 }
 
-pub(crate) fn provider_lines(picker: &ListPicker, width: usize) -> Vec<Line<'static>> {
-    let rows = Provider::ALL.iter().map(|provider| {
-        let key_note = match provider.auth() {
-            ProviderAuth::None => "no key needed".to_string(),
-            ProviderAuth::OAuth => {
-                let status = crate::auth::status_summary(*provider);
-                format!("subscription OAuth · {status}")
-            }
-            ProviderAuth::ApiKey { environment } if provider.env_key().is_some() => {
+fn provider_auth_note(provider: Provider) -> String {
+    match provider.auth() {
+        ProviderAuth::None => "no key needed".into(),
+        ProviderAuth::OAuth => format!("native OAuth · {}", crate::auth::status_summary(provider)),
+        ProviderAuth::ApiKey { environment } => {
+            if std::env::var_os("FINECORE_PI_AUTH_FILE").is_some() {
+                "explicit Pi auth file configured".into()
+            } else if provider.env_key().is_some() {
                 format!("key from ${environment}")
+            } else if provider.stored_key().is_some() {
+                "FineCore-saved API key".into()
+            } else {
+                format!("${environment} not set")
             }
-            ProviderAuth::ApiKey { environment } => {
-                format!("${environment} not set — will ask")
-            }
-        };
+        }
+    }
+}
+
+fn provider_menu_lines(
+    providers: &[Provider],
+    picker: &ListPicker,
+    title: &str,
+    width: usize,
+) -> Vec<Line<'static>> {
+    let rows = providers.iter().map(|provider| {
         [
             provider.label().to_string(),
             provider.base_url().to_string(),
-            key_note,
+            provider_auth_note(*provider),
+        ]
+    });
+    picker.table_lines(title, rows, [(12, 12), (36, 36), (0, usize::MAX)], width)
+}
+
+pub(crate) fn provider_lines(picker: &ListPicker, width: usize) -> Vec<Line<'static>> {
+    provider_menu_lines(
+        &Provider::ALL,
+        picker,
+        "Select provider · ↑↓ move · →/enter use · esc close",
+        width,
+    )
+}
+
+pub(crate) fn login_provider_lines(
+    providers: &[Provider],
+    picker: &ListPicker,
+    width: usize,
+) -> Vec<Line<'static>> {
+    provider_menu_lines(
+        providers,
+        picker,
+        "Log in · ↑↓ move · →/enter select · esc close",
+        width,
+    )
+}
+
+pub(crate) fn logout_provider_lines(
+    providers: &[Provider],
+    picker: &ListPicker,
+    width: usize,
+) -> Vec<Line<'static>> {
+    let rows = providers.iter().map(|provider| {
+        [
+            provider.label().to_string(),
+            provider.base_url().to_string(),
+            "FineCore-saved API key".to_string(),
         ]
     });
     picker.table_lines(
-        "Select provider · ↑↓ move · →/enter use · esc close",
+        "Remove FineCore-saved credential · ↑↓ move · →/enter remove · esc close",
         rows,
         [(12, 12), (36, 36), (0, usize::MAX)],
         width,

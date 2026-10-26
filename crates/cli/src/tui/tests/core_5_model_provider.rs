@@ -276,6 +276,7 @@
         app.overlay = Some(Overlay::ApiKey {
             provider: Provider::OpenRouter,
             input: String::new(),
+            login_only: false,
         });
 
         // Empty enter is ignored — no accidental keyless switch.
@@ -316,6 +317,90 @@
             Some(Overlay::Providers { picker }) => assert_eq!(picker.index(), 0),
             _ => panic!("expected the provider overlay"),
         }
+    }
+
+    #[test]
+    fn login_api_key_is_masked_saved_and_does_not_switch_provider() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        let active_provider = app.cfg.provider;
+        slash_command(&mut app, "login", &tx, 80);
+        match &app.overlay {
+            Some(Overlay::LoginProviders { providers, picker }) => {
+                assert!(providers.contains(&Provider::OpenAiCodex));
+                assert!(!providers.contains(&Provider::Local));
+                assert_eq!(picker.index(), 0);
+            }
+            _ => panic!("expected login provider picker"),
+        }
+
+        press(&mut app, &tx, KeyCode::Enter);
+        assert!(matches!(
+            app.overlay,
+            Some(Overlay::ApiKey {
+                provider: Provider::OpenRouter,
+                login_only: true,
+                ..
+            })
+        ));
+        for c in "sk-login-test-only".chars() {
+            press(&mut app, &tx, KeyCode::Char(c));
+        }
+        let lines = flat_lines(&live_lines(&app, 80));
+        assert!(!lines.contains("sk-login-test-only"));
+        press(&mut app, &tx, KeyCode::Enter);
+
+        assert_eq!(app.cfg.provider, active_provider);
+        assert_eq!(
+            crate::config::stored_key("openrouter").as_deref(),
+            Some("sk-login-test-only")
+        );
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(WorkerCmd::RefreshProviderAuth {
+                provider: Provider::OpenRouter
+            })
+        ));
+    }
+
+    #[test]
+    fn login_codex_uses_existing_native_flow_without_switching() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        let active_provider = app.cfg.provider;
+        slash_command(&mut app, "login openai-codex", &tx, 80);
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(WorkerCmd::LoginProvider {
+                provider: Provider::OpenAiCodex,
+                activate: false
+            })
+        ));
+        assert_eq!(app.cfg.provider, active_provider);
+    }
+
+    #[test]
+    fn logout_picker_shows_only_finecore_saved_keys_and_sends_remove() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        crate::config::save_key("openai", "sk-logout-test-only").unwrap();
+        slash_command(&mut app, "logout", &tx, 80);
+        match &app.overlay {
+            Some(Overlay::LogoutProviders { providers, picker }) => {
+                assert_eq!(providers, &[Provider::OpenAi]);
+                assert_eq!(picker.index(), 0);
+            }
+            _ => panic!("expected saved-credential picker"),
+        }
+        let lines = flat_lines(&live_lines(&app, 80));
+        assert!(!lines.contains("sk-logout-test-only"));
+        press(&mut app, &tx, KeyCode::Enter);
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(WorkerCmd::LogoutApiKey {
+                provider: Provider::OpenAi
+            })
+        ));
     }
 
     #[test]

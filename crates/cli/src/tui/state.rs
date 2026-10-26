@@ -234,6 +234,16 @@ pub(crate) enum Overlay {
     /// Provider selector (OpenRouter, Vercel AI Gateway, CheaperInference,
     /// OpenAI, Codex, local).
     Providers { picker: ListPicker },
+    /// Providers with a supported FineCore login method.
+    LoginProviders {
+        providers: Vec<Provider>,
+        picker: ListPicker,
+    },
+    /// FineCore-saved API keys that can be removed without touching external auth.
+    LogoutProviders {
+        providers: Vec<Provider>,
+        picker: ListPicker,
+    },
     /// Theme selector over `view::ThemeName::ALL`.
     Themes { picker: ListPicker },
     /// Transcript layout selector (classic or split inspector).
@@ -254,8 +264,12 @@ pub(crate) enum Overlay {
     Usage,
     /// Process-tool children that are still running.
     Processes,
-    /// Masked API-key entry for a provider whose key is not in the env.
-    ApiKey { provider: Provider, input: String },
+    /// Masked API-key entry for provider switching or `/login`.
+    ApiKey {
+        provider: Provider,
+        input: String,
+        login_only: bool,
+    },
     /// Settings menu: shows the persisted preferences and jumps into
     /// the provider, model, theme, api-key, and approval pickers.
     Settings { picker: ListPicker },

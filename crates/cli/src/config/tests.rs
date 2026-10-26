@@ -116,6 +116,17 @@ mod tests {
     }
 
     #[test]
+    fn remove_key_deletes_only_the_selected_provider_and_is_idempotent() {
+        save_key("openrouter", "sk-or-test").unwrap();
+        save_key("openai", "sk-openai-test").unwrap();
+
+        assert!(remove_key("openai").unwrap());
+        assert_eq!(stored_key("openai"), None);
+        assert_eq!(stored_key("openrouter").as_deref(), Some("sk-or-test"));
+        assert!(!remove_key("openai").unwrap());
+    }
+
+    #[test]
     fn provider_theme_and_models_round_trip_alongside_keys() {
         assert_eq!(stored_provider(), None);
         assert_eq!(stored_theme(), None);

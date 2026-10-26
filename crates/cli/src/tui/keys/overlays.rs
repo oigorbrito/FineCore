@@ -60,25 +60,60 @@ pub(crate) fn handle_overlay_key(
             PickerEvent::Activated(index) => {
                 let provider = Provider::ALL[index];
                 match provider.auth() {
-                    ProviderAuth::ApiKey { .. } if provider.resolve_key().is_none() => {
-                        After::Push(Overlay::ApiKey {
+                    ProviderAuth::ApiKey { .. } => match crate::auth::resolve_api_key(provider) {
+                        Ok(Some(api_key)) => After::CloseAndSend(WorkerCmd::SetProvider {
+                            provider,
+                            api_key: Some(api_key),
+                        }),
+                        Ok(None) => After::Push(Overlay::ApiKey {
                             provider,
                             input: String::new(),
-                        })
-                    }
+                            login_only: false,
+                        }),
+                        Err(error) => After::CloseWithNote(error),
+                    },
                     ProviderAuth::OAuth => match crate::auth::status(provider) {
                         Ok(_) => After::CloseAndSend(WorkerCmd::SetProvider {
                             provider,
                             api_key: None,
                         }),
-                        Err(_) => After::CloseAndSend(WorkerCmd::LoginProvider { provider }),
+                        Err(_) => After::CloseAndSend(WorkerCmd::LoginProvider {
+                            provider,
+                            activate: true,
+                        }),
                     },
-                    _ => After::CloseAndSend(WorkerCmd::SetProvider {
+                    ProviderAuth::None => After::CloseAndSend(WorkerCmd::SetProvider {
                         provider,
                         api_key: None,
                     }),
                 }
             }
+            _ => After::Nothing,
+        },
+        Overlay::LoginProviders { providers, picker } => match picker.on_key(key.code) {
+            PickerEvent::Activated(index) => {
+                let provider = providers[index];
+                match provider.auth() {
+                    ProviderAuth::ApiKey { .. } => After::Push(Overlay::ApiKey {
+                        provider,
+                        input: String::new(),
+                        login_only: true,
+                    }),
+                    ProviderAuth::OAuth => After::CloseAndSend(WorkerCmd::LoginProvider {
+                        provider,
+                        activate: false,
+                    }),
+                    ProviderAuth::None => {
+                        After::CloseWithNote(format!("{} does not require login", provider.label()))
+                    }
+                }
+            }
+            _ => After::Nothing,
+        },
+        Overlay::LogoutProviders { providers, picker } => match picker.on_key(key.code) {
+            PickerEvent::Activated(index) => After::CloseAndSend(WorkerCmd::LogoutApiKey {
+                provider: providers[index],
+            }),
             _ => After::Nothing,
         },
         Overlay::Themes { picker } => match picker.on_key(key.code) {
@@ -131,26 +166,42 @@ pub(crate) fn handle_overlay_key(
             KeyCode::Enter | KeyCode::Char('q') => After::Close,
             _ => After::Nothing,
         },
-        Overlay::ApiKey { provider, input } => match key.code {
+        Overlay::ApiKey {
+            provider,
+            input,
+            login_only,
+        } => match key.code {
             KeyCode::Enter => {
                 let key = input.trim().to_string();
                 if key.is_empty() {
                     After::Nothing
                 } else {
                     let provider = *provider;
-                    let note = match crate::config::save_key(provider.label(), &key) {
-                        Ok(path) => format!("api key saved to {}", path.display()),
-                        Err(err) => {
-                            format!("api key kept for this session only (save failed: {err})")
-                        }
-                    };
-                    After::SendWithNote(
-                        WorkerCmd::SetProvider {
-                            provider,
-                            api_key: Some(key),
-                        },
-                        note,
-                    )
+                    match crate::auth::login_api_key(provider, &key) {
+                        Ok(path) if *login_only => After::SendWithNote(
+                            WorkerCmd::RefreshProviderAuth { provider },
+                            format!(
+                                "API key saved for {} at {}",
+                                provider.label(),
+                                path.display()
+                            ),
+                        ),
+                        Ok(path) => After::SendWithNote(
+                            WorkerCmd::SetProvider {
+                                provider,
+                                api_key: Some(key),
+                            },
+                            format!("API key saved to {}", path.display()),
+                        ),
+                        Err(error) if *login_only => After::CloseWithNote(error),
+                        Err(error) => After::SendWithNote(
+                            WorkerCmd::SetProvider {
+                                provider,
+                                api_key: Some(key),
+                            },
+                            format!("API key kept for this session only (save failed: {error})"),
+                        ),
+                    }
                 }
             }
             KeyCode::Char(c) => {
