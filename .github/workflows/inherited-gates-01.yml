@@ -7,7 +7,6 @@ on:
     paths:
       - .github/workflows/inherited-gates-01.yml
       - scripts/compare_inherited_gates.py
-      - docs/engineering/INHERITED_GATES_01.md
       - Cargo.toml
       - Cargo.lock
       - crates/**

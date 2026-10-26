@@ -27,11 +27,12 @@ logs, binary hashes/sizes/sections, and alternating paired core-tools samples.
 Every ordinary gate runs even after an earlier gate fails. An expected gate
 failure leaves the workflow failed and is retained in the artifact.
 
-## Local reproduction (Windows x86_64 MSVC)
+## Pre-fix local baseline (Windows x86_64 MSVC)
 
-A fresh paired run used Rust/Cargo 1.99.1, Clippy 0.1.99, LLVM 23.1.1, each
-repository's pinned `stable` toolchain, the same host, default `RUSTFLAGS`, and
-separate target directories. The release profiles are identical:
+Before the MCP correction, a paired baseline used Rust/Cargo 1.99.1, Clippy
+0.1.99, LLVM 23.1.1, each repository's pinned `stable` toolchain, the same
+host, default `RUSTFLAGS`, and separate target directories. The release
+profiles are identical:
 `opt-level = "z"`, fat LTO, one codegen unit, `panic = "abort"`, and
 `strip = true`. Both workspaces declare the same members and workspace
 dependencies. Their 281 external locked package records (including dependency
@@ -45,11 +46,12 @@ workspace package metadata differs.
 | Release build | passed | passed | both compiled |
 | Binary size | 7,861,248 bytes | 7,868,416 bytes | FAIL in both; limit is `<6,700,000` |
 
-The FineCore binary is 7,168 bytes smaller in this single paired build. This is
-not a performance result and is not statistically meaningful. Both exceed the
-limit by over 1.16 MB. The exact compiler output, gate status, size, and binary
-SHA-256 were captured locally; the Ubuntu workflow uploads the durable complete
-logs and section breakdown.
+The pre-fix FineCore binary was 7,168 bytes smaller in this single paired
+build. This is not a performance result and is not statistically meaningful.
+Both exceed the limit by over 1.16 MB. The exact compiler output, gate status,
+size, and binary SHA-256 are in
+`docs/validation-logs/inherited-gates-01-windows-baseline.json`; the corrected
+Ubuntu workflow uploads durable complete logs and section breakdowns.
 
 ## Findings and cause classification
 
@@ -153,10 +155,47 @@ exploratory evidence only; the one-run, multiple-scenario comparison does not
 establish a speedup or regression. It compares the migration identity overlay
 and MCP error fix against canonical Orca, not an optimization before/after.
 
-**Ubuntu paired-run evidence:** corrected-run results and raw artifacts are
-linked in PR #114. The expected source-size, strict Clippy, and binary-size
-checks remain FAIL; ordinary test/build results and the differential benchmark
-are reported separately.
+### Corrected Ubuntu paired run
+
+[Run 40332327658](https://github.com/oigorbrito/finecore/actions/runs/40332327658)
+used Ubuntu 24.04, x86_64 Linux, rustc/cargo 1.99.1, Clippy 0.1.99, LLVM 23.1.1,
+matching `stable` toolchain files, identical workspace dependencies and all 281
+external locked package records, no `RUSTFLAGS`, and identical release profiles.
+Its uploaded `inherited-gates-01-40332327658` artifact contains raw logs,
+comparison JSON, environment/tool versions, binary hashes/sizes, section maps,
+and all 40 paired benchmark sample logs.
+
+| Check | FineCore after correction | Canonical Orca | Result |
+| --- | ---: | ---: | --- |
+| `cargo fmt --all -- --check` | pass | pass | PASS |
+| Source-size | 14 violations | 15 violations | FAIL both |
+| Strict Clippy | 13 `result_large_err` errors | 13 same errors | FAIL both |
+| Workspace tests | 1,515 passed, 0 failed, 7 ignored | 1,516 passed, 0 failed, 7 ignored | PASS both |
+| Immediate-exit MCP test | 20/20 | 20/20 | PASS both |
+| `cargo bench --workspace -- --test` | pass | pass | PASS both |
+| Release build | pass | pass | PASS both |
+| Release binary | 9,334,616 bytes | 9,342,840 bytes | FAIL both (`<6,700,000`) |
+
+The one-test difference in full-suite totals is the documented FineCore updater
+test-set substitution: FineCore tests its fail-closed behavior without a
+FineCore release channel; canonical Orca has two upstream installer/update
+tests. It is not an unexplained test loss. The final FineCore binary is 8,224
+bytes smaller than Orca in this build; both remain far above the cap. Its ELF
+has no debug sections; representative large sections are `.text` 5,133,016 B,
+`.rodata` 1,704,613 B, `.eh_frame` 884,744 B and `.rela.dyn` 796,104 B. Orca's
+corresponding `.text` is 5,139,416 B and `.rodata` is the same size. Relative to the first paired Linux build before the MCP
+correction (9,334,232 B), the corrected FineCore binary is +384 B; this is an
+observed build-size delta, not a runtime-performance measure. The section
+breakdown supports a linked-code/footprint versus inherited-threshold issue,
+not unstripped debug-info or dependency drift.
+
+All paired 20-sample core-tools bootstrap intervals include zero (the
+closest to excluding zero is guarded-distinct wall time, −4.858% median with
+95% interval −7.096% to +0.033%). The cases are multiple comparisons on one shared runner and do not
+justify a speedup or regression claim. The workflow's overall status is FAIL
+because the source-size, Clippy, and binary-size gates intentionally remain
+failing; formatting, both full test suites, both benchmark-smoke suites, both
+release builds, and the focused 20/20 checks passed.
 
 ## Decision
 
@@ -164,8 +203,10 @@ are reported separately.
 | --- | --- |
 | Source size | FAIL remains. The cohesive MCP transport extraction removes one FineCore violation (14 remain; donor has 15); further broad splits are not justified solely by the line cap. |
 | Clippy | Preserve FAIL. Diagnostics are inherited; the clean fix would alter public error API. No lint waiver. |
-| Binary size | Preserve FAIL. Both canonical and FineCore builds exceed the inherited limit; no justified limit change or measured safe optimization yet. |
+| Binary size | Preserve FAIL. Both canonical and FineCore builds exceed the inherited limit with stripped, size-optimized release builds; no justified limit change or measured safe optimization yet. |
 
-No inherited gate is represented as passing, waived, or fixed. A later change
-may address module boundaries, error representation, or a product-specific
-release budget as separately reviewed work with API and runtime evidence.
+The source-size rule now passes for the extracted FineCore `mcp/client.rs`, but
+the aggregate gate still FAILS; no overall source-size, Clippy, or binary-size
+gate is waived or represented as green. Further module boundaries, public error
+representation changes, and a product-specific release budget remain separate
+review work requiring API and runtime evidence.
