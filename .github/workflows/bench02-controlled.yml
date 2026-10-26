@@ -51,6 +51,9 @@ jobs:
       # This step records each suite independently and intentionally returns
       # success after collecting all results. The final verdict is applied
       # only after core-tools, MCP, and subagent have all run on both trees.
+      - name: BENCH-02 regression tests
+        run: python3 -m unittest discover -s candidate/benchmarks/bench02 -p 'test_*.py' -v
+
       - name: Run paired core-tools and independent MCP/subagent suites
         run: >-
           python3 candidate/benchmarks/bench02/run.py

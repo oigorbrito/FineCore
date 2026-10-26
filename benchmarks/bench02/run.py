@@ -163,6 +163,21 @@ def load_report_module(candidate: Path):
     return module
 
 
+def parse_core_tools_output(module, output: str) -> dict[tuple[str, str], list[dict]]:
+    """Normalize Rust test-harness prefixes without changing donor report.py."""
+    records = []
+    for raw in output.splitlines():
+        prefix, separator, payload = raw.partition(module.PREFIX)
+        if not separator:
+            continue
+        if prefix.strip(". ") and not (
+            prefix.startswith("test ") and prefix.rstrip().endswith(" ...")
+        ):
+            raise ValueError(f"unexpected benchmark marker context: {prefix!r}")
+        records.append(module.PREFIX + payload)
+    return module.parse("\n".join(records))
+
+
 def collect_core_tools(candidate: Path, donor: Path, out: Path, samples: int,
                        statuses: dict[str, Any]) -> None:
     executables: dict[str, Path] = {}
@@ -218,7 +233,7 @@ def collect_core_tools(candidate: Path, donor: Path, out: Path, samples: int,
             sample_dir = out / "core-tools" / "samples" / side / f"pair-{pair:02d}"
             save_command(sample_dir, result)
             raw[side].append(result["output"])
-            parsed_by_pair[pair][side] = module.parse(result["output"])
+            parsed_by_pair[pair][side] = parse_core_tools_output(module, result["output"])
             statuses[f"core_tools_sample_{side}_{pair:02d}"] = result["exit_code"]
 
     summaries: dict[str, dict[str, Any]] = {}
@@ -226,7 +241,7 @@ def collect_core_tools(candidate: Path, donor: Path, out: Path, samples: int,
         for side in SIDES:
             parsed: dict[tuple[str, str], list[dict]] = {}
             for text in raw[side]:
-                for key, values in module.parse(text).items():
+                for key, values in parse_core_tools_output(module, text).items():
                     parsed.setdefault(key, []).extend(values)
             measurements, summary = module.aggregate(parsed, samples)
             suffixes = (
