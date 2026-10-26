@@ -1,0 +1,49 @@
+name: FineCore workflow retry corrective validation
+
+on:
+  push:
+    branches: [fix/orca-inherited-workflow-stage-retry]
+    paths:
+      - 'crates/**'
+      - '.github/workflows/finecore-workflow-retry-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finecore-workflow-retry-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+jobs:
+  corrective:
+    name: workflow retry targeted Rust gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Rust stable toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: rustfmt, clippy
+      - name: Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: workflow-retry-corrective
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Compile workspace targets
+        run: cargo check --workspace --all-targets --locked
+      - name: DAG tests
+        run: cargo test -p orca-harness-dag --locked
+      - name: Workflow regression suite
+        run: cargo test -p orca-harness-tools --test workflow --locked -- --nocapture
+      - name: FineCore CLI tests
+        run: cargo test -p finecore --locked
