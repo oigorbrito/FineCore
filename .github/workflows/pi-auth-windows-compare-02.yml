@@ -1,0 +1,55 @@
+name: FineCore Pi auth Windows comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: PR #120 head branch or commit SHA
+        required: true
+        default: feature/pi-auth-bridge-01
+        type: string
+      candidate_ref:
+        description: PR #121 head branch or commit SHA
+        required: true
+        default: feature/pi-auth-parity-02
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-auth-windows-compare-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    name: Paired Windows full-suite comparison (failures stay visible)
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: oigorbrito/finecore
+          ref: ${{ inputs.baseline_ref }}
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: oigorbrito/finecore
+          ref: ${{ inputs.candidate_ref }}
+          path: candidate
+          persist-credentials: false
+      - name: Rust toolchain 1.99.1
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: 1.99.1
+      - name: Compare full suites without masking failures
+        run: python candidate/scripts/compare_pi_auth_windows.py --baseline baseline --candidate candidate --output evidence
+      - name: Upload comparison and raw logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: finecore-pi-auth-windows-comparison-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

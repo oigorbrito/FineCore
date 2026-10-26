@@ -5,7 +5,7 @@
 //
 // The file is JSON at `$ORCA_CONFIG_DIR/config.json`, defaulting to
 // `~/.config/orcacode/config.json` (`%APPDATA%\orcacode` on Windows),
-// and is created with owner-only permissions. Shape:
+// and is restricted to its owner (plus SYSTEM on Windows). Shape:
 //
 // ```json
 // {
@@ -548,7 +548,39 @@ fn write_private(path: &Path, body: &str) -> io::Result<()> {
     restrict(path, 0o600)
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn write_private(path: &Path, body: &str) -> io::Result<()> {
+    use std::io::Write;
+
+    let existing = match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_file() => true,
+        Ok(_) => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "config path must be a regular file, not a link or directory",
+            ));
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+        Err(error) => return Err(error),
+    };
+    if existing {
+        restrict(path, 0o600)?;
+    }
+    let mut options = fs::OpenOptions::new();
+    options.write(true);
+    if existing {
+        options.truncate(true);
+    } else {
+        options.create_new(true);
+    }
+    let mut file = options.open(path)?;
+    // New files are protected before any config content is written.
+    restrict(path, 0o600)?;
+    file.write_all(body.as_bytes())?;
+    file.sync_all()
+}
+
+#[cfg(all(not(unix), not(windows)))]
 fn write_private(path: &Path, body: &str) -> io::Result<()> {
     fs::write(path, body)
 }
@@ -559,7 +591,52 @@ fn restrict(path: &Path, mode: u32) -> io::Result<()> {
     fs::set_permissions(path, fs::Permissions::from_mode(mode))
 }
 
-#[cfg(all(not(unix), not(test)))]
+#[cfg(windows)]
+fn restrict(path: &Path, _mode: u32) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::{
+        ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+    };
+    use windows_sys::Win32::Security::{
+        SetFileSecurityW, DACL_SECURITY_INFORMATION, PROTECTED_DACL_SECURITY_INFORMATION,
+    };
+
+    let sddl: Vec<u16> = "D:P(A;;FA;;;OW)(A;;FA;;;SY)\0".encode_utf16().collect();
+    let mut descriptor = std::ptr::null_mut();
+    let mut descriptor_size = 0;
+    // SAFETY: the SDDL is NUL-terminated UTF-16; Windows allocates descriptor.
+    let converted = unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl.as_ptr(),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            &mut descriptor_size,
+        )
+    };
+    if converted == 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let mut wide_path: Vec<u16> = path.as_os_str().encode_wide().collect();
+    wide_path.push(0);
+    // SAFETY: both path and security descriptor remain valid for the call.
+    let secured = unsafe {
+        SetFileSecurityW(
+            wide_path.as_ptr(),
+            DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+            descriptor,
+        )
+    };
+    let error = (secured == 0).then(io::Error::last_os_error);
+    // SAFETY: descriptor was allocated by ConvertStringSecurityDescriptorToSecurityDescriptorW.
+    unsafe {
+        LocalFree(descriptor);
+    }
+    error.map_or(Ok(()), Err)
+}
+
+#[cfg(all(not(unix), not(windows)))]
 fn restrict(_path: &Path, _mode: u32) -> io::Result<()> {
     Ok(())
 }

@@ -355,6 +355,12 @@
             crate::config::stored_key("openrouter").as_deref(),
             Some("sk-login-test-only")
         );
+        let notice = flat_lines(&app.pending_history);
+        assert!(notice.contains("API key saved for openrouter"));
+        assert!(
+            notice.contains("takes precedence") || notice.contains("effective source")
+        );
+        assert!(!notice.contains("sk-login-test-only"));
         assert!(matches!(
             rx.try_recv(),
             Ok(WorkerCmd::RefreshProviderAuth {

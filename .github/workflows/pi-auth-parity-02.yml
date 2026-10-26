@@ -4,6 +4,8 @@ on:
   push:
     branches: [feature/pi-auth-parity-02]
     paths:
+      - 'Cargo.lock'
+      - 'crates/cli/Cargo.toml'
       - 'crates/cli/src/auth/**'
       - 'crates/cli/src/config/**'
       - 'crates/cli/src/main.rs'
@@ -12,7 +14,10 @@ on:
       - 'crates/cli/src/runtime/worker.rs'
       - 'crates/cli/src/tui/**'
       - 'docs/engineering/PI_AUTH_PARITY_02.md'
+      - 'scripts/compare_pi_auth_windows.py'
+      - 'scripts/test_compare_pi_auth_windows.py'
       - '.github/workflows/pi-auth-parity-02.yml'
+      - '.github/workflows/pi-auth-windows-compare-02.yml'
   workflow_dispatch:
 
 permissions:
@@ -38,6 +43,8 @@ jobs:
           components: rustfmt
       - name: Formatting
         run: cargo fmt --all -- --check
+      - name: Windows comparison report tests
+        run: python scripts/test_compare_pi_auth_windows.py
       - name: Compile CLI
         run: cargo check -p finecore --locked
       - name: API-key manager and compatibility tests

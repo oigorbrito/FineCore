@@ -178,21 +178,35 @@ pub(crate) fn handle_overlay_key(
                 } else {
                     let provider = *provider;
                     match crate::auth::login_api_key(provider, &key) {
-                        Ok(path) if *login_only => After::SendWithNote(
-                            WorkerCmd::RefreshProviderAuth { provider },
-                            format!(
-                                "API key saved for {} at {}",
-                                provider.label(),
-                                path.display()
-                            ),
-                        ),
-                        Ok(path) => After::SendWithNote(
-                            WorkerCmd::SetProvider {
-                                provider,
-                                api_key: Some(key),
-                            },
-                            format!("API key saved to {}", path.display()),
-                        ),
+                        Ok(path) => {
+                            let source_note = crate::auth::api_key_source_notice(provider)
+                                .unwrap_or_else(|error| {
+                                    format!(
+                                        "effective credential source could not be checked: {error}"
+                                    )
+                                });
+                            if *login_only {
+                                After::SendWithNote(
+                                    WorkerCmd::RefreshProviderAuth { provider },
+                                    format!(
+                                        "API key saved for {} at {}; {source_note}",
+                                        provider.label(),
+                                        path.display()
+                                    ),
+                                )
+                            } else {
+                                After::SendWithNote(
+                                    WorkerCmd::SetProvider {
+                                        provider,
+                                        api_key: Some(key),
+                                    },
+                                    format!(
+                                        "API key saved to {}; current session uses the entered key; future startup resolution: {source_note}",
+                                        path.display()
+                                    ),
+                                )
+                            }
+                        }
                         Err(error) if *login_only => After::CloseWithNote(error),
                         Err(error) => After::SendWithNote(
                             WorkerCmd::SetProvider {
