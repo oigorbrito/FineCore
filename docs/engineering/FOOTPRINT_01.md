@@ -37,9 +37,17 @@ check. The unmodified FineCore and canonical Orca baselines also run formatting,
 source-size, strict Clippy, debug and release workspace tests, benchmark smoke,
 release size checks, compatibility invocations, and 20 immediate-exit MCP
 repetitions. Each FineCore variant receives release workspace tests, benchmark
-smoke, `--version`/help/plugin-help checks and the same MCP repetitions. Every
-ordinary command runs even after earlier failures; all exit codes remain in the
-artifact and the workflow does not mask the inherited failures.
+smoke, valid `--version`/top-level `--help`/`plugin list` compatibility checks
+and the same MCP repetitions. Legacy unsupported plugin-help probes remain in
+raw records but do not gate functional eligibility. Every ordinary command
+runs even after earlier failures; all exit codes remain in the artifact and the
+workflow does not mask inherited failures. Full command output is flushed
+unbuffered to per-command files; starts/ends and high-signal build/test progress
+are streamed to Actions logs. After each completed baseline/variant, an
+atomic JSON checkpoint and cumulative partial-results snapshot are written; a
+separate `if: always()` artifact upload publishes completed variants even if
+later analysis fails. `--render-existing` regenerates the report from preserved
+JSON/logs without repeating measurements.
 
 | Isolated variant | Hypothesis / status |
 | --- | --- |
@@ -80,9 +88,18 @@ not a performance claim by themselves.
 The GitHub Actions artifact contains `FOOTPRINT_01_REPORT.md`,
 `footprint-01-results.json`, environment and version metadata, raw logs, ELF and
 symbol reports, copied executable/test binaries, and all paired raw samples.
-The report includes the required table for absolute bytes, savings, compile
+A partial checkpoint artifact is uploaded independently. If report rendering
+fails, it can be regenerated offline from the preserved JSON/logs using
+`scripts/footprint_01.py --render-existing <json> --out <dir>` without rerunning
+builds or tests. The report includes the required table for absolute bytes, savings, compile
 time, repeat-build identity, tests, MCP, compatibility, benchmark results, and
 decision disposition. The JSON is the machine-readable source of truth.
+
+## Run 40351250854 result and recovery
+
+Run [40351250854](https://github.com/oigorbrito/finecore/actions/runs/40351250854) used FineCore HEAD `066229b4eb35f061e837197ebd105710fb42c80b` and completed all eight FineCore profile builds plus the pinned Orca baseline, repeat-build checks, tests, MCP repetitions, startup/RSS samples, and paired workload measurements. The runner uploaded artifact [12678024189](https://github.com/oigorbrito/finecore/actions/runs/40351250854/artifacts/12678024189), then failed while rendering the report: the toolchain log reference already began with `logs/`, and the renderer prepended `logs/` a second time. This was not a build timeout, memory failure, or disk exhaustion. The report has been regenerated from the preserved JSON/log artifact only; no experiment was rerun.
+
+The same run recorded 14 FineCore versus 15 Orca source-size violations and 13 strict-Clippy errors in each tree; every baseline/variant binary-size gate also failed at the unchanged cap. The four `cargo-bloat` commands failed because the offline audit lacked cached `bumpalo v3.20.3`. Unsupported plugin-help probes also returned nonzero and are preserved, but do not indicate product test failures; valid `--version` and top-level `--help` passed. The replacement runner uses supported probes and records every nonzero result transparently.
 
 ## Decision rule
 

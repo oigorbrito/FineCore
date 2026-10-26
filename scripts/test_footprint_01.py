@@ -28,6 +28,39 @@ class FootprintAnalysisTests(unittest.TestCase):
         values = [-2.0, 0.5, 1.0, 2.0]
         self.assertEqual(f.summarize(values, 123), f.summarize(values, 123))
 
+    def test_log_reference_does_not_duplicate_logs_directory(self):
+        root = Path("/tmp/evidence/logs")
+        self.assertEqual(f.resolve_log_path(root, "logs/rustc.log"), root / "rustc.log")
+
+    def test_unsupported_legacy_plugin_help_probes_are_not_functional_gates(self):
+        record = {"compatibility": [
+            {"command": ["finecore", "--version"], "exit_code": 0},
+            {"command": ["finecore", "--help"], "exit_code": 0},
+            {"command": ["finecore", "plugin", "--help"], "exit_code": 1},
+            {"command": ["finecore", "plugin", "validate", "--help"], "exit_code": 1},
+        ]}
+        self.assertEqual(len(f.valid_compatibility_rows(record)), 2)
+
+    def test_invoke_streams_and_preserves_command_output(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logs = root / "logs"
+            records = []
+            result = f.invoke("stream-test", [sys.executable, "-c", "print('live-output')"],
+                              root, f.os.environ.copy(), logs, records)
+            self.assertEqual(result["exit_code"], 0)
+            self.assertEqual((logs / "stream-test.log").read_text().strip(), "live-output")
+            self.assertEqual(records, [result])
+
+    def test_completed_variant_checkpoint_is_atomic_and_cumulative(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence = {"commands": [], "variants": {}}
+            f.checkpoint_variant(root, evidence, "finecore", "baseline", {"binary": {"bytes": 1}})
+            self.assertTrue((root / "checkpoints/finecore-baseline.json").is_file())
+            partial = __import__("json").loads((root / "footprint-01-partial-results.json").read_text())
+            self.assertEqual(partial["completed_variants"], ["finecore/baseline"])
+
     def test_report_includes_unmodified_gate_and_candidate_disposition(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -42,11 +75,31 @@ class FootprintAnalysisTests(unittest.TestCase):
                 "environment": {"platform": "Linux-test", "machine": "x86_64"},
                 "dependency_graph_match": True,
                 "release_profile_baseline_match": True,
+                "tool_versions": {"rustc": {"log": "logs/rustc.log"}},
                 "variants": {
                     "baseline": {
                         "finecore": {"binary": {"bytes": 9_000_000}, "commands": []},
                         "orca": {"binary": {"bytes": 9_100_000}, "commands": []},
-                    }
+                    },
+                    "thin-lto": {
+                        "finecore": {
+                            "profile": {"name": "thin-lto", "release": {"LTO": "thin"}},
+                            "binary": {"bytes": 8_900_000},
+                            "commands": [
+                                {"label": "finecore-thin-lto-release-build", "exit_code": 0},
+                                {"label": "finecore-thin-lto-release-workspace-tests", "exit_code": 0},
+                                {"label": "finecore-thin-lto-benchmark-smoke", "exit_code": 0},
+                                *[{"label": f"finecore-thin-lto-mcp-{i:02d}", "exit_code": 0} for i in range(1, 21)],
+                            ],
+                            "mcp_passed": 20,
+                            "reproducibility": {"same_sha256": True},
+                            "compatibility": [
+                                {"command": ["finecore", "--version"], "exit_code": 0},
+                                {"command": ["finecore", "--help"], "exit_code": 0},
+                                {"command": ["finecore", "plugin", "list"], "exit_code": 0},
+                            ],
+                        }
+                    },
                 },
                 "summary": {
                     "minimum_functionally_passing_non_diagnostic_linux_build": {
@@ -60,6 +113,7 @@ class FootprintAnalysisTests(unittest.TestCase):
                 "startup": {},
                 "benchmarks": {},
             }
+            (logs / "rustc.log").write_text("rustc test-version\n", encoding="utf-8")
             f.render_report(evidence, logs, out)
             report = (out / "FOOTPRINT_01_REPORT.md").read_text(encoding="utf-8")
             self.assertIn("thin-lto", report)
