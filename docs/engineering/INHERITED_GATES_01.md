@@ -155,9 +155,9 @@ exploratory evidence only; the one-run, multiple-scenario comparison does not
 establish a speedup or regression. It compares the migration identity overlay
 and MCP error fix against canonical Orca, not an optimization before/after.
 
-### Corrected Ubuntu paired run
+### Corrected Ubuntu paired runs
 
-[Final-head run 40335956763](https://github.com/oigorbrito/finecore/actions/runs/40335956763)
+[Earlier paired run 40335956763](https://github.com/oigorbrito/finecore/actions/runs/40335956763)
 used Ubuntu 24.04, x86_64 Linux, rustc/cargo 1.99.1, Clippy 0.1.99, LLVM 23.1.1,
 matching `stable` toolchain files, identical workspace dependencies and all 281
 external locked package records, no `RUSTFLAGS`, and identical release profiles.
@@ -200,6 +200,34 @@ made. The workflow's overall status is FAIL
 because the source-size, Clippy, and binary-size gates intentionally remain
 failing; formatting, both full test suites, both benchmark-smoke suites, both
 release builds, and the focused 20/20 checks passed.
+
+### PR-head reproduction and third paired sample
+
+The most recent independent run on the **actual code HEAD**
+`a7c03db555c6b4b25fa95d45a6d4a21823d65ae2` was
+[40339343951](https://github.com/oigorbrito/finecore/actions/runs/40339343951),
+with artifact `inherited-gates-01-40339343951` (GitHub artifact ID
+`12659775708`). It reproduced the same formatting, source-size, strict
+Clippy, complete test suites, immediate-exit MCP checks, benchmark smoke,
+release builds, and release-binary measurements reported above: FineCore
+14/Orca 15 source-size violations, 13 identical `result_large_err`
+diagnostics per tree, 1,515/1,516 workspace tests passing, immediate-exit
+20/20 per tree, and release binary sizes 9,334,616/9,342,840 bytes.
+The workflow remains **FAIL** because both repositories fail all three
+inherited enforcement gates; there is no waiver.
+
+Three independent paired benchmark runs now exist. Their
+`guarded_distinct` wall-time median differences were −4.858%, −0.997%,
+and −10.266%. The third run's exploratory 95% paired-bootstrap interval
+was [−17.611%, −2.101%], whereas the first two intervals contained
+zero. The third run's corresponding single-call average was +0.082%
+(interval [−2.440%, +2.460%]), also inconsistent with a broad latency
+effect. Thus the one-run wall-time signal was **not independently replicated**
+and is not attributable to the MCP error-path change; **no speedup or
+regression claim is supported**. The raw measurements for this head are in
+the latest Actions artifact. The earlier paired-run JSON in
+`docs/validation-logs/inherited-gates-01-ubuntu.json` remains a snapshot
+of run 40335956763, not a summary of the newest run.
 
 ## Decision
 
