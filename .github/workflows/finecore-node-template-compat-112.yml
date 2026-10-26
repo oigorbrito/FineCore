@@ -50,7 +50,7 @@ jobs:
           import os
           from pathlib import Path
           root = Path("crates/cli/src/plugin/templates")
-          target = Path(os.environ["RUNNER_TEMP"]) / "finecore-node-template-112"
+          target = Path(".compat-scaffold")
           files = {
               "package.json": "package.json",
               "package-lock.json": "package-lock.json",
@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/finecore-node-template-112"
+          cd ".compat-scaffold"
           node --version
           npm --version
           npm ci --engine-strict
@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/finecore-node-template-112"
+          cd ".compat-scaffold"
           npm test
           npm run build
           npx tsc --noEmit
