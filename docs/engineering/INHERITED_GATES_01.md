@@ -157,13 +157,15 @@ and MCP error fix against canonical Orca, not an optimization before/after.
 
 ### Corrected Ubuntu paired run
 
-[Run 40332327658](https://github.com/oigorbrito/finecore/actions/runs/40332327658)
+[Final-head run 40335956763](https://github.com/oigorbrito/finecore/actions/runs/40335956763)
 used Ubuntu 24.04, x86_64 Linux, rustc/cargo 1.99.1, Clippy 0.1.99, LLVM 23.1.1,
 matching `stable` toolchain files, identical workspace dependencies and all 281
 external locked package records, no `RUSTFLAGS`, and identical release profiles.
-Its uploaded `inherited-gates-01-40332327658` artifact contains raw logs,
-comparison JSON, environment/tool versions, binary hashes/sizes, section maps,
-and all 40 paired benchmark sample logs.
+Its `inherited-gates-01-40335956763` artifact contains raw logs, comparison
+JSON, environment/tool versions, binary hashes/sizes, section maps, and all 40
+paired benchmark sample logs. An independent run on the unchanged code at
+[commit 61049d3a](https://github.com/oigorbrito/finecore/actions/runs/40332327658)
+reproduced the same gate, test, and binary-size outcomes.
 
 | Check | FineCore after correction | Canonical Orca | Result |
 | --- | ---: | ---: | --- |
@@ -189,10 +191,12 @@ observed build-size delta, not a runtime-performance measure. The section
 breakdown supports a linked-code/footprint versus inherited-threshold issue,
 not unstripped debug-info or dependency drift.
 
-All paired 20-sample core-tools bootstrap intervals include zero (the
-closest to excluding zero is guarded-distinct wall time, −4.858% median with
-95% interval −7.096% to +0.033%). The cases are multiple comparisons on one shared runner and do not
-justify a speedup or regression claim. The workflow's overall status is FAIL
+All paired 20-sample core-tools bootstrap intervals include zero in both runs.
+The observed medians varied between independent runs (for example,
+distinct wall-time changed from +2.159% to −0.690%; the final run's 95%
+interval was −4.558% to +20.218%). These multiple comparisons on shared
+runners do not justify a speedup or regression claim. No provider calls were
+made. The workflow's overall status is FAIL
 because the source-size, Clippy, and binary-size gates intentionally remain
 failing; formatting, both full test suites, both benchmark-smoke suites, both
 release builds, and the focused 20/20 checks passed.
