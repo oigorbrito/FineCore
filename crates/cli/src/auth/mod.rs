@@ -1,8 +1,8 @@
 //! Provider-neutral host authentication dispatch.
 
 mod oauth_device;
-pub(crate) mod pi_compat;
 mod openai_codex;
+pub(crate) mod pi_compat;
 mod store;
 
 use crate::msg::Provider;
