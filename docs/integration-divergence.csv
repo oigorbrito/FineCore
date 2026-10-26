@@ -1,0 +1,6 @@
+path,migration_mode,migration_blob,integration_mode,integration_blob,rationale
+README.md,100644,bbdcd8d7672c194e9c73dfd2160d3aaf21dac8ed,100644,7da5850c88140df80a61caa299ba4340007a50f5,Label historical performance figures as Orcacode upstream evidence and explicitly disclaim FineCore measurements.
+docs/FINECORE_IDENTITY_INVENTORY.md,100644,ad13478d4a33d443d5a302b0012e86d1a3a869e3,100644,036d2d8b44636c0e70f4c677c1c55586215b70d5,Distinguish the internal private npm placeholder from the separately published bootstrap package.
+docs/MIGRATION_VALIDATION.md,100644,7a6479c061d54c004aa77d05e4d70274f53e9ac3,100644,b48824c138458f3173dcc859fe8dac835f39c6c6,Retain original validation results while recording current commit state and later npm registry verification.
+npm/finecore/README.md,100644,b57c31369b815e0cf30d1513acb3294dfa00fe33,100644,14fd7a0ad3ec4bf87af91db71eff33c9843d7b22,State that this repository-only placeholder neither reserves the name nor represents the published bootstrap or Rust CLI.
+npm/finecore/package.json,100644,9de1cd31f26dde90c09210f42aca7490e7c62111,100644,65f4f711e6b1cfea5d4e565816c72c71647a1dba,Set private=true to prevent accidental publication of the repository-only placeholder.

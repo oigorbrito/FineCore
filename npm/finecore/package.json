@@ -1,7 +1,8 @@
 {
   "name": "finecore",
   "version": "0.0.1",
-  "description": "FineCore npm name reservation; this placeholder is not a functional CLI.",
+  "private": true,
+  "description": "Internal placeholder only; not the published bootstrap package or the FineCore Rust CLI.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
