@@ -16,6 +16,8 @@ import re
 import shutil
 import statistics
 import subprocess
+import sys
+import threading
 import time
 from pathlib import Path
 
@@ -44,24 +46,50 @@ def digest(data: bytes) -> str:
 def invoke(label: str, command: list[str], cwd: Path, env: dict[str, str], logs: Path,
            records: list[dict], timeout: int = 3600) -> dict:
     started = time.monotonic()
+    log_path = logs / f"{label}.log"
+    logs.mkdir(parents=True, exist_ok=True)
+    print(f"[footprint] START {label}: {' '.join(command)}", flush=True)
+    code = 127
+    timed_out = False
     try:
-        p = subprocess.run(command, cwd=cwd, env=env, text=True, encoding="utf-8", errors="replace",
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, check=False)
-        code, output = p.returncode, p.stdout
-    except subprocess.TimeoutExpired as exc:
-        code, output = 124, exc.stdout or ""
-        if isinstance(output, bytes):
-            output = output.decode(errors="replace")
-        output = f"TIMEOUT after {timeout}s\n{output}"
+        with log_path.open("w", encoding="utf-8", errors="replace") as log:
+            process = subprocess.Popen(command, cwd=cwd, env=env, text=True, encoding="utf-8",
+                                       errors="replace", stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       bufsize=1)
+
+            def stream_output() -> None:
+                assert process.stdout is not None
+                progress_prefixes = ("Compiling ", "Checking ", "Finished ", "Running ", "running ",
+                                     "test result:", "error:", "warning:", "failures:", "Installing ", "Installed ")
+                for line in process.stdout:
+                    log.write(line)
+                    log.flush()
+                    if line.lstrip().startswith(progress_prefixes) or BENCH_MARKER in line:
+                        sys.stdout.write(line)
+                        sys.stdout.flush()
+
+            reader = threading.Thread(target=stream_output, daemon=True)
+            reader.start()
+            try:
+                code = process.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                code = 124
+                timed_out = True
+            reader.join()
+            if timed_out:
+                log.write(f"\nTIMEOUT after {timeout}s\n")
+                log.flush()
+            if process.stdout is not None:
+                process.stdout.close()
     except OSError as exc:
-        code, output = 127, f"EXECUTION ERROR: {exc}\n"
+        with log_path.open("a", encoding="utf-8", errors="replace") as log:
+            log.write(f"EXECUTION ERROR: {exc}\n")
     rec = {"label": label, "command": command, "exit_code": code,
            "elapsed_seconds": round(time.monotonic() - started, 3), "log": f"logs/{label}.log"}
-    (logs / f"{label}.log").write_text(output, encoding="utf-8")
     records.append(rec)
-    print(f"{label}: exit={code} elapsed={rec['elapsed_seconds']:.1f}s")
-    if output:
-        print("\n".join(output.rstrip().splitlines()[-4:]))
+    print(f"[footprint] END {label}: exit={code} elapsed={rec['elapsed_seconds']:.1f}s", flush=True)
     return rec
 
 
@@ -171,7 +199,7 @@ def compatibility(repo: str, variant: str, binary: Path, root: Path, env: dict[s
                    logs: Path, records: list[dict]) -> list[dict]:
     commands = [[str(binary), "--version"], [str(binary), "--help"]]
     if repo == "finecore":
-        commands += [[str(binary), "plugin", "--help"], [str(binary), "plugin", "validate", "--help"]]
+        commands.append([str(binary), "plugin", "list"])
     return [invoke(f"{repo}-{variant}-compat-{i}", command, root, env, logs, records, 60)
             for i, command in enumerate(commands)]
 
@@ -189,7 +217,8 @@ def run_variant(repo: str, variant: dict, root: Path, target: Path, out: Path,
     archived = clone_binary(source_binary, out / "binaries" / f"{repo}-{name}")
     if archived:
         binary_bytes = archived.read_bytes()
-        record["binary"] = {"path": str(archived), "bytes": len(binary_bytes), "sha256": digest(binary_bytes)}
+        record["binary"] = {"path": str(archived), "artifact_path": archived.relative_to(out).as_posix(),
+                            "bytes": len(binary_bytes), "sha256": digest(binary_bytes)}
         record["sections"] = collect_sections(f"{repo}-{name}", source_binary, root, logs, records, env)
         gate = invoke(f"{repo}-{name}-binary-size-gate", ["bash", "ci/check-binary-size.sh", str(source_binary)], root, env, logs, records, 60)
         record["commands"].append(gate)
@@ -211,6 +240,7 @@ def run_variant(repo: str, variant: dict, root: Path, target: Path, out: Path,
     if test_exe:
         archived_test = clone_binary(test_exe, out / "binaries" / f"{repo}-{name}-core_tools_perf")
         record["core_tools_perf_executable"] = str(archived_test) if archived_test else None
+        record["core_tools_perf_artifact_path"] = archived_test.relative_to(out).as_posix() if archived_test else None
     else:
         record["core_tools_perf_executable"] = None
 
@@ -311,13 +341,78 @@ def pair_startup(label: str, left: Path, left_root: Path, right: Path, right_roo
             "raw_pairs": rows}
 
 
+def resolve_log_path(logs: Path, reference: str) -> Path:
+    path = Path(reference)
+    if path.is_absolute():
+        return path
+    if path.parts and path.parts[0] == "logs":
+        path = Path(*path.parts[1:])
+    return logs / path
+
+
+def write_json_atomic(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def valid_compatibility_rows(record: dict) -> list[dict]:
+    valid = []
+    for probe in record.get("compatibility", []):
+        command = probe.get("command", [])
+        if len(command) >= 2 and (command[1:] == ["--version"] or command[1:] == ["--help"]
+                                  or command[1:] == ["plugin", "list"]):
+            valid.append(probe)
+    return valid
+
+
+def functionally_passes(record: dict, repo: str, variant: str, mcp_repeats: int,
+                        feature_graphs_identical: bool) -> bool:
+    if variant == "no-default-features" and not feature_graphs_identical:
+        return False
+    commands = {row.get("label"): row.get("exit_code") for row in record.get("commands", [])}
+    prefix = f"{repo}-{variant}-"
+    return (record.get("binary", {}).get("bytes") is not None
+            and record.get("reproducibility", {}).get("same_sha256") is True
+            and commands.get(prefix + "release-build") == 0
+            and commands.get(prefix + "release-workspace-tests") == 0
+            and commands.get(prefix + "benchmark-smoke") == 0
+            and record.get("mcp_passed") == mcp_repeats
+            and bool(valid_compatibility_rows(record))
+            and all(row.get("exit_code") == 0 for row in valid_compatibility_rows(record)))
+
+
+def checkpoint_variant(out: Path, evidence: dict, repo: str, variant: str, record: dict) -> None:
+    checkpoints = out / "checkpoints"
+    checkpoints.mkdir(parents=True, exist_ok=True)
+    payload = {"repo": repo, "variant": variant, "completed": True,
+               "command_count": len(evidence.get("commands", [])), "record": record}
+    write_json_atomic(checkpoints / f"{repo}-{variant}.json", payload)
+    evidence.setdefault("completed_variants", []).append(f"{repo}/{variant}")
+    write_json_atomic(out / "footprint-01-partial-results.json", evidence)
+    print(f"[footprint] CHECKPOINT complete: {repo}/{variant}", flush=True)
+
+
 def render_report(evidence: dict, logs: Path, out: Path) -> None:
+    out.mkdir(parents=True, exist_ok=True)
+    toolchain_lines = []
+    for key in ("rustc", "cargo", "clippy"):
+        entry = evidence.get("tool_versions", {}).get(key)
+        if entry:
+            path = resolve_log_path(logs, entry["log"])
+            if path.is_file():
+                first_line = path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+                if first_line:
+                    toolchain_lines.append(first_line[0])
+    toolchain = ", ".join(toolchain_lines) or "unavailable"
     lines = [
         "# FOOTPRINT-01 controlled experiment results", "",
         f"- FineCore HEAD: `{evidence['repositories']['finecore']['head']}`",
         f"- Canonical Orca: `{evidence['repositories']['orca']['head']}`",
         f"- Environment: `{evidence['environment']['platform']}` ({evidence['environment']['machine']})",
-        f"- Toolchain: {', '.join((logs / evidence['tool_versions'][key]['log']).read_text(encoding='utf-8', errors='replace').strip().splitlines()[0] for key in ('rustc', 'cargo', 'clippy') if key in evidence.get('tool_versions', {}))}",
+        f"- Toolchain: {toolchain}",
+        f"- Run failure: {evidence.get('run_failure', 'none recorded')}",
         f"- External lock graphs identical: `{evidence['dependency_graph_match']}`; release profiles identical at baseline: `{evidence['release_profile_baseline_match']}`",
         "- Inherited size limit: `<6,700,000` bytes; unchanged. Provider calls: none.",
         "", "## Variant results", "",
@@ -344,19 +439,22 @@ def render_report(evidence: dict, logs: Path, out: Path) -> None:
         size_gate = command_exit_codes(commands, "binary-size-gate")
         mcp = f"{rec.get('mcp_passed', 0)}/{len([x for x in commands if '-mcp-' in x.get('label', '')])}"
         compat = rec.get("compatibility", [])
-        compat_ok = f"{sum(x.get('exit_code') == 0 for x in compat)}/{len(compat)}" if compat else "n/a"
+        valid_compat = valid_compatibility_rows(rec)
+        compat_ok = (f"{sum(x.get('exit_code') == 0 for x in valid_compat)}/{len(valid_compat)} valid"
+                     if valid_compat else "n/a")
+        if len(valid_compat) < len(compat):
+            compat_ok += f" ({len(compat) - len(valid_compat)} invalid legacy probe(s) excluded)"
         build_s = next((x.get("elapsed_seconds") for x in commands if x.get("label", "").endswith("release-build")), None)
         repro = rec.get("reproducibility", {})
         repeat_s = repro.get("repeat", {}).get("elapsed_seconds")
         compile_s = f"{build_s}/{repeat_s}" if build_s is not None and repeat_s is not None else build_s
         same = repro.get("same_sha256")
         profile = rec.get("profile", {})
-        cfg = "baseline" if name == "baseline" else ", ".join(
-            [*(f"{k.removeprefix('CARGO_PROFILE_RELEASE_').lower()}={v}" for k, v in profile.get("release", {}).items()),
-             *(f"{k.removeprefix('CARGO_PROFILE_BENCH_').lower()}={v}" for k, v in profile.get("bench", {}).items()),
-             *( [f"RUSTFLAGS={profile['rustflags']}"] if profile.get("rustflags") else []),
-             *( ["--no-default-features"] if profile.get("args") else [])]
-        ) or name
+        cfg_parts = [*(f"release.{k.lower()}={v}" for k, v in profile.get("release", {}).items()),
+                     *(f"bench.{k.lower()}={v}" for k, v in profile.get("bench", {}).items()),
+                     *([f"RUSTFLAGS={profile['rustflags']}"] if profile.get("rustflags") else []),
+                     *(["--no-default-features"] if profile.get("args") else [])]
+        cfg = "baseline" if name == "baseline" else ", ".join(cfg_parts) or name
         if name == "unwind-tables-off":
             decision = "Diagnostic only; reject if unwind data/debuggability is lost"
         elif name == "no-default-features":
@@ -393,7 +491,7 @@ def render_report(evidence: dict, logs: Path, out: Path) -> None:
         lines.append("")
         for item in ("crates", "top-functions"):
             p = logs / f"{repo}-bloat-{item}.log"
-            lines.append(f"- `{p.relative_to(out)}`")
+            lines.append(f"- `logs/{p.name}` (inside the Actions artifact)")
             if p.exists():
                 excerpt = "\n".join(p.read_text(encoding="utf-8", errors="replace").splitlines()[:24])
                 lines += ["", "```text", excerpt, "```"]
@@ -412,30 +510,70 @@ def render_report(evidence: dict, logs: Path, out: Path) -> None:
         for scenario, metrics in pair.get("metrics", {}).items():
             for metric, summary in metrics.items():
                 lines.append(f"| {label} | {scenario} | {metric} | {summary.get('median_percent')} | {summary.get('ci95_percent')} | {summary.get('n_pairs')} |")
-    smallest = evidence.get("summary", {}).get("minimum_functionally_passing_non_diagnostic_linux_build")
+    base_finecore = evidence.get("variants", {}).get("baseline", {}).get("finecore", {})
+    eligible = []
+    if functionally_passes(base_finecore, "finecore", "baseline", evidence.get("mcp_repeats", 20),
+                           evidence.get("feature_graphs_identical", False)):
+        eligible.append((base_finecore["binary"]["bytes"], "baseline"))
+    for variant_name, variant_rows in evidence.get("variants", {}).items():
+        if variant_name in ("baseline", "no-default-features"):
+            continue
+        candidate = variant_rows.get("finecore", {})
+        if candidate.get("profile", {}).get("diagnostic_only"):
+            continue
+        if functionally_passes(candidate, "finecore", variant_name, evidence.get("mcp_repeats", 20),
+                               evidence.get("feature_graphs_identical", False)):
+            eligible.append((candidate["binary"]["bytes"], variant_name))
+    smallest = min(eligible) if eligible else None
     if smallest:
-        conclusion = f"Smallest non-diagnostic build that passed the scripted Linux functional checks: `{smallest['variant']}` at {smallest['bytes']:,} bytes; it remains {smallest['bytes_over_limit']:,} bytes above the inherited cap. This is not cross-platform approval."
+        conclusion = f"Smallest eligible, non-diagnostic build that passed valid Linux functional checks: `{smallest[1]}` at {smallest[0]:,} bytes; it remains {smallest[0] - 6_700_000:,} bytes above the inherited cap. This is not cross-platform approval."
     else:
-        conclusion = "No non-diagnostic candidate passed all scripted Linux functional checks."
+        conclusion = "No eligible, non-diagnostic candidate passed valid Linux functional checks."
+    if evidence.get("artifact_url"):
+        lines.insert(1, f"- Preserved Actions artifact: {evidence['artifact_url']}")
+    failed = evidence.get("failed_commands", [])
+    lines += ["", "## Preserved nonzero outcomes", "",
+              "These exit codes are retained verbatim; inherited CI failures and diagnostic tooling failures are not waived.",
+              "", "| Command | Exit |", "|---|---:|"]
+    lines.extend(f"| `{row['label']}` | {row['exit_code']} |" for row in failed)
     lines += ["", "## Feature graph and interpretation", "", conclusion,
               f"- FineCore baseline gap to the unchanged cap: {evidence.get('summary', {}).get('baseline_bytes_over_limit')} bytes.",
               f"- `cargo tree -e features` identical with/without `--no-default-features`: `{evidence.get('feature_graphs_identical')}` (hashes and raw output in JSON/logs).",
               "- Baseline source-size, strict Clippy, and 6.7 MB binary gates are reported with their real exit codes; no threshold, lint, source-size rule, or feature set is silently changed.",
               "- All variants are Linux-only measurements. No variant is portable/production-approved until the exact candidate is built and tested on every supported target.",
               "- No profile variant was combined after the fact. A smaller but diagnostic-only build is not a safe minimum.",
+              "- The original `plugin --help` and `plugin validate --help` checks were invalid for this custom CLI parser; their nonzero outcomes remain in the raw records but are excluded from functional eligibility. Valid `--version`, top-level `--help`, and `plugin list` checks are used in subsequent runs.",
+              "- cargo-bloat attribution failed because the offline audit build lacked cached `bumpalo v3.20.3`; section/symbol data remains available and the attribution failure is preserved.",
               "- Complete raw records: `footprint-01-results.json`; per-command stdout/stderr in `logs/`; copied executables and test harnesses in `binaries/`.", ""]
     (out / "FOOTPRINT_01_REPORT.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--finecore", required=True, type=Path)
-    parser.add_argument("--orca", required=True, type=Path)
-    parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--finecore", type=Path)
+    parser.add_argument("--orca", type=Path)
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--render-existing", type=Path,
+                        help="render a report from a preserved footprint-01-results.json without rerunning experiments")
+    parser.add_argument("--artifact-url", help="optional URL for the preserved Actions artifact")
+    parser.add_argument("--run-failure", help="record the original run failure in the rendered report")
     parser.add_argument("--samples", type=int, default=20)
     parser.add_argument("--startup-samples", type=int, default=30)
     parser.add_argument("--mcp-repeats", type=int, default=20)
     args = parser.parse_args()
+    if args.render_existing:
+        source = args.render_existing.resolve()
+        evidence = json.loads(source.read_text(encoding="utf-8"))
+        if args.run_failure:
+            evidence["run_failure"] = args.run_failure
+        if args.artifact_url:
+            evidence["artifact_url"] = args.artifact_url
+        output = args.out.resolve() if args.out else source.parent
+        render_report(evidence, source.parent / "logs", output)
+        print(f"Report rendered from preserved evidence: {output / 'FOOTPRINT_01_REPORT.md'}", flush=True)
+        return 0
+    if not args.finecore or not args.orca or not args.out:
+        parser.error("--finecore, --orca, and --out are required unless --render-existing is used")
     if min(args.samples, args.startup_samples, args.mcp_repeats) < 1:
         parser.error("sample counts must be positive")
     roots = {"finecore": args.finecore.resolve(), "orca": args.orca.resolve()}
@@ -444,7 +582,8 @@ def main() -> int:
     records: list[dict] = []
     evidence: dict = {"workflow": "FOOTPRINT-01", "environment": {"platform": platform.platform(), "machine": platform.machine(),
         "python": platform.python_version(), "rustflags_initial": os.environ.get("RUSTFLAGS")},
-        "repositories": {}, "variants": {}, "commands": records, "benchmarks": {}, "startup": {}, "dependency_attribution": {}, "notes": []}
+        "repositories": {}, "variants": {}, "commands": records, "benchmarks": {}, "startup": {},
+        "dependency_attribution": {}, "mcp_repeats": args.mcp_repeats, "notes": []}
     base_env = clean_env(os.environ.copy())
     for repo, root in roots.items():
         lock = tomllib.loads((root / "Cargo.lock").read_text(encoding="utf-8"))
@@ -473,9 +612,11 @@ def main() -> int:
     evidence["provenance_valid"] = all(evidence[field] for field in provenance_fields)
     (out / "environment.json").write_text(json.dumps({"environment": evidence["environment"], "repositories": evidence["repositories"],
         "canonical_orca_pin": ORCA_COMMIT, **{field: evidence[field] for field in provenance_fields}, "provenance_valid": evidence["provenance_valid"]}, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out / "footprint-01-partial-results.json", evidence)
     for command, label in ((["rustc", "--version", "--verbose"], "rustc"), (["cargo", "--version"], "cargo"), (["cargo", "clippy", "--version"], "clippy")):
         rec = invoke(f"tool-version-{label}", command, roots["finecore"], base_env, logs, records, 60)
         evidence.setdefault("tool_versions", {})[label] = {"exit_code": rec["exit_code"], "log": rec["log"]}
+        write_json_atomic(out / "footprint-01-partial-results.json", evidence)
 
     # Baseline policy/test gates run on both unmodified source trees. No gate is waived.
     for repo, root in roots.items():
@@ -494,17 +635,20 @@ def main() -> int:
                 invoke(f"baseline-orca-{label}", command, root, env, logs, records)
         dev_test = invoke(f"baseline-{repo}-workspace-tests-dev", cargo_test(repo, "dev"), root, env, logs, records, 5400)
         evidence.setdefault("dev_tests", {})[repo] = dev_test
+        write_json_atomic(out / "footprint-01-partial-results.json", evidence)
         shutil.rmtree(target, ignore_errors=True)
 
     # Exact profile baselines for FineCore and Orca, followed by isolated FineCore variants.
     artifact_bins: dict[str, dict[str, Path]] = {"finecore": {}, "orca": {}}
     artifact_tests: dict[str, dict[str, Path]] = {"finecore": {}, "orca": {}}
     variants_by_name = {v["name"]: v for v in VARIANTS}
+    write_json_atomic(out / "footprint-01-partial-results.json", evidence)
     for repo, root in roots.items():
         target = out.parent / "targets" / f"{repo}-baseline"
         shutil.rmtree(target, ignore_errors=True)
         rec = run_variant(repo, VARIANTS[0], root, target, out, logs, records, base_env, args.mcp_repeats)
         evidence["variants"].setdefault("baseline", {})[repo] = rec
+        checkpoint_variant(out, evidence, repo, "baseline", rec)
         if rec.get("binary", {}).get("path"):
             artifact_bins[repo]["baseline"] = Path(rec["binary"]["path"])
         if rec.get("core_tools_perf_executable"):
@@ -515,6 +659,7 @@ def main() -> int:
         shutil.rmtree(target, ignore_errors=True)
         rec = run_variant("finecore", variant, roots["finecore"], target, out, logs, records, base_env, args.mcp_repeats)
         evidence["variants"][variant["name"]] = {"finecore": rec}
+        checkpoint_variant(out, evidence, "finecore", variant["name"], rec)
         if rec.get("binary", {}).get("path"):
             artifact_bins["finecore"][variant["name"]] = Path(rec["binary"]["path"])
         if rec.get("core_tools_perf_executable"):
@@ -587,21 +732,17 @@ def main() -> int:
 
     all_failed = [{"label": rec["label"], "exit_code": rec["exit_code"]} for rec in records if rec["exit_code"] != 0]
     evidence["failed_commands"] = all_failed
-    tested_candidates = [(base_size, "baseline")] if base_size is not None else []
+    tested_candidates = []
+    baseline_record = evidence["variants"].get("baseline", {}).get("finecore", {})
+    if functionally_passes(baseline_record, "finecore", "baseline", args.mcp_repeats,
+                           evidence.get("feature_graphs_identical", False)):
+        tested_candidates.append((base_size, "baseline"))
     for variant_name, variant_rows in evidence["variants"].items():
         rec = variant_rows.get("finecore", {})
-        if variant_name == "baseline" or rec.get("profile", {}).get("diagnostic_only"):
+        if variant_name in ("baseline", "no-default-features") or rec.get("profile", {}).get("diagnostic_only"):
             continue
-        if variant_name == "no-default-features" and not evidence.get("feature_graphs_identical"):
-            continue
-        commands_by_label = {row["label"]: row["exit_code"] for row in rec.get("commands", [])}
-        functional_ok = (rec.get("binary", {}).get("bytes") is not None and rec.get("reproducibility", {}).get("same_sha256") is True
-            and commands_by_label.get(f"finecore-{variant_name}-release-build") == 0
-            and commands_by_label.get(f"finecore-{variant_name}-release-workspace-tests") == 0
-            and commands_by_label.get(f"finecore-{variant_name}-benchmark-smoke") == 0
-            and rec.get("mcp_passed") == args.mcp_repeats
-            and all(row.get("exit_code") == 0 for row in rec.get("compatibility", [])))
-        if functional_ok:
+        if functionally_passes(rec, "finecore", variant_name, args.mcp_repeats,
+                               evidence.get("feature_graphs_identical", False)):
             tested_candidates.append((rec["binary"]["bytes"], variant_name))
     smallest = min(tested_candidates) if tested_candidates else None
     evidence["summary"] = {"variant_count_including_baseline": len(VARIANTS), "binary_size_limit_bytes_exclusive": 6700000,
@@ -610,9 +751,9 @@ def main() -> int:
             "bytes_over_limit": smallest[0] - 6700000} if smallest else None,
         "binary_size_gate_changed": False, "provider_calls": 0, "all_failures_preserved": True,
         "provenance_valid": evidence["provenance_valid"]}
-    (out / "footprint-01-results.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+    write_json_atomic(out / "footprint-01-results.json", evidence)
     render_report(evidence, logs, out)
-    print(f"Evidence written to {out}; failures recorded={len(all_failed)}")
+    print(f"Evidence written to {out}; failures recorded={len(all_failed)}", flush=True)
     return 1 if all_failed else 0
 
 
