@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Fail-closed comparison of two runs of the same real-tool fault fixture.
+"""Paired empirical comparison, with no assumed positive outcome.
 
-This is a controlled recovery experiment, NOT a benchmark of model quality,
-provider spend, latency improvements, or broad programming effectiveness.
+This is fault-injection evidence, not a model-quality or speed benchmark.
 """
 import json
 import statistics
 import sys
-from collections import defaultdict
 from pathlib import Path
 
-CASES = {
-    "healthy": ((True, 1), (True, 1)),
-    "transport_once": ((False, 1), (True, 2)),
-    "transport_twice": ((False, 1), (False, 2)),
-    "incomplete_once": ((False, 1), (True, 2)),
-    "authentication": ((False, 1), (False, 1)),
-}
+CASES = (
+    "healthy",
+    "transport_once",
+    "transport_twice",
+    "incomplete_once",
+    "authentication",
+    "pretool_transport_once",
+    "pretool_incomplete_once",
+    "pretool_authentication",
+)
 REPETITIONS = 20
-ARMS = ("baseline", "retry")
 
 
 def read_rows(path: Path, expected_arm: str):
@@ -41,47 +41,68 @@ def read_rows(path: Path, expected_arm: str):
             f"missing={sorted(expected-set(observations))}, "
             f"extra={sorted(set(observations)-expected)}"
         )
+    for (case, _trial), row in observations.items():
+        before = case.startswith("pretool_")
+        if row["phase"] != ("before_tool" if before else "after_tool"):
+            raise ValueError(f"wrong failure phase: {row}")
+        attempts = row["stage_attempts"]
+        if not (1 <= attempts <= 2):
+            raise ValueError(f"invalid attempt count: {row}")
+        if expected_arm == "baseline" and attempts != 1:
+            raise ValueError(f"unexpected baseline replay: {row}")
+        if row["tool_effects"] != (0 if before else attempts):
+            raise ValueError(f"inconsistent recorded external effects: {row}")
+        if row["model_generations"] != attempts * (1 if before else 2):
+            raise ValueError(f"inconsistent number of model calls: {row}")
     return observations
 
 
-def summarize(base: Path, candidate: Path):
+def summarize(baseline: Path, retry: Path):
     arms = {
-        "baseline": read_rows(base, "baseline"),
-        "retry": read_rows(candidate, "retry"),
+        "baseline": read_rows(baseline, "baseline"),
+        "retry": read_rows(retry, "retry"),
     }
     table = {}
-    for case, targets in CASES.items():
+    for case in CASES:
         table[case] = {}
-        for arm, (success_target, attempts_target) in zip(ARMS, targets):
+        for arm in arms:
             rows = [arms[arm][(case, trial)] for trial in range(REPETITIONS)]
-            for row in rows:
-                if row["success"] != success_target:
-                    raise ValueError(f"{arm}/{case} unexpected success: {row}")
-                if row["stage_attempts"] != attempts_target:
-                    raise ValueError(f"{arm}/{case} unexpected attempts: {row}")
-                if row["tool_effects"] != attempts_target:
-                    raise ValueError(f"{arm}/{case} unexpected external effects: {row}")
-                if row["model_generations"] != 2 * attempts_target:
-                    raise ValueError(f"{arm}/{case} unexpected model invocations: {row}")
+            failures = sorted({r["error_line"] for r in rows if r["error_line"]})
             table[case][arm] = {
-                "successes": sum(row["success"] for row in rows),
+                "successes": sum(r["success"] for r in rows),
                 "trials": len(rows),
-                "tool_effects_total": sum(row["tool_effects"] for row in rows),
-                "model_generations_total": sum(row["model_generations"] for row in rows),
-                "trials_with_duplicate_effects": sum(row["tool_effects"] > 1 for row in rows),
+                "tool_effects_total": sum(r["tool_effects"] for r in rows),
+                "model_generations_total": sum(r["model_generations"] for r in rows),
+                "trials_with_duplicate_effects": sum(r["tool_effects"] > 1 for r in rows),
                 "median_elapsed_micros_diagnostic_only": statistics.median(
-                    row["elapsed_micros"] for row in rows
+                    r["elapsed_micros"] for r in rows
                 ),
+                "terminal_error_examples": failures[:3],
             }
+        base = table[case]["baseline"]
+        candidate = table[case]["retry"]
+        table[case]["delta"] = {
+            "additional_successes_per_20": candidate["successes"] - base["successes"],
+            "additional_model_generations_per_20": (
+                candidate["model_generations_total"] - base["model_generations_total"]
+            ),
+            "additional_external_effects_per_20": (
+                candidate["tool_effects_total"] - base["tool_effects_total"]
+            ),
+            "additional_trials_with_duplicated_effects": (
+                candidate["trials_with_duplicate_effects"]
+                - base["trials_with_duplicate_effects"]
+            ),
+        }
     return {
-        "evidence": "20 deterministic faults per case per arm; real append-only tool effect",
-        "baseline": "FineCore integration 2f980015a733ec449ca1ea8be51e97da08220fb1",
-        "candidate": "FineCore retry #110 092ff1ff0fb654c814663a296318abc06266584f",
+        "design": "20 deterministic fault trials per case and arm; actual append-only tool effects",
+        "baseline_head": "2f980015a733ec449ca1ea8be51e97da08220fb1",
+        "candidate_head": "092ff1ff0fb654c814663a296318abc06266584f",
         "limitations": [
-            "no provider calls, no real coding tasks, no token/USD measurements",
-            "model and fault distribution are deliberately controlled",
-            "time samples are diagnostic, not performance attribution",
-            "workflows run on one Ubuntu runner with pinned source and compiler",
+            "No provider calls, real coding tasks, tokens or US dollar cost",
+            "Synthetic deterministic fault distribution; no population effectiveness claim",
+            "Latency is diagnostic only and not evidence of a speedup",
+            "The same fixture and toolchain are run on a single Ubuntu runner",
         ],
         "results": table,
     }
@@ -90,11 +111,11 @@ def summarize(base: Path, candidate: Path):
 def main():
     if len(sys.argv) != 4:
         raise SystemExit("usage: analyze_upstream_effect_01.py BASE_LOG RETRY_LOG OUTPUT_JSON")
-    summary = summarize(Path(sys.argv[1]), Path(sys.argv[2]))
-    target = Path(sys.argv[3])
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps(summary, indent=2, sort_keys=True))
+    report = summarize(Path(sys.argv[1]), Path(sys.argv[2]))
+    output = Path(sys.argv[3])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
