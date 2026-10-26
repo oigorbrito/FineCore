@@ -1,6 +1,15 @@
 name: FineCore Pi auth Windows comparison
 
 on:
+  push:
+    branches: [feature/pi-auth-parity-02]
+    paths:
+      - 'Cargo.lock'
+      - 'crates/cli/Cargo.toml'
+      - 'crates/cli/src/auth/**'
+      - 'crates/cli/src/config/**'
+      - 'scripts/compare_pi_auth_windows.py'
+      - '.github/workflows/pi-auth-windows-compare-02.yml'
   workflow_dispatch:
     inputs:
       baseline_ref:
@@ -30,13 +39,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: oigorbrito/finecore
-          ref: ${{ inputs.baseline_ref }}
+          ref: ${{ inputs.baseline_ref || 'feature/pi-auth-bridge-01' }}
           path: baseline
           persist-credentials: false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: oigorbrito/finecore
-          ref: ${{ inputs.candidate_ref }}
+          ref: ${{ inputs.candidate_ref || github.sha }}
           path: candidate
           persist-credentials: false
       - name: Rust toolchain 1.99.1
