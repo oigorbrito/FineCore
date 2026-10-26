@@ -1,0 +1,90 @@
+name: Node template compatibility audit for FineCore PR 112
+
+on:
+  push:
+    branches: [experiment/node-template-compat-112]
+    paths:
+      - 'crates/cli/src/plugin/templates/**'
+      - '.github/workflows/finecore-node-template-compat-112.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: node-template-112-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scaffold-compatibility:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            node: '20'
+          - os: ubuntu-24.04
+            node: '22'
+          - os: ubuntu-24.04
+            node: '24'
+          - os: ubuntu-24.04
+            node: '26'
+          - os: windows-2022
+            node: '22'
+    steps:
+      - name: Checkout exact PR 112 derivative
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Select Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+      - name: Reconstruct generated TypeScript scaffold files without rewriting dependencies
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          root = Path("crates/cli/src/plugin/templates")
+          target = Path(os.environ["RUNNER_TEMP"]) / "finecore-node-template-112"
+          files = {
+              "package.json": "package.json",
+              "package-lock.json": "package-lock.json",
+              "tsconfig.json": "tsconfig.json",
+              "typescript-server.ts": "src/index.ts",
+              "typescript-test.ts": "test/server.test.ts",
+          }
+          for source, dest in files.items():
+              dst = target / dest
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              dst.write_text((root / source).read_text(encoding="utf-8").replace("{{NAME}}", "finecore-node-template-112"), encoding="utf-8")
+          with (target / "package-lock.json").open(encoding="utf-8") as f:
+              import json
+              lock = json.load(f)
+          with (target / "package.json").open(encoding="utf-8") as f:
+              pkg = json.load(f)
+          assert lock["packages"][""]["dependencies"] == pkg["dependencies"]
+          assert lock["packages"][""]["devDependencies"] == pkg["devDependencies"]
+          print("Scaffold reconstruction and lock parity: PASS")
+      - name: Reproducible install with strict engines
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/finecore-node-template-112"
+          node --version
+          npm --version
+          npm ci --engine-strict
+      - name: Real template test build TypeScript and audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/finecore-node-template-112"
+          npm test
+          npm run build
+          npx tsc --noEmit
+          npm audit --audit-level=low
+          npm audit --omit=dev --audit-level=low
