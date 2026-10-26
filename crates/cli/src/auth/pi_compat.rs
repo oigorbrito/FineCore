@@ -11,16 +11,16 @@ const MAX_AUTH_BYTES: u64 = 1_048_576;
 /// Interpret the API-key subset of Pi's auth.json for an existing FineCore
 /// provider. Neither the file contents nor returned keys are logged.
 pub fn read_pi_api_key(path: &Path, provider: &str) -> Result<Option<String>, String> {
-    let metadata = std::fs::metadata(path)
-        .map_err(|_| "cannot read FINECORE_PI_AUTH_FILE".to_string())?;
+    let metadata =
+        std::fs::metadata(path).map_err(|_| "cannot read FINECORE_PI_AUTH_FILE".to_string())?;
     if !metadata.is_file() || metadata.len() > MAX_AUTH_BYTES {
         return Err("FINECORE_PI_AUTH_FILE must be a file smaller than 1 MiB".into());
     }
-    let bytes = std::fs::read(path)
-        .map_err(|_| "cannot read FINECORE_PI_AUTH_FILE".to_string())?;
+    let bytes = std::fs::read(path).map_err(|_| "cannot read FINECORE_PI_AUTH_FILE".to_string())?;
     let root: Value = serde_json::from_slice(&bytes)
         .map_err(|_| "FINECORE_PI_AUTH_FILE contains invalid JSON".to_string())?;
-    let root = root.as_object()
+    let root = root
+        .as_object()
         .ok_or("FINECORE_PI_AUTH_FILE must contain a JSON object")?;
     let Some(entry) = root.get(provider) else {
         return Ok(None);
@@ -103,15 +103,22 @@ mod tests {
 
     #[test]
     fn reads_a_pi_api_key_only_for_selected_provider() {
-        let path = fixture(r#"{"openrouter":{"type":"api_key","key":"sk-test-only"},"anthropic":{"type":"api_key","key":"other"}}"#);
-        assert_eq!(read_pi_api_key(&path, "openrouter").unwrap().as_deref(), Some("sk-test-only"));
+        let path = fixture(
+            r#"{"openrouter":{"type":"api_key","key":"sk-test-only"},"anthropic":{"type":"api_key","key":"other"}}"#,
+        );
+        assert_eq!(
+            read_pi_api_key(&path, "openrouter").unwrap().as_deref(),
+            Some("sk-test-only")
+        );
         assert_eq!(read_pi_api_key(&path, "openai").unwrap(), None);
         let _ = std::fs::remove_file(path);
     }
 
     #[test]
     fn refuses_oauth_as_api_key_without_leaking_tokens() {
-        let path = fixture(r#"{"anthropic":{"type":"oauth","access":"sensitive","refresh":"sensitive","expires":9999999}}"#);
+        let path = fixture(
+            r#"{"anthropic":{"type":"oauth","access":"sensitive","refresh":"sensitive","expires":9999999}}"#,
+        );
         let error = read_pi_api_key(&path, "anthropic").unwrap_err();
         assert!(error.contains("native OAuth adapter"));
         assert!(!error.contains("sensitive"));
@@ -130,9 +137,13 @@ mod tests {
     #[test]
     fn rejects_invalid_and_missing_files() {
         let path = fixture("[]");
-        assert!(read_pi_api_key(&path, "openai").unwrap_err().contains("JSON object"));
+        assert!(read_pi_api_key(&path, "openai")
+            .unwrap_err()
+            .contains("JSON object"));
         std::fs::write(&path, "{").unwrap();
-        assert!(read_pi_api_key(&path, "openai").unwrap_err().contains("invalid JSON"));
+        assert!(read_pi_api_key(&path, "openai")
+            .unwrap_err()
+            .contains("invalid JSON"));
         let _ = std::fs::remove_file(&path);
         assert!(read_pi_api_key(&path, "openai").is_err());
     }
