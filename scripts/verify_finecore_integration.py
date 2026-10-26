@@ -32,19 +32,16 @@ def git(*args: str) -> str:
     return p.stdout.strip()
 
 
-def tree_entry(ref: str, path: str) -> tuple[str, str] | None:
-    out = git("ls-tree", ref, "--", path)
-    if not out:
-        return None
-    metadata, separator, listed_path = out.partition("\t")
-    assert separator and listed_path == path, (ref, path, out)
-    mode, kind, oid = metadata.split()
-    assert kind == "blob", (ref, path, kind)
-    return mode, oid
-
-
-def tree_paths(ref: str) -> set[str]:
-    return set(git("ls-tree", "-r", "--name-only", ref).splitlines())
+def tree_entries(ref: str) -> dict[str, tuple[str, str]]:
+    entries: dict[str, tuple[str, str]] = {}
+    for line in git("ls-tree", "-r", "--full-tree", ref).splitlines():
+        metadata, separator, path = line.partition("\t")
+        assert separator and path, (ref, line)
+        mode, kind, oid = metadata.split()
+        assert kind == "blob", (ref, path, kind)
+        assert path not in entries, f"duplicate tree path in {ref}: {path}"
+        entries[path] = (mode, oid)
+    return entries
 
 
 def read_csv(path: str) -> list[dict[str, str]]:
@@ -55,10 +52,16 @@ def read_csv(path: str) -> list[dict[str, str]]:
 def main() -> None:
     head = git("rev-parse", "HEAD")
     git("merge-base", "--is-ancestor", MAIN, head)
-    assert tree_entry(MIGRATION_HEAD, MIGRATION_MANIFEST) == (
+
+    main_tree = tree_entries(MAIN)
+    donor_stage_tree = tree_entries(PINNED_DONOR_STAGE)
+    migration_tree = tree_entries(MIGRATION_HEAD)
+    combined_tree = tree_entries("HEAD")
+
+    assert migration_tree.get(MIGRATION_MANIFEST) == (
         "100644", IDENTITY_MANIFEST_BLOB
     ), "Accepted migration manifest at its pinned commit changed"
-    assert tree_entry("HEAD", OVERLAY_MANIFEST) == (
+    assert combined_tree.get(OVERLAY_MANIFEST) == (
         "100644", OVERLAY_MANIFEST_BLOB
     ), "Integration overlay manifest changed; review and repin it"
 
@@ -69,8 +72,8 @@ def main() -> None:
         path = row["destination_path"]
         assert path not in original_paths, f"duplicate import path: {path}"
         original_paths.add(path)
-        assert tree_entry(PINNED_DONOR_STAGE, path) is not None, path
-        assert tree_entry(PINNED_DONOR_STAGE, path)[1] == row["source_blob"], path
+        staged = donor_stage_tree.get(path)
+        assert staged is not None and staged[1] == row["source_blob"], path
         assert row["source_blob"] == row["destination_blob"], path
 
     divergent = read_csv(MIGRATION_MANIFEST)
@@ -83,7 +86,7 @@ def main() -> None:
         seen.add(path)
         status = row["status"]
         tally[status] += 1
-        migration_entry = tree_entry(MIGRATION_HEAD, path)
+        migration_entry = migration_tree.get(path)
         assert migration_entry is not None and migration_entry[1] == row["destination_worktree_blob"], path
         if status == "identical":
             assert row["source_blob"] == row["destination_worktree_blob"], path
@@ -107,26 +110,23 @@ def main() -> None:
         assert path in seen, f"overlay path is outside the migration inventory: {path}"
         expected_before = (row["migration_mode"], row["migration_blob"])
         expected_after = (row["integration_mode"], row["integration_blob"])
-        assert tree_entry(MIGRATION_HEAD, path) == expected_before, path
-        assert tree_entry("HEAD", path) == expected_after, path
+        assert migration_tree.get(path) == expected_before, path
+        assert combined_tree.get(path) == expected_after, path
         assert expected_before != expected_after, f"overlay row is not a change: {path}"
 
-    migration_paths = tree_paths(MIGRATION_HEAD)
-    combined_paths = tree_paths("HEAD")
+    migration_paths = set(migration_tree)
+    combined_paths = set(combined_tree)
     assert len(migration_paths) == 1117, f"expected 1117 migration paths, got {len(migration_paths)}"
     assert migration_paths <= combined_paths, f"integration dropped {len(migration_paths - combined_paths)} migration paths"
-    for path in migration_paths:
-        before = tree_entry(MIGRATION_HEAD, path)
-        after = tree_entry("HEAD", path)
-        if path not in overlay_paths:
-            assert after == before, f"unrecorded integration change: {path}"
+    for path in migration_paths - overlay_paths:
+        assert combined_tree[path] == migration_tree[path], f"unrecorded integration change: {path}"
 
-    # Preserve main-only governance and tracker files byte-for-byte and mode-for-mode.
-    main_paths = tree_paths(MAIN)
+    # Preserve main-only governance and independent tracker files verbatim.
+    main_paths = set(main_tree)
     main_only = main_paths - original_paths
     assert len(main_only) == 25, f"expected 25 main-only paths, got {len(main_only)}"
     for path in main_only:
-        assert tree_entry("HEAD", path) == tree_entry(MAIN, path), (
+        assert combined_tree.get(path) == main_tree[path], (
             f"main governance path unexpectedly changed: {path}"
         )
     collisions = main_paths & original_paths
