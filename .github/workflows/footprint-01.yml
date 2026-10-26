@@ -1,0 +1,72 @@
+name: footprint-01
+
+on:
+  pull_request:
+    branches:
+      - integration/finecore-orca-main-review
+    paths:
+      - .github/workflows/footprint-01.yml
+      - scripts/footprint_01.py
+      - scripts/test_footprint_01.py
+      - docs/engineering/FOOTPRINT_01.md
+      - crates/**
+      - Cargo.toml
+      - Cargo.lock
+      - ci/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-linux-experiments:
+    name: FineCore/Orca controlled release footprint variants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: checkout FineCore experiment
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: finecore
+          persist-credentials: false
+
+      - name: checkout canonical Orca
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: okikorg/orca-harness
+          ref: 2a9fd399cfbbaad773e3cbed92bb6e24d7561f01
+          path: orca
+          persist-credentials: false
+
+      - name: install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy, rustfmt, llvm-tools
+
+      - name: install LLVM tools for symbol attribution
+        run: rustup component add llvm-tools-preview
+
+      - name: validate runner and execute all gates and variants
+        working-directory: finecore
+        run: |
+          rustc --version --verbose
+          cargo --version
+          cargo clippy --version
+          python3 -m unittest scripts/test_footprint_01.py
+          python3 scripts/footprint_01.py \
+            --finecore . \
+            --orca ../orca \
+            --out ../footprint-evidence \
+            --samples 20 \
+            --startup-samples 30 \
+            --mcp-repeats 20
+
+      - name: upload raw measurements and analysis
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: footprint-01-${{ github.run_id }}
+          path: footprint-evidence/
+          if-no-files-found: error
+          retention-days: 90
