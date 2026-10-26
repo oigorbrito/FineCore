@@ -2,6 +2,7 @@
 
 mod oauth_device;
 mod openai_codex;
+pub(crate) mod pi_compat;
 mod store;
 
 use crate::msg::Provider;
