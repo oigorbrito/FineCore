@@ -1,0 +1,41 @@
+name: FineCore Pi auth bridge validation
+
+on:
+  push:
+    branches: [feature/pi-auth-bridge-01]
+    paths:
+      - 'crates/cli/src/auth/**'
+      - 'crates/cli/src/run_args.rs'
+      - 'docs/engineering/PI_AUTH_PARITY_01.md'
+      - '.github/workflows/pi-auth-bridge-01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-auth-bridge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  offline:
+    name: Native Rust auth compatibility checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Rust toolchain 1.99.1
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Compile CLI
+        run: cargo check -p finecore --locked
+      - name: Read-only Pi auth fixture tests
+        run: cargo test -p finecore --locked pi_compat -- --nocapture
+      - name: CLI regression suite
+        run: cargo test -p finecore --locked
