@@ -373,6 +373,10 @@ fn python_and_typescript_scaffolds_have_expected_layout_and_do_not_overwrite() {
         lock["packages"][""]["devDependencies"],
         package["devDependencies"]
     );
+    assert_eq!(
+        lock["packages"][""]["engines"]["node"],
+        package["engines"]["node"]
+    );
     assert!(package["dependencies"]["@modelcontextprotocol/sdk"]
         .as_str()
         .unwrap()
@@ -392,7 +396,7 @@ fn python_and_typescript_scaffolds_have_expected_layout_and_do_not_overwrite() {
             "lock is missing {dependency}"
         );
     }
-    assert_eq!(package["engines"]["node"], ">=20");
+    assert_eq!(package["engines"]["node"], "^20.0.0 || ^22.0.0 || >=24.0.0");
     for (path, engine) in [
         ("node_modules/@modelcontextprotocol/sdk", ">=18"),
         ("node_modules/vitest", "^20.0.0 || ^22.0.0 || >=24.0.0"),
