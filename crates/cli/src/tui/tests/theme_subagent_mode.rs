@@ -1,0 +1,439 @@
+#[cfg(test)]
+mod theme_command_tests {
+    use super::*;
+
+    fn theme_app() -> App {
+        App::new(TuiConfig {
+            model_name: "m".into(),
+            workspace_name: "w".into(),
+            workspace_root: "/test-ws".into(),
+            provider: Provider::Local,
+            subagent_depth: orca_harness_tools::SubagentDepth::new(1),
+            stats: orca_harness_tools::BackgroundStats::new(),
+            session_id: None,
+            mcp: Default::default(),
+            skills: Default::default(),
+            mode: Default::default(),
+            plan: Default::default(),
+        })
+    }
+
+    /// One test, single-threaded, because the theme is process-global: it
+    /// must not interleave with any other mutating test. Ends by restoring
+    /// the default so later tests see a clean state.
+    #[test]
+    fn theme_command_switches_and_rejects() {
+        let _theme = THEME_GUARD.lock().unwrap_or_else(|err| err.into_inner());
+        let mut app = theme_app();
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        for (cmd, expected) in [
+            ("theme dracula", view::ThemeName::Dracula),
+            ("theme solarized-dark", view::ThemeName::SolarizedDark),
+            ("theme one-dark", view::ThemeName::OneDark),
+            ("theme monokai", view::ThemeName::Monokai),
+            ("theme nord", view::ThemeName::Nord),
+            ("theme orca", view::ThemeName::Orca),
+            ("theme default", view::ThemeName::Default),
+            ("theme mono", view::ThemeName::Mono),
+        ] {
+            slash_command(&mut app, cmd, &worker, 80);
+            assert_eq!(view::theme_name(), expected, "command {cmd}");
+        }
+
+        // Unknown names are rejected and leave the theme unchanged.
+        slash_command(&mut app, "theme midnight", &worker, 80);
+        assert_eq!(
+            view::theme_name(),
+            view::ThemeName::Mono,
+            "unchanged on garbage"
+        );
+
+        // Bare form only reports; it must not change the value.
+        slash_command(&mut app, "theme", &worker, 80);
+        assert_eq!(
+            view::theme_name(),
+            view::ThemeName::Mono,
+            "bare form does not change"
+        );
+        let text = app
+            .pending_history
+            .iter()
+            .map(line_text)
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(text.contains("Mono"), "reports current name: {text}");
+
+        // Restore the default so other tests (and the view) see clean state.
+        slash_command(&mut app, "theme color", &worker, 80); // legacy alias
+        assert_eq!(
+            view::theme_name(),
+            view::ThemeName::Default,
+            "color stays a legacy alias for default"
+        );
+    }
+}
+
+#[cfg(test)]
+mod mode_rewind_tests {
+    use super::*;
+    use crate::mode::{Mode, ModeHandle};
+
+    fn app_with(mode: ModeHandle) -> App {
+        App::new(TuiConfig {
+            model_name: "m".into(),
+            workspace_name: "w".into(),
+            workspace_root: "/test-ws".into(),
+            provider: Provider::Local,
+            subagent_depth: orca_harness_tools::SubagentDepth::new(1),
+            stats: orca_harness_tools::BackgroundStats::new(),
+            session_id: None,
+            mcp: Default::default(),
+            skills: Default::default(),
+            mode,
+            plan: Default::default(),
+        })
+    }
+
+    fn texts(app: &App) -> String {
+        app.pending_history
+            .iter()
+            .map(line_text)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[tokio::test]
+    async fn mode_toggles_bare_and_sets_by_name() {
+        let mode = ModeHandle::default();
+        let mut app = app_with(mode.clone());
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // Bare /mode opens the standard picker (same as /provider and
+        // /theme), preselected on the current mode; it changes nothing
+        // on its own.
+        slash_command(&mut app, "mode", &worker, 80);
+        assert_eq!(mode.get(), Mode::Normal, "bare /mode changes nothing");
+        let Some(Overlay::Mode { ref picker }) = app.overlay else {
+            panic!("bare /mode must open the picker");
+        };
+        assert_eq!(picker.index(), 0);
+        handle_overlay_key(&mut app, key(KeyCode::Esc), &worker);
+        assert!(app.overlay.is_none());
+
+        slash_command(&mut app, "mode plan", &worker, 80);
+        assert_eq!(mode.get(), Mode::Plan);
+        // Setting the mode it is already in is not a toggle.
+        slash_command(&mut app, "mode plan", &worker, 80);
+        assert_eq!(mode.get(), Mode::Plan);
+        slash_command(&mut app, "mode orchestrate", &worker, 80);
+        assert_eq!(mode.get(), Mode::Orchestrate);
+        slash_command(&mut app, "mode auto", &worker, 80);
+        assert_eq!(mode.get(), Mode::Auto);
+        slash_command(&mut app, "mode yolo", &worker, 80);
+        assert_eq!(mode.get(), Mode::Yolo);
+        slash_command(&mut app, "mode normal", &worker, 80);
+        assert_eq!(mode.get(), Mode::Normal);
+
+        // Garbage leaves the mode alone and says so.
+        slash_command(&mut app, "mode sideways", &worker, 80);
+        assert_eq!(mode.get(), Mode::Normal);
+        // Glyphed like every other system line, not flush-left.
+        assert!(texts(&app).contains(&format!("{} error: unknown mode: sideways", crate::view::glyphs::glyphs().failed)));
+    }
+
+    /// The picker is preselected on the current mode and enter applies
+    /// through the same `apply_mode` path as `/mode <name>`: same
+    /// notice, same yolo warning, same episode end.
+    #[tokio::test]
+    async fn mode_picker_applies_the_picked_mode_on_enter() {
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let mode = ModeHandle::new(Mode::Normal);
+        let mut app = app_with(mode.clone());
+        slash_command(&mut app, "mode", &worker, 80);
+
+        // Down four times → yolo row, enter lands it with the loud notice.
+        handle_overlay_key(&mut app, key(KeyCode::Down), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Down), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Down), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Down), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Enter), &worker);
+        assert_eq!(mode.get(), Mode::Yolo, "enter applies the picked mode");
+        assert!(app.overlay.is_none());
+        let rendered = texts(&app);
+        assert!(rendered.contains("yolo mode ·"), "{rendered}");
+
+        // Reopening from yolo highlights the yolo row; picking normal
+        // ends any plan episode exactly like /mode normal would.
+        slash_command(&mut app, "mode", &worker, 80);
+        let Some(Overlay::Mode { ref picker }) = app.overlay else {
+            panic!("expected the mode picker");
+        };
+        assert_eq!(picker.index(), 4);
+        handle_overlay_key(&mut app, key(KeyCode::Up), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Up), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Up), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Up), &worker);
+        handle_overlay_key(&mut app, key(KeyCode::Enter), &worker);
+        assert_eq!(mode.get(), Mode::Normal);
+    }
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    /// Leaving plan mode reports the plans that were actually written,
+    /// and stays quiet when the agent decided none was warranted —
+    /// looking around in plan mode is a legitimate use of it.
+    #[tokio::test]
+    async fn leaving_plan_mode_reports_only_plans_that_were_written() {
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // An episode where the agent judged no plan was needed: silence.
+        let mut app = app_with(ModeHandle::new(Mode::Plan));
+        slash_command(&mut app, "mode normal", &worker, 80);
+        let rendered = texts(&app);
+        assert!(rendered.contains("normal mode"), "{rendered}");
+        assert!(!rendered.contains("plan saved"), "{rendered}");
+        assert!(!rendered.contains("no plan"), "{rendered}");
+
+        // An episode where it wrote two.
+        let mut app = app_with(ModeHandle::new(Mode::Plan));
+        app.cfg.plan.record("docs/plan/2026-08-22-first.md");
+        app.cfg.plan.record("docs/plan/2026-08-22-second.md");
+        slash_command(&mut app, "mode normal", &worker, 80);
+        let rendered = texts(&app);
+        assert!(
+            rendered.contains("plan saved to docs/plan/2026-08-22-first.md"),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("plan saved to docs/plan/2026-08-22-second.md"),
+            "{rendered}"
+        );
+        assert!(app.cfg.plan.written().is_empty(), "the episode ended");
+    }
+
+    /// A plan-mode turn that wrote a plan ends with the yes/no approval.
+    /// `n` keeps planning and does not nag until the plan changes; `y`
+    /// leaves plan mode and starts the implementation run.
+    #[tokio::test]
+    async fn a_written_plan_asks_for_approval_and_yes_starts_implementing() {
+        let (worker, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = app_with(ModeHandle::new(Mode::Plan));
+        let finish = |app: &mut App| {
+            app.run = RunState::Running {
+                id: crate::msg::RunId::User(1),
+                started: Instant::now(),
+                cancel: CancellationToken::new(),
+            };
+            let done = UiMsg::RunDone {
+                id: crate::msg::RunId::User(1),
+                result: Ok(String::new()),
+            };
+            handle_ui_msg(app, done, &worker, 80);
+        };
+        let answer = |app: &mut App, c: char| {
+            handle_terminal_event(app, CtEvent::Key(key(KeyCode::Char(c))), &worker, 80);
+        };
+
+        // A turn that wrote nothing asks nothing.
+        finish(&mut app);
+        assert!(app.approval.is_none());
+
+        app.cfg.plan.record("docs/plan/2026-09-11-x.md");
+        finish(&mut app);
+        let request = app.approval.as_ref().expect("plan approval prompt");
+        assert!(request.yes_no);
+        assert!(request.detail.contains("docs/plan/2026-09-11-x.md"), "{}", request.detail);
+
+        answer(&mut app, 'n');
+        assert_eq!(app.cfg.mode.get(), Mode::Plan);
+        assert!(rx.try_recv().is_err(), "no run starts on no");
+        finish(&mut app);
+        assert!(app.approval.is_none(), "an unchanged plan is not asked about again");
+
+        app.cfg.plan.record("docs/plan/2026-09-11-x.md");
+        finish(&mut app);
+        answer(&mut app, 'y');
+        assert_eq!(app.cfg.mode.get(), Mode::Normal);
+        assert!(app.cfg.plan.written().is_empty(), "the episode ended");
+        assert!(texts(&app).contains("plan saved to docs/plan/2026-09-11-x.md"));
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(WorkerCmd::Run { prompt, .. }) if prompt.contains("docs/plan/2026-09-11-x.md")
+        ));
+    }
+
+    #[tokio::test]
+    async fn switching_from_plan_to_yolo_ends_the_episode_once() {
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = app_with(ModeHandle::new(Mode::Plan));
+        app.cfg.plan.record("docs/plan/2026-08-22-yolo.md");
+
+        slash_command(&mut app, "mode yolo", &worker, 80);
+        assert_eq!(app.cfg.mode.get(), Mode::Yolo);
+        assert!(app.cfg.plan.written().is_empty(), "the plan episode ended");
+        let first_render = texts(&app);
+        assert!(
+            first_render.contains("plan saved to docs/plan/2026-08-22-yolo.md"),
+            "{first_render}"
+        );
+
+        slash_command(&mut app, "mode normal", &worker, 80);
+        let final_render = texts(&app);
+        assert_eq!(
+            final_render
+                .matches("plan saved to docs/plan/2026-08-22-yolo.md")
+                .count(),
+            1,
+            "the stale plan must not be reported again: {final_render}"
+        );
+    }
+
+    /// Entering plan mode must not claim anything about files — at that
+    /// point nobody knows whether the conversation warrants one.
+    #[tokio::test]
+    async fn entering_plan_mode_says_nothing_about_files() {
+        let mut app = app_with(ModeHandle::new(Mode::Normal));
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+        slash_command(&mut app, "mode plan", &worker, 80);
+        let rendered = texts(&app);
+        assert!(rendered.contains("plan"), "{rendered}");
+        assert!(!rendered.contains("plan saved"), "{rendered}");
+        assert!(!rendered.contains("docs/plan"), "{rendered}");
+    }
+
+    /// Plan mode is a restriction the user must not be able to lose
+    /// track of, so it is on the status line while it is on and absent
+    /// when it is not. Yolo is the same bargain from the other side:
+    /// it silences every approval prompt, so its segment never
+    /// abbreviates away either, and it reads as a warning.
+    #[test]
+    fn non_normal_modes_show_in_the_status_line() {
+        let mode = ModeHandle::default();
+        let plan = crate::plan::PlanArea::new();
+        assert_eq!(mode_segment(&mode, &plan), "");
+        mode.set(Mode::Plan);
+        assert_eq!(mode_segment(&mode, &plan), "plan");
+        // A landed plan is visible without waiting for /mode normal.
+        plan.record("docs/plan/2026-08-22-a.md");
+        assert_eq!(mode_segment(&mode, &plan), "plan · 1 plan");
+        plan.record("docs/plan/2026-08-22-b.md");
+        assert_eq!(mode_segment(&mode, &plan), "plan · 2 plans");
+        // Normal mode says nothing, whatever was written.
+        mode.set(Mode::Normal);
+        assert_eq!(mode_segment(&mode, &plan), "");
+        mode.set(Mode::Auto);
+        assert_eq!(mode_segment(&mode, &plan), "auto");
+        // Yolo keeps the warning up whatever else happens.
+        mode.set(Mode::Yolo);
+        assert_eq!(mode_segment(&mode, &plan), "yolo");
+    }
+
+    /// `/mode yolo` lands on the handle (so gates see it immediately)
+    /// and says what it did, like every other mode change.
+    #[tokio::test]
+    async fn mode_yolo_announces_itself_loudly() {
+        let (worker, _rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = app_with(ModeHandle::new(Mode::Normal));
+
+        slash_command(&mut app, "mode yolo", &worker, 80);
+        let rendered = texts(&app);
+        assert!(rendered.contains("yolo mode ·"), "{rendered}");
+
+        // And back down to normal through the same command.
+        slash_command(&mut app, "mode normal", &worker, 80);
+        assert_eq!(app.cfg.mode.get(), Mode::Normal);
+    }
+
+    #[tokio::test]
+    async fn rewind_sends_the_turn_count_and_rejects_nonsense() {
+        let mut app = app_with(ModeHandle::default());
+        let (worker, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        slash_command(&mut app, "rewind", &worker, 80);
+        assert!(matches!(rx.try_recv(), Ok(WorkerCmd::Rewind { turns: 1 })));
+
+        slash_command(&mut app, "rewind 3", &worker, 80);
+        assert!(matches!(rx.try_recv(), Ok(WorkerCmd::Rewind { turns: 3 })));
+
+        // Zero and garbage send nothing and explain themselves.
+        slash_command(&mut app, "rewind 0", &worker, 80);
+        slash_command(&mut app, "rewind lots", &worker, 80);
+        assert!(rx.try_recv().is_err(), "bad input sends no command");
+        assert!(texts(&app).contains("usage: /rewind"));
+    }
+
+    #[tokio::test]
+    async fn fork_asks_the_worker_to_branch() {
+        let mut app = app_with(ModeHandle::default());
+        let (worker, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        slash_command(&mut app, "fork", &worker, 80);
+        assert!(matches!(rx.try_recv(), Ok(WorkerCmd::Fork)));
+    }
+
+    /// A rewind redraws the transcript from the shortened context, but
+    /// the tokens it already spent are not conversation state.
+    #[test]
+    fn rewind_redraws_the_transcript_and_keeps_the_token_totals() {
+        let mut app = app_with(ModeHandle::default());
+        let (tx, _rx) = mpsc::unbounded_channel();
+        app.tokens_in = 1200;
+        app.tokens_out = 340;
+        app.usage_steps = 4;
+        app.context_tokens = 9000;
+
+        handle_ui_msg(
+            &mut app,
+            UiMsg::ContextRewound {
+                messages: vec![
+                    orca_harness_core::Message::System {
+                        content: "sys".into(),
+                    },
+                    orca_harness_core::Message::User {
+                        content: "still here".into(),
+                        images: Vec::new(),
+                    },
+                ],
+                notice: "rewound 1 turn · 2 messages dropped".into(),
+            },
+            &tx,
+            80,
+        );
+
+        let rendered = texts(&app);
+        assert!(rendered.contains("rewound 1 turn"), "{rendered}");
+        assert!(rendered.contains("still here"), "{rendered}");
+        assert_eq!(app.tokens_in, 1200, "spent tokens are not un-spent");
+        assert_eq!(app.tokens_out, 340);
+        assert_eq!(app.usage_steps, 4);
+        assert_eq!(app.turn_count, 1, "turn count follows the new transcript");
+        assert_eq!(app.context_tokens, 0, "occupancy waits for the next step");
+    }
+
+    #[test]
+    fn forking_moves_the_session_id_without_touching_the_transcript() {
+        let mut app = app_with(ModeHandle::default());
+        let (tx, _rx) = mpsc::unbounded_channel();
+        app.cfg.session_id = Some("old-id".into());
+        app.turn_count = 3;
+
+        handle_ui_msg(
+            &mut app,
+            UiMsg::SessionForked {
+                id: "new-id".into(),
+                parent: "old-id".into(),
+            },
+            &tx,
+            80,
+        );
+
+        assert_eq!(app.cfg.session_id.as_deref(), Some("new-id"));
+        assert_eq!(app.turn_count, 3, "the conversation did not change");
+        let rendered = texts(&app);
+        assert!(rendered.contains("forked to session new-id"), "{rendered}");
+        assert!(rendered.contains("old-id is left as it was"), "{rendered}");
+    }
+}
