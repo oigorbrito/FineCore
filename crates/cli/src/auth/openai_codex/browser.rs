@@ -213,3 +213,7 @@ pub(super) async fn wait_for_code(
 }
 
 pub(super) const fn port() -> u16 { CALLBACK_PORT }
+
+#[cfg(test)]
+#[path = "browser_tests.rs"]
+mod tests;
