@@ -112,7 +112,7 @@ async fn run_trial(label: &str, fault: Fault, failures: usize, retry: bool, tria
     };
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let subagent = Arc::new(
-        SubagentTool::with_tools(model, Arc::new(vec![side_effect]))
+        SubagentTool::with_tools(model, Arc::new(move || vec![side_effect.clone()]))
             .background(SubagentManager::new(2), move |notification| {
                 let _ = tx.send(notification);
             }),
