@@ -1,0 +1,234 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling cfg-if v1.0.4
+   Compiling smallvec v1.15.2
+   Compiling log v0.4.33
+   Compiling itoa v1.0.18
+   Compiling futures-core v0.3.34
+   Compiling pin-project-lite v0.2.17
+   Compiling bytes v1.12.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling find-msvc-tools v0.1.11
+   Compiling shlex v2.0.1
+   Compiling cc v1.4.3
+   Compiling syn v3.0.3
+   Compiling syn v2.0.119
+   Compiling errno v0.3.14
+   Compiling signal-hook-registry v1.4.8
+   Compiling mio v1.2.2
+   Compiling memchr v2.8.3
+   Compiling serde_core v1.0.229
+   Compiling siphasher v1.0.3
+   Compiling socket2 v0.6.5
+   Compiling serde v1.0.229
+   Compiling once_cell v1.21.4
+   Compiling fastrand v2.5.0
+   Compiling parking_lot_core v0.9.12
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling scopeguard v1.2.0
+   Compiling bitflags v2.13.1
+   Compiling lock_api v0.4.14
+   Compiling synstructure v0.13.2
+   Compiling phf_shared v0.13.1
+   Compiling ring v0.17.14
+   Compiling zeroize v1.9.0
+   Compiling icu_properties_data v2.3.0
+   Compiling zmij v1.0.23
+   Compiling thiserror v2.0.20
+   Compiling icu_normalizer_data v2.3.0
+   Compiling utf8_iter v1.0.4
+   Compiling zerovec-derive v0.11.5
+   Compiling displaydoc v0.2.7
+   Compiling tokio-macros v2.7.2
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling tokio v1.53.1
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling tinystr v0.8.4
+   Compiling icu_locale_core v2.3.0
+   Compiling potential_utf v0.1.6
+   Compiling zerotrie v0.2.5
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.0
+   Compiling rustls-pki-types v1.15.1
+   Compiling phf_generator v0.13.1
+   Compiling parking_lot v0.12.5
+   Compiling http v1.5.0
+   Compiling serde_json v1.0.151
+   Compiling percent-encoding v2.3.2
+   Compiling http-body v1.1.0
+   Compiling getrandom v0.2.17
+   Compiling slab v0.4.12
+   Compiling crunchy v0.2.4
+   Compiling httparse v1.10.1
+   Compiling untrusted v0.9.0
+   Compiling ryu v1.0.23
+   Compiling rustversion v1.0.23
+   Compiling futures-task v0.3.34
+   Compiling futures-util v0.3.34
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling phf_codegen v0.13.1
+   Compiling string_cache_codegen v0.6.1
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing-core v0.1.36
+   Compiling aho-corasick v1.1.5
+   Compiling rustls v0.23.43
+   Compiling regex-syntax v0.8.11
+   Compiling try-lock v0.2.5
+   Compiling tower-service v0.3.3
+   Compiling futures-sink v0.3.34
+   Compiling tiny-keccak v2.0.2
+   Compiling new_debug_unreachable v1.0.6
+   Compiling equivalent v1.0.2
+   Compiling tokio-util v0.7.19
+   Compiling want v0.3.1
+   Compiling tracing v0.1.44
+   Compiling idna_adapter v1.2.2
+   Compiling rustls-webpki v0.103.14
+   Compiling web_atoms v0.2.6
+   Compiling regex-automata v0.4.18
+   Compiling form_urlencoded v1.2.2
+   Compiling async-trait v0.1.92
+   Compiling futures-channel v0.3.34
+   Compiling strsim v0.11.1
+   Compiling precomputed-hash v0.1.1
+   Compiling atomic-waker v1.1.2
+   Compiling ident_case v1.0.1
+   Compiling subtle v2.6.1
+   Compiling signal-hook v0.3.18
+   Compiling darling_core v0.24.0
+   Compiling hyper v1.11.0
+   Compiling string_cache v0.9.0
+   Compiling idna v1.1.0
+   Compiling phf v0.13.1
+   Compiling phf_shared v0.14.0
+   Compiling sync_wrapper v1.0.2
+   Compiling zerocopy v0.8.56
+   Compiling openssl-probe v0.2.1
+   Compiling base64 v0.22.1
+   Compiling pkg-config v0.3.34
+   Compiling tower-layer v0.3.3
+   Compiling vcpkg v0.2.15
+   Compiling version_check v0.9.5
+   Compiling crc32fast v1.5.0
+   Compiling rustix v0.38.44
+   Compiling ipnet v2.12.1
+   Compiling libsqlite3-sys v0.38.2
+   Compiling hyper-util v0.1.20
+   Compiling ahash v0.8.12
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.4
+   Compiling rustls-native-certs v0.8.4
+   Compiling const-random-macro v0.1.16
+   Compiling phf_generator v0.14.0
+   Compiling darling_macro v0.24.0
+   Compiling url v2.5.8
+   Compiling orca-harness-core v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/harness-core)
+   Compiling tendril v0.5.1
+   Compiling webpki-roots v1.0.9
+   Compiling simd-adler32 v0.3.10
+   Compiling instability v0.3.13
+   Compiling bit-vec v0.8.0
+   Compiling linux-raw-sys v0.4.15
+   Compiling either v1.17.0
+   Compiling foldhash v0.1.5
+   Compiling heck v0.5.0
+   Compiling getrandom v0.4.3
+   Compiling adler2 v2.0.1
+   Compiling paste v1.0.15
+   Compiling allocator-api2 v0.2.21
+   Compiling strum_macros v0.26.4
+   Compiling miniz_oxide v0.8.9
+   Compiling hashbrown v0.15.5
+   Compiling itertools v0.13.0
+   Compiling bit-set v0.8.0
+   Compiling hyper-rustls v0.27.9
+   Compiling markup5ever v0.39.0
+   Compiling signal-hook-mio v0.2.5
+   Compiling tower-http v0.6.11
+   Compiling darling v0.24.0
+   Compiling phf_macros v0.14.0
+   Compiling const-random v0.1.18
+   Compiling serde_urlencoded v0.7.1
+   Compiling castaway v0.2.4
+   Compiling http-body-util v0.1.5
+   Compiling same-file v1.0.6
+   Compiling static_assertions v1.1.0
+   Compiling unicode-segmentation v1.13.3
+   Compiling hashbrown v0.17.1
+   Compiling indoc v2.0.7
+   Compiling unicode-width v0.1.14
+   Compiling unicode-width v0.2.0
+   Compiling unicode-truncate v1.1.0
+   Compiling indexmap v2.14.1
+   Compiling compact_str v0.8.2
+   Compiling walkdir v2.5.0
+   Compiling phf v0.14.0
+   Compiling reqwest v0.12.28
+   Compiling flate2 v1.1.9
+   Compiling strum v0.26.3
+   Compiling crossterm v0.28.1
+   Compiling html5ever v0.39.0
+   Compiling fancy-regex v0.16.2
+   Compiling lru v0.12.5
+   Compiling regex v1.13.1
+   Compiling bincode v1.3.3
+   Compiling astral-tl v0.7.11
+   Compiling html-escape v0.2.15
+   Compiling cassowary v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling unsafe-libyaml v0.2.11
+   Compiling base64 v0.23.1
+   Compiling fallible-iterator v0.3.0
+   Compiling fnv v1.0.7
+   Compiling syntect v5.3.0
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling html-to-markdown-rs v3.11.3
+   Compiling ratatui v0.29.0
+   Compiling uuid v1.26.1
+   Compiling orca-harness-provider-auth v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/provider-auth)
+   Compiling orca-harness-dag v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/harness-dag)
+   Compiling unicode-linebreak v0.1.5
+   Compiling orcacode v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/cli)
+   Compiling smawk v0.3.3
+   Compiling httpdate v1.0.3
+   Compiling custom_error v1.9.2
+   Compiling syntect-tui v3.0.6
+   Compiling orca-harness-model-providers v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/model-providers)
+   Compiling textwrap v0.16.2
+   Compiling orca-harness-tools v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/tools)
+   Compiling orca-harness-tool-extensions v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/tool-extensions)
+   Compiling rusqlite v0.40.2
+   Compiling orca-harness-extensions v0.9.0 (/home/runner/work/finecore/finecore/orca/crates/extensions)
+warning: unused import: `std::process::Command`
+ --> crates/cli/src/tui/clipboard_image.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PNG_MAGIC` is never used
+ --> crates/cli/src/tui/clipboard_image.rs:6:7
+  |
+6 | const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
+  |       ^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `interpret` is never used
+  --> crates/cli/src/tui/clipboard_image.rs:45:4
+   |
+45 | fn interpret(success: bool, bytes: Vec<u8>, stderr: &[u8]) -> Result<Option<Vec<u8>>, String> {
+   |    ^^^^^^^^^
+
+warning: `orcacode` (bin "orcacode") generated 3 warnings (run `cargo fix --bin "orcacode" -p orcacode` to apply 1 suggestion)
+    Finished `release` profile [optimized + debuginfo] target(s) in 1m 46s

@@ -1,0 +1,63 @@
+name: FOOTPRINT-ATTRIBUTION-02 diagnostic crate attribution
+
+on:
+  pull_request:
+    branches: [experiment/footprint-01-runtime]
+    paths:
+      - .github/workflows/footprint-attribution-02.yml
+      - scripts/footprint_attribution_02.py
+      - scripts/test_footprint_attribution_02.py
+      - docs/engineering/FOOTPRINT_ATTRIBUTION_02.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic-attribution:
+    name: FineCore/Orca symbol and crate attribution only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - name: checkout FineCore PR head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: finecore
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: checkout canonical Orca
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: okikorg/orca-harness
+          ref: 2a9fd399cfbbaad773e3cbed92bb6e24d7561f01
+          path: orca
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: install FOOTPRINT-01 toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: 1.99.1
+
+      - name: run dependency verification and diagnostic attribution only
+        working-directory: finecore
+        run: |
+          python3 -m py_compile scripts/footprint_attribution_02.py scripts/test_footprint_attribution_02.py
+          python3 -m unittest scripts/test_footprint_attribution_02.py
+          python3 -u scripts/footprint_attribution_02.py \
+            --finecore . \
+            --orca ../orca \
+            --out ../footprint-attribution-evidence
+
+      - name: upload diagnostic logs and dependency verification
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: footprint-attribution-02-${{ github.run_id }}
+          path: footprint-attribution-evidence/
+          if-no-files-found: error
+          retention-days: 90
