@@ -1,5 +1,7 @@
 //! OpenAI Codex subscription authentication.
 
+mod browser;
+
 use crate::auth::{oauth_device::DeviceOAuth, store};
 use async_trait::async_trait;
 use orca_harness_model_providers::openai_codex::{CodexCredential, CodexCredentialSource};
