@@ -1,0 +1,73 @@
+{
+  "baseline": {
+    "commit": "06226adecce1671205607c8c79e42dbcb339c05c",
+    "exit_code": 101,
+    "failed_tests": [
+      "auto_approval::shell_policy::tests::reviews_composed_external_destructive_or_path_escaping_commands",
+      "changelog::tests::latest_is_one_release_and_full_is_newest_first",
+      "config::storage::tests::malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state",
+      "config::storage::tests::plugins_round_trip_in_name_order_and_preserve_unrelated_config",
+      "instructions::tests::all_three_roots_load_in_precedence_order",
+      "runtime::worker::tests::clear_rotation_failure_leaves_context_and_old_transcript_unchanged",
+      "tui::plugin_command_tests::typed_uninstall_warns_that_loaded_tools_survive_until_exit",
+      "tui::tests::a_pasted_image_file_path_becomes_a_pill_carrying_the_file_bytes",
+      "tui::tests::a_pasted_jpeg_path_keeps_its_own_media_type",
+      "tui::tests::pills_are_numbered_per_image_kind"
+    ],
+    "label": "PR #120 base",
+    "summaries": [
+      {
+        "failed": 10,
+        "ignored": 1,
+        "passed": 620
+      }
+    ]
+  },
+  "candidate": {
+    "commit": "a98ad059e776ccb7723445324c1a980091f82a32",
+    "exit_code": 101,
+    "failed_tests": [
+      "auto_approval::shell_policy::tests::reviews_composed_external_destructive_or_path_escaping_commands",
+      "changelog::tests::latest_is_one_release_and_full_is_newest_first",
+      "config::storage::tests::malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state",
+      "config::storage::tests::plugins_round_trip_in_name_order_and_preserve_unrelated_config",
+      "instructions::tests::all_three_roots_load_in_precedence_order",
+      "runtime::worker::tests::clear_rotation_failure_leaves_context_and_old_transcript_unchanged",
+      "tui::plugin_command_tests::typed_uninstall_warns_that_loaded_tools_survive_until_exit",
+      "tui::tests::a_pasted_image_file_path_becomes_a_pill_carrying_the_file_bytes",
+      "tui::tests::a_pasted_jpeg_path_keeps_its_own_media_type",
+      "tui::tests::pills_are_numbered_per_image_kind"
+    ],
+    "label": "PR #121 candidate",
+    "summaries": [
+      {
+        "failed": 10,
+        "ignored": 1,
+        "passed": 628
+      }
+    ]
+  },
+  "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+  "command": "cargo test -p finecore --locked",
+  "comparison": "FineCore CLI Windows full-suite, sequential on one runner",
+  "delta": {
+    "baseline_only_failures": [],
+    "baseline_totals": {
+      "failed": 10,
+      "ignored": 1,
+      "passed": 620
+    },
+    "candidate_only_failures": [],
+    "candidate_totals": {
+      "failed": 10,
+      "ignored": 1,
+      "passed": 628
+    },
+    "same_failure_set": true
+  },
+  "network_authentication": "not invoked; network-dependent tests remain ignored by default",
+  "platform": "Windows-2025Server-10.0.26100-SP0",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "workflow_run": "https://github.com/oigorbrito/finecore/actions/runs/40415410811",
+  "artifact_id": 12695912983
+}

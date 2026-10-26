@@ -556,7 +556,7 @@ pub(crate) async fn worker<F>(
                     let _ = ui.send(UiMsg::Models { request_id, result });
                 });
             }
-            WorkerCmd::LoginProvider { provider } => {
+            WorkerCmd::LoginProvider { provider, activate } => {
                 if let Some(task) = login_task.take() {
                     task.abort();
                 }
@@ -572,6 +572,7 @@ pub(crate) async fn worker<F>(
                     let _ = completion_tx.send(WorkerCmd::LoginFinished {
                         provider,
                         attempt,
+                        activate,
                         result,
                     });
                 }));
@@ -579,6 +580,7 @@ pub(crate) async fn worker<F>(
             WorkerCmd::LoginFinished {
                 provider,
                 attempt,
+                activate,
                 result,
             } => {
                 if attempt != login_attempt {
@@ -586,7 +588,7 @@ pub(crate) async fn worker<F>(
                 }
                 login_task = None;
                 match result {
-                    Ok(()) => {
+                    Ok(()) if activate => {
                         let mut candidate = endpoint.clone();
                         candidate.provider = provider;
                         candidate.base_url = provider.base_url().into();
@@ -611,6 +613,12 @@ pub(crate) async fn worker<F>(
                             provider,
                             model: endpoint.model.clone(),
                         });
+                    }
+                    Ok(()) => {
+                        let _ = ui.send(UiMsg::Notice(format!(
+                            "login succeeded for {}; active provider unchanged",
+                            provider.label()
+                        )));
                     }
                     Err(error) => {
                         let _ = ui.send(UiMsg::Notice(format!("login failed: {error}")));
@@ -638,6 +646,76 @@ pub(crate) async fn worker<F>(
                     return;
                 }
             }
+            WorkerCmd::RefreshProviderAuth { provider } => {
+                if endpoint.provider != provider {
+                    continue;
+                }
+                match crate::auth::resolve_api_key(provider) {
+                    Ok(api_key) => {
+                        if endpoint.api_key != api_key {
+                            endpoint.api_key = api_key;
+                            (agent, subagent) = rebuild(&mut build, &endpoint, false, &subagent);
+                        }
+                        let _ = ui.send(UiMsg::Notice(format!(
+                            "credentials refreshed for {} without a provider request",
+                            provider.label()
+                        )));
+                    }
+                    Err(error) => {
+                        if endpoint.api_key.take().is_some() {
+                            (agent, subagent) = rebuild(&mut build, &endpoint, false, &subagent);
+                        }
+                        let _ = ui.send(UiMsg::Notice(format!(
+                            "credentials for {} could not be resolved; active key cleared: {error}",
+                            provider.label()
+                        )));
+                    }
+                }
+            }
+            WorkerCmd::LogoutApiKey { provider } => match crate::auth::logout_api_key(provider) {
+                Ok(false) => {
+                    let _ = ui.send(UiMsg::Notice(format!(
+                            "no FineCore-saved API key for {}; environment and Pi auth sources are unchanged",
+                            provider.label()
+                        )));
+                }
+                Err(error) => {
+                    let _ = ui.send(UiMsg::Notice(format!("logout failed: {error}")));
+                }
+                Ok(true) => {
+                    let mut active_note = String::new();
+                    if endpoint.provider == provider {
+                        match crate::auth::resolve_api_key(provider) {
+                            Ok(api_key) => {
+                                if endpoint.api_key != api_key {
+                                    endpoint.api_key = api_key;
+                                    (agent, subagent) =
+                                        rebuild(&mut build, &endpoint, false, &subagent);
+                                }
+                                if endpoint.api_key.is_some() {
+                                    active_note =
+                                        "; another configured source remains active".into();
+                                } else {
+                                    active_note = "; active provider key cleared".into();
+                                }
+                            }
+                            Err(error) => {
+                                if endpoint.api_key.take().is_some() {
+                                    (agent, subagent) =
+                                        rebuild(&mut build, &endpoint, false, &subagent);
+                                }
+                                active_note = format!(
+                                        "; active key cleared because another auth source could not be read: {error}"
+                                    );
+                            }
+                        }
+                    }
+                    let _ = ui.send(UiMsg::Notice(format!(
+                            "FineCore-saved API key removed for {}{}; environment variables and explicitly imported Pi credentials were not removed",
+                            provider.label(), active_note
+                        )));
+                }
+            },
             WorkerCmd::SetProvider { provider, api_key } => {
                 if let Some(task) = login_task.take() {
                     task.abort();
@@ -646,7 +724,18 @@ pub(crate) async fn worker<F>(
                 let mut candidate = endpoint.clone();
                 candidate.provider = provider;
                 candidate.base_url = provider.base_url().into();
-                candidate.api_key = api_key.or_else(|| provider.resolve_key());
+                candidate.api_key = match api_key {
+                    Some(key) => Some(key),
+                    None => match crate::auth::resolve_api_key(provider) {
+                        Ok(key) => key,
+                        Err(error) => {
+                            let _ = ui.send(UiMsg::Notice(format!(
+                                "provider auth could not be resolved: {error}"
+                            )));
+                            continue;
+                        }
+                    },
+                };
                 candidate.reasoning_effort = None;
                 let requested = config::stored_model(provider.label());
                 candidate.model = match candidate.catalog_model(requested.as_deref()).await {

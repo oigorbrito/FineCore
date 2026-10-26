@@ -277,6 +277,18 @@ pub const COMMANDS: &[CommandSpec] = &[
         takes_args: false,
     },
     CommandSpec {
+        name: "login",
+        description: "save an API key or start a supported native provider login",
+        category: "General",
+        takes_args: true,
+    },
+    CommandSpec {
+        name: "logout",
+        description: "remove a FineCore-saved API key (external auth sources are unchanged)",
+        category: "General",
+        takes_args: true,
+    },
+    CommandSpec {
         name: "subagents",
         description: "configure subagent model, depth, steps, timeout, output, and retries",
         category: "Session",

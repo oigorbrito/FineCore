@@ -63,6 +63,7 @@ pub(super) fn open_row(row: usize, now: &Current) -> After {
                 After::Push(Overlay::ApiKey {
                     provider: now.provider,
                     input: String::new(),
+                    login_only: false,
                 })
             }
         }

@@ -23,13 +23,14 @@ fn api_key_overlay_accepts_pasted_text() {
     app.overlay = Some(Overlay::ApiKey {
         provider: Provider::Vercel,
         input: String::new(),
+        login_only: false,
     });
 
     paste(&mut app, &tx, "vck_test_key");
 
     assert!(rx.try_recv().is_err(), "pasting must not confirm the key");
     match &app.overlay {
-        Some(Overlay::ApiKey { provider, input }) => {
+        Some(Overlay::ApiKey { provider, input, .. }) => {
             assert_eq!(*provider, Provider::Vercel);
             assert_eq!(input, "vck_test_key");
         }

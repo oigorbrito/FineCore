@@ -205,6 +205,12 @@ pub(crate) fn live_region(app: &App, width: usize) -> LiveRegion {
             Overlay::Locations(picker) => location_picker_lines(picker, width),
             Overlay::SkillMentions(picker) => skill_mention_picker_lines(picker, width),
             Overlay::Providers { picker } => provider_lines(picker, width),
+            Overlay::LoginProviders { providers, picker } => {
+                login_provider_lines(providers, picker, width)
+            }
+            Overlay::LogoutProviders { providers, picker } => {
+                logout_provider_lines(providers, picker, width)
+            }
             Overlay::Themes { picker } => theme_picker_lines(picker, width),
             Overlay::Views { picker } => view_picker_lines(app.view_mode, picker, width),
             Overlay::Mode { picker } => mode_picker_lines(app.cfg.mode.get(), picker, width),
@@ -217,7 +223,9 @@ pub(crate) fn live_region(app: &App, width: usize) -> LiveRegion {
             }
             Overlay::Usage => usage_lines(app, width),
             Overlay::Processes => process_lines(&app.cfg.stats, width),
-            Overlay::ApiKey { provider, input } => api_key_lines(*provider, input),
+            Overlay::ApiKey {
+                provider, input, ..
+            } => api_key_lines(*provider, input),
             Overlay::Settings { picker } => settings_lines(app, picker, width),
             Overlay::Subagents { picker } => subagent_settings_lines(app, picker, width),
             Overlay::SubagentValues {

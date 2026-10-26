@@ -402,15 +402,26 @@ pub enum WorkerCmd {
         provider: Provider,
         model: String,
     },
-    /// Run a provider-owned interactive OAuth flow, then activate it.
+    /// Run a provider-owned interactive OAuth flow; activation is optional.
     LoginProvider {
         provider: Provider,
+        activate: bool,
     },
     /// Result of a detached provider login; `attempt` rejects stale completions.
     LoginFinished {
         provider: Provider,
         attempt: u64,
+        activate: bool,
         result: Result<(), String>,
+    },
+    /// Re-resolve saved/ambient credentials for the active provider without
+    /// contacting a provider or refreshing its model catalog.
+    RefreshProviderAuth {
+        provider: Provider,
+    },
+    /// Remove a FineCore-saved API key and refresh the active endpoint only.
+    LogoutApiKey {
+        provider: Provider,
     },
     /// Switch the active model and reasoning effort for subsequent runs
     /// (context is kept).

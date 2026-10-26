@@ -30,6 +30,104 @@ pub(crate) const PLUGIN_ACTIONS: &[PickerAction] = &[
 const PLUGIN_USAGE: &str = "usage: /plugin [list | init <name> --py|--ts | validate [path] | \
 test [path] | install [path] | inspect <name> | enable <name> | disable <name> | uninstall <name>]";
 
+pub(crate) fn login_command(app: &mut App, args: &str, worker: &mpsc::UnboundedSender<WorkerCmd>) {
+    let providers = crate::auth::login_providers();
+    if args.trim().is_empty() {
+        app.overlay = Some(Overlay::LoginProviders {
+            picker: ListPicker::new(providers.len()),
+            providers,
+        });
+        return;
+    }
+    let mut parts = args.split_whitespace();
+    let Some(name) = parts.next() else {
+        return;
+    };
+    if parts.next().is_some() {
+        push_error(app, "usage: /login [provider]");
+        return;
+    }
+    let Some(provider) = crate::Provider::from_label(name) else {
+        push_error(
+            app,
+            "unknown provider — use /login to select a supported provider",
+        );
+        return;
+    };
+    match provider.auth() {
+        crate::msg::ProviderAuth::ApiKey { .. } => {
+            app.overlay = Some(Overlay::ApiKey {
+                provider,
+                input: String::new(),
+                login_only: true,
+            });
+        }
+        crate::msg::ProviderAuth::OAuth => {
+            if worker
+                .send(WorkerCmd::LoginProvider {
+                    provider,
+                    activate: false,
+                })
+                .is_err()
+            {
+                push_error(app, "worker is gone; restart finecore");
+            } else {
+                push_notice(app, format!("starting login for {}…", provider.label()));
+            }
+        }
+        crate::msg::ProviderAuth::None => {
+            push_notice(app, format!("{} does not require login", provider.label()));
+        }
+    }
+}
+
+pub(crate) fn logout_command(app: &mut App, args: &str, worker: &mpsc::UnboundedSender<WorkerCmd>) {
+    let providers = crate::auth::logout_providers();
+    if args.trim().is_empty() {
+        if providers.is_empty() {
+            push_notice(
+                app,
+                "no FineCore-saved API keys; /logout does not remove environment variables, Pi auth files, or Codex CLI credentials",
+            );
+        } else {
+            app.overlay = Some(Overlay::LogoutProviders {
+                picker: ListPicker::new(providers.len()),
+                providers,
+            });
+        }
+        return;
+    }
+    let mut parts = args.split_whitespace();
+    let Some(name) = parts.next() else {
+        return;
+    };
+    if parts.next().is_some() {
+        push_error(app, "usage: /logout [provider]");
+        return;
+    }
+    let Some(provider) = crate::Provider::from_label(name) else {
+        push_error(
+            app,
+            "unknown provider — use /logout to select a saved FineCore API key",
+        );
+        return;
+    };
+    match provider.auth() {
+        crate::msg::ProviderAuth::ApiKey { .. } => {
+            if worker.send(WorkerCmd::LogoutApiKey { provider }).is_err() {
+                push_error(app, "worker is gone; restart finecore");
+            }
+        }
+        crate::msg::ProviderAuth::OAuth => push_error(
+            app,
+            "logout for imported OpenAI Codex credentials is not implemented; FineCore will not delete credentials owned by Codex CLI",
+        ),
+        crate::msg::ProviderAuth::None => {
+            push_notice(app, format!("{} has no saved API key", provider.label()));
+        }
+    }
+}
+
 pub(crate) fn plugin_command(app: &mut App, args: &str, worker: &mpsc::UnboundedSender<WorkerCmd>) {
     let mut parts = args.split_whitespace();
     match parts.next() {

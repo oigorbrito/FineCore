@@ -116,6 +116,17 @@ mod tests {
     }
 
     #[test]
+    fn remove_key_deletes_only_the_selected_provider_and_is_idempotent() {
+        save_key("openrouter", "sk-or-test").unwrap();
+        save_key("openai", "sk-openai-test").unwrap();
+
+        assert!(remove_key("openai").unwrap());
+        assert_eq!(stored_key("openai"), None);
+        assert_eq!(stored_key("openrouter").as_deref(), Some("sk-or-test"));
+        assert!(!remove_key("openai").unwrap());
+    }
+
+    #[test]
     fn provider_theme_and_models_round_trip_alongside_keys() {
         assert_eq!(stored_provider(), None);
         assert_eq!(stored_theme(), None);
@@ -532,6 +543,37 @@ mod tests {
         let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "rewrites tighten a loose pre-existing file");
 
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn config_file_has_a_protected_owner_only_acl() {
+        let dir = std::env::temp_dir().join(format!(
+            "finecore-private-config-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        restrict(&dir, 0o700).unwrap();
+        let path = dir.join("config.json");
+        write_private(&path, "{\"api_key\":\"fixture-only\"}\n").unwrap();
+
+        let output = std::process::Command::new("icacls")
+            .arg(&path)
+            .output()
+            .expect("icacls must be available on Windows");
+        assert!(output.status.success());
+        let acl = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(
+            acl.matches(":(F)").count(),
+            2,
+            "the protected DACL should grant full control only to the owner and SYSTEM: {acl}"
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{\"api_key\":\"fixture-only\"}\n");
         let _ = fs::remove_dir_all(&dir);
     }
 }

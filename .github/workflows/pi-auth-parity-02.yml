@@ -1,0 +1,57 @@
+name: FineCore Pi auth parity 02 validation
+
+on:
+  push:
+    branches: [feature/pi-auth-parity-02]
+    paths:
+      - 'Cargo.lock'
+      - 'crates/cli/Cargo.toml'
+      - 'crates/cli/src/auth/**'
+      - 'crates/cli/src/config/**'
+      - 'crates/cli/src/main.rs'
+      - 'crates/cli/src/msg.rs'
+      - 'crates/cli/src/run_args.rs'
+      - 'crates/cli/src/runtime/worker.rs'
+      - 'crates/cli/src/tui/**'
+      - 'docs/engineering/PI_AUTH_PARITY_02.md'
+      - 'scripts/compare_pi_auth_windows.py'
+      - 'scripts/test_compare_pi_auth_windows.py'
+      - '.github/workflows/pi-auth-parity-02.yml'
+      - '.github/workflows/pi-auth-windows-compare-02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-auth-parity-02-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  offline:
+    name: Native Rust login/logout checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Rust toolchain 1.99.1
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Windows comparison report tests
+        run: python scripts/test_compare_pi_auth_windows.py
+      - name: Compile CLI
+        run: cargo check -p finecore --locked
+      - name: API-key manager and compatibility tests
+        run: "cargo test -p finecore --locked auth:: -- --nocapture"
+      - name: Interactive login/logout UI tests
+        run: cargo test -p finecore --locked login_ -- --nocapture
+      - name: Logout UI test
+        run: cargo test -p finecore --locked logout_picker_shows_only_finecore_saved_keys_and_sends_remove -- --nocapture
+      - name: CLI regression suite
+        run: cargo test -p finecore --locked

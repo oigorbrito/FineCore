@@ -174,6 +174,18 @@ pub(crate) fn slash_command(
             return;
         }
     }
+    if let Some(rest) = command.strip_prefix("login") {
+        if rest.is_empty() || rest.starts_with(' ') {
+            login_command(app, rest.trim(), worker);
+            return;
+        }
+    }
+    if let Some(rest) = command.strip_prefix("logout") {
+        if rest.is_empty() || rest.starts_with(' ') {
+            logout_command(app, rest.trim(), worker);
+            return;
+        }
+    }
     if let Some(rest) = command.strip_prefix("mcp") {
         if rest.is_empty() {
             let entries = crate::tui::mcp_picker::snapshot(&app.cfg.mcp);
