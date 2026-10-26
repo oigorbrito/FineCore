@@ -62,7 +62,7 @@ pub(crate) fn validate(path: &Path) -> Result<Vec<String>, String> {
             .map(|skill| format!("skill: {}", skill.name)),
     );
     lines.push(format!(
-        "valid plugin: {} ({} skill(s), {} stdio MCP server(s), {} Orcacode hook(s)) · {}",
+        "valid plugin: {} ({} skill(s), {} stdio MCP server(s), {} FineCore hook(s)) · {}",
         plugin.name,
         plugin.skills.skills.len(),
         plugin.mcp_servers.len(),

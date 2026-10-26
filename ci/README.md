@@ -1,6 +1,12 @@
 # ci
 
-Scripts and workflows for orca-harness.
+Scripts and workflows inherited from Orca Harness.
+
+> **FineCore safety:** the release flow below targets Orcacode's repository,
+> tags, installer, and release host. It is not a FineCore release process.
+> Release commands in `ci/release.sh` fail closed, and the GitHub release
+> workflow is guarded to run only in `okikorg/orca-harness`. Do not publish or
+> repoint these scripts without a separate FineCore release plan and approval.
 
 ## Releasing orcacode
 

@@ -19,7 +19,7 @@ class RunTest(unittest.TestCase):
             value,
             {
                 "instance_id": "owner__repo-1",
-                "model_name_or_path": "orcacode+model",
+                "model_name_or_path": "finecore+model",
                 "model_patch": "diff",
             },
         )
@@ -34,7 +34,7 @@ class RunTest(unittest.TestCase):
             model="example/model", max_steps=12, max_output_tokens=2048
         )
         instance = {"instance_id": "owner__repo-1", "problem_statement": "Fix it."}
-        command = run.build_command("/bin/orcacode", Path("/tmp/repo"), instance, args)
+        command = run.build_command("/bin/finecore", Path("/tmp/repo"), instance, args)
         self.assertIn("--bare", command)
         self.assertIn("--yolo", command)
         self.assertIn("--no-session", command)

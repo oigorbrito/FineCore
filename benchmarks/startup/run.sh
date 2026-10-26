@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Startup latency benchmarks for orcacode.
+# Startup latency benchmarks for FineCore.
 #
 # Measures wall-clock time for the cold-start path with hyperfine. Results
 # are written to benchmarks/results/startup/ as JSON for CI consumption.
@@ -21,7 +21,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BENCH_DIR="${REPO_ROOT}/benchmarks"
-ORCA_BIN="${ORCA_BIN:-${REPO_ROOT}/target/release/orcacode}"
+FINECORE_BIN="${FINECORE_BIN:-${ORCA_BIN:-${REPO_ROOT}/target/release/finecore}}"
 RESULTS_DIR="${BENCH_DIR}/results/startup"
 FIXTURE_ROOT="${TMPDIR:-/tmp}/orca-startup-benchmark-$$"
 
@@ -47,12 +47,12 @@ case "${1:-}" in
 esac
 
 if [ "$SKIP_BUILD" = false ]; then
-  echo "Building orcacode (release)..."
-  (cd "$REPO_ROOT" && cargo build --release -p orcacode)
+  echo "Building FineCore (release)..."
+  (cd "$REPO_ROOT" && cargo build --release -p finecore)
 fi
 
-if [ ! -x "$ORCA_BIN" ]; then
-  echo "error: orcacode binary not found at $ORCA_BIN"
+if [ ! -x "$FINECORE_BIN" ]; then
+  echo "error: FineCore binary not found at $FINECORE_BIN"
   exit 1
 fi
 
@@ -113,8 +113,8 @@ run_bench() {
   echo ""
 }
 
-echo "=== orcacode startup benchmarks ==="
-echo "binary: $ORCA_BIN"
+echo "=== FineCore startup benchmarks ==="
+echo "binary: $FINECORE_BIN"
 echo "runs:   $RUNS (warmup: $WARMUP)"
 echo ""
 
@@ -126,27 +126,27 @@ run_bench "process baseline" baseline "$TRUE_BIN"
 
 # Argument parsing only — the floor the binary itself imposes (image load,
 # dynamic linking, tokio runtime construction) before any work happens.
-run_bench "orcacode --help" help "$(quoted "$ORCA_BIN") --help"
+run_bench "finecore --help" help "$(quoted "$FINECORE_BIN") --help"
 
 # The cold-start path with recording off: config load, six skill roots
 # scanned, system prompt built, tool registry and extensions constructed,
 # agent assembled. ORCA_BENCH stops the binary right there, before the TUI.
-run_bench "orcacode (startup)" startup \
-  "$(quoted "$ORCA_BIN") --no-session --workspace $(quoted "$FIXTURE_WORKSPACE")" \
+run_bench "finecore (startup)" startup \
+  "$(quoted "$FINECORE_BIN") --no-session --workspace $(quoted "$FIXTURE_WORKSPACE")" \
   ORCA_BENCH=1
 
 # Session list plus a full transcript replayed off disk: read_dir over the
 # fixture sessions, header parse for each, then every line of the newest
 # deserialized back into Context. Resume appends nothing, so the fixture is
 # identical at the end of the run.
-run_bench "orcacode (resume)" resume \
-  "$(quoted "$ORCA_BIN") --continue --workspace $(quoted "$FIXTURE_WORKSPACE")" \
+run_bench "finecore (resume)" resume \
+  "$(quoted "$FINECORE_BIN") --continue --workspace $(quoted "$FIXTURE_WORKSPACE")" \
   ORCA_BENCH=1
 
 # Discovery cost with a populated .orca/skills: the delta against
-# "orcacode (startup)" is what a workspace full of skills costs.
-run_bench "orcacode (startup, skills)" startup-skills \
-  "$(quoted "$ORCA_BIN") --no-session --workspace $(quoted "$FIXTURE_WORKSPACE_SKILLS")" \
+# The delta against "finecore (startup)" shows the cost of a workspace full of skills.
+run_bench "finecore (startup, skills)" startup-skills \
+  "$(quoted "$FINECORE_BIN") --no-session --workspace $(quoted "$FIXTURE_WORKSPACE_SKILLS")" \
   ORCA_BENCH=1
 
 # The default path as a user actually gets it: a new session file created
@@ -154,8 +154,8 @@ run_bench "orcacode (startup, skills)" startup-skills \
 # the directory is wiped before each — it is this workspace's own, never
 # the one the resume benchmark reads.
 PREPARE=(--prepare "rm -rf $(quoted "$FIXTURE_FRESH_SESSIONS")")
-run_bench "orcacode (startup, new session)" session-create \
-  "$(quoted "$ORCA_BIN") --workspace $(quoted "$FIXTURE_WORKSPACE_FRESH")" \
+run_bench "finecore (startup, new session)" session-create \
+  "$(quoted "$FINECORE_BIN") --workspace $(quoted "$FIXTURE_WORKSPACE_FRESH")" \
   ORCA_BENCH=1
 PREPARE=()
 

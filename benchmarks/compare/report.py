@@ -7,7 +7,7 @@ same session leaves the work each program actually does — the only figure
 that survives being quoted somewhere else.
 
 Commands are grouped into tiers rather than paired one-to-one, because
-`FX_BENCH=1 fx` and `ORCA_BENCH=1 orcacode` do not measure the same thing.
+`FX_BENCH=1 fx` and `ORCA_BENCH=1 finecore` do not measure the same thing.
 See the header of compare/run.sh; the note is repeated in the output so a
 pasted table carries its own caveat.
 """
@@ -27,7 +27,7 @@ TIERS = [
         "argv parsed, no config read",
         [
             ("fx (arg parse)", "parses argv, exits; reads nothing"),
-            ("orcacode --help", "parses argv, formats and writes usage"),
+            ("finecore --help", "parses argv, formats and writes usage"),
         ],
     ),
     (
@@ -35,7 +35,7 @@ TIERS = [
         [
             ("fx status --json", "settings, auth, workspace probe, JSON out"),
             ("fx doctor --json", "settings plus system checks"),
-            ("orcacode (startup)", "config, 6 skill roots, prompt, registries, agent"),
+            ("finecore (startup)", "config, 6 skill roots, prompt, registries, agent"),
         ],
     ),
 ]
@@ -79,10 +79,10 @@ def report(results_dir: str) -> int:
         "work is not identical.\n\n"
         "  - `FX_BENCH=1 fx` parses argv and exits without reading settings, so\n"
         "    it is NOT the counterpart to ORCA_BENCH. That pairing would compare\n"
-        "    orcacode's whole startup against fx's argument parser.\n"
+        "    FineCore's whole startup against fx's argument parser.\n"
         "  - fx has no command that exits after a full interactive-launch\n"
         "    startup, so tier 2 substitutes status/doctor, which probe auth and\n"
-        "    the system — work orcacode's startup does not do. fx's own budget\n"
+        "    the system — work FineCore's startup does not do. fx's own budget\n"
         "    file evaluates them on Linux only; on macOS they cost far more, and\n"
         "    most of it is in-process CPU rather than I/O. Tier 2 is a data\n"
         "    point about those commands, not a verdict about startup.\n\n"

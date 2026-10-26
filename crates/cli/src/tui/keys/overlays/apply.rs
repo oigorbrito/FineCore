@@ -166,7 +166,7 @@ pub(super) fn apply_after(app: &mut App, worker: &mpsc::UnboundedSender<WorkerCm
             {
                 app.picker_pending = None;
                 app.overlay = app.overlay_stack.pop();
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "fetching provider models…");
             }
@@ -192,7 +192,7 @@ pub(super) fn apply_after(app: &mut App, worker: &mpsc::UnboundedSender<WorkerCm
             {
                 app.picker_pending = None;
                 app.overlay = app.overlay_stack.pop();
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "fetching models…");
             }

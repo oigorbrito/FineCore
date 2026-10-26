@@ -76,7 +76,7 @@ mod tests {
     fn flowchart_renders_boxed_nodes_routed_edges_and_labels() {
         let source = [
             "flowchart TD",
-            r"CLI[orcacode\ninteractive CLI / host]",
+            r"CLI[finecore\ninteractive CLI / host]",
             "CORE[execution kernel]",
             "EXT[extensions]",
             "CLI --> CORE",
@@ -88,7 +88,7 @@ mod tests {
         let rendered = render(&source, 80, "  ", &default_theme()).unwrap();
         let text = text(&rendered);
         assert!(
-            text.contains("CLI · orcacode / interactive CLI / host"),
+            text.contains("CLI · finecore / interactive CLI / host"),
             "{text}"
         );
         assert!(text.contains("CORE · execution kernel"), "{text}");
@@ -333,7 +333,7 @@ mod tests {
             "end",
             "subgraph Workspace[\"orca-harness Rust workspace\"]",
             "direction TB",
-            "CLI[\"crates/cli\\norcacode terminal host\"]",
+            "CLI[\"crates/cli\\nfinecore terminal host\"]",
             "SDK[\"crates/sdk\\nembedding API\"]",
             "CORE[\"crates/harness-core\\nagent loop · dispatcher · limits · extensions hooks\"]",
             "end",
@@ -348,7 +348,7 @@ mod tests {
         let text = text(&rendered);
         for needle in [
             "CP · Control plane / scheduling",
-            "CLI · crates/cli / orcacode terminal host",
+            "CLI · crates/cli / finecore terminal host",
             "CORE · crates/harness-core / agent loop",
             "model responses",
             "▲",

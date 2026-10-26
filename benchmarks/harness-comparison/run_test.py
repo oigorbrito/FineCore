@@ -24,6 +24,15 @@ class RunTest(unittest.TestCase):
             run.balanced_order(selected, 0, 4), ["kiss", "orca", "pi", "omp", "claude"]
         )
 
+    def test_finecore_binary_option_and_legacy_alias(self):
+        with patch.object(sys, "argv", ["run.py"]):
+            self.assertEqual(run.parse_args().finecore_bin, "target/release/finecore")
+        for option in ("--finecore-bin", "--orca-bin"):
+            with self.subTest(option=option), patch.object(
+                sys, "argv", ["run.py", option, "/tmp/finecore"]
+            ):
+                self.assertEqual(run.parse_args().finecore_bin, "/tmp/finecore")
+
     def test_prompt_cache_defaults_on_and_can_be_disabled(self):
         with patch.object(sys, "argv", ["run.py"]):
             self.assertTrue(run.parse_args().prompt_cache)

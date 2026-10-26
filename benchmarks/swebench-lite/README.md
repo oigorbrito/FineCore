@@ -1,7 +1,7 @@
 # SWE-bench Lite
 
 This adapter generates official-format SWE-bench patch predictions with
-Orcacode. Start with three deterministic instances from Lite's 23-instance
+FineCore. Start with three deterministic instances from Lite's 23-instance
 development split before spending money on the 300-instance test split.
 
 ## Generate the smoke predictions
@@ -23,7 +23,7 @@ The smoke profile permits 64 model steps and 8,192 output tokens per instance;
 the external timeout is 15 minutes. The model may finish earlier.
 
 The timestamped result directory contains `predictions.jsonl`, a manifest,
-the patch for each instance, and raw Orcacode stdout/stderr. The dataset's gold
+the patch for each instance, and raw FineCore stdout/stderr. The dataset's gold
 patch and hidden test patch are never written to the result or shown to the
 agent. Lite excludes tasks whose reference fix creates or removes files, so the
 runner intentionally omits untracked scratch files from submitted patches.
@@ -44,7 +44,7 @@ python -m swebench.harness.run_evaluation \
   --max_workers 2 \
   --cache_level base \
   --clean True \
-  --run_id orcacode-lite-smoke-<run-id>
+  --run_id finecore-lite-smoke-<run-id>
 ```
 
 SWE-bench recommends x86_64, at least 120 GB free storage, 16 GB RAM, and 8

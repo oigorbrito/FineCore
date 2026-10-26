@@ -1,0 +1,25 @@
+{
+  "name": "finecore",
+  "version": "0.0.1",
+  "description": "FineCore npm name reservation; this placeholder is not a functional CLI.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oigorbrito/finecore.git",
+    "directory": "npm/finecore"
+  },
+  "homepage": "https://github.com/oigorbrito/finecore",
+  "bugs": {
+    "url": "https://github.com/oigorbrito/finecore/issues"
+  },
+  "keywords": [
+    "finecore",
+    "reservation-placeholder"
+  ],
+  "files": [
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

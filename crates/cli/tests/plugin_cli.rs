@@ -26,7 +26,7 @@ impl Fixture {
     }
 
     fn run(&self, cwd: &Path, args: &[&str]) -> Output {
-        Command::new(env!("CARGO_BIN_EXE_orcacode"))
+        Command::new(env!("CARGO_BIN_EXE_finecore"))
             .args(args)
             .current_dir(cwd)
             .env("ORCA_CONFIG_DIR", &self.config)
@@ -315,9 +315,9 @@ fn python_and_typescript_scaffolds_have_expected_layout_and_do_not_overwrite() {
     assert_eq!(py_mcp["mcpServers"]["echo"]["command"], "uv");
     let python_readme = fs::read_to_string(py.join("README.md")).unwrap();
     for guidance in [
-        "Orcacode does not itself run dependency installers",
+        "FineCore does not itself run dependency installers",
         "generated `uv` child may resolve dependencies into `${PLUGIN_DATA}`",
-        "first `orcacode plugin test` or enabled start",
+        "first `finecore plugin test` or enabled start",
         "For offline use",
         "before enabling",
     ] {

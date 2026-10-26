@@ -54,7 +54,7 @@ pub async fn run(
     )?;
     disable_raw_mode()?;
     println!(
-        "orcacode · session ended · tokens in {} out {}",
+        "finecore · session ended · tokens in {} out {}",
         app.tokens_in, app.tokens_out
     );
     if let Some(hint) = resume_hint(app.cfg.session_id.as_deref()) {
@@ -66,7 +66,7 @@ pub async fn run(
 fn resume_hint(session_id: Option<&str>) -> Option<String> {
     let id = session_id?;
     Some(format!(
-        "\nResume this session with:\n  orcacode resume {id}"
+        "\nResume this session with:\n  finecore resume {id}"
     ))
 }
 
@@ -97,7 +97,7 @@ mod resume_tests {
         assert!(resume_hint(None).is_none());
         assert_eq!(
             resume_hint(Some("session-id")).unwrap(),
-            "\nResume this session with:\n  orcacode resume session-id"
+            "\nResume this session with:\n  finecore resume session-id"
         );
     }
 }

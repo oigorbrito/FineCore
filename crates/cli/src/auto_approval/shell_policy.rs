@@ -333,9 +333,9 @@ mod tests {
             "git status --short",
             "git diff --check",
             "git log -5 --oneline",
-            "cargo check -p orcacode",
-            "cargo test -p orcacode auto_approval",
-            "cargo clippy -p orcacode --all-targets",
+            "cargo check -p finecore",
+            "cargo test -p finecore auto_approval",
+            "cargo clippy -p finecore --all-targets",
             "cargo fmt --all -- --check",
         ] {
             assert!(safe(command), "expected known-safe: {command}");

@@ -1,4 +1,4 @@
-//! Headless single-shot mode: `orcacode -p "prompt"`. Streams assistant text
+//! Headless single-shot mode: `finecore -p "prompt"`. Streams assistant text
 //! to stdout as it is generated; tool activity goes to stderr. With
 //! `--json`, every harness event is serialized to stdout as NDJSON.
 

@@ -9,11 +9,12 @@ name: bench-live
 # The budgets live in benchmarks/harness-comparison/check_budgets.py and are
 # set to catch cliffs, not drift: a correctness collapse, an exploration
 # blowup, a blocking call in front of the loop, a prompt prefix that stopped
-# being cacheable. Only orcacode is gated; the other harnesses are measured
+# being cacheable. Only FineCore is gated; the other harnesses are measured
 # for comparison.
 #
-# Without OPENROUTER_API_KEY in the repository secrets, every step below is
-# skipped rather than failed -- a fork has no key and should not see a red X.
+# FineCore retains this workflow only as source evidence; a repository guard
+# below prevents scheduled or manually-dispatched paid API calls outside the
+# canonical Orca Harness repository.
 
 on:
   schedule:
@@ -32,6 +33,7 @@ env:
 
 jobs:
   harness-comparison:
+    if: github.repository == 'okikorg/orca-harness'
     name: harness comparison
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -70,7 +72,7 @@ jobs:
 
       - name: build
         if: steps.key.outputs.present == 'true'
-        run: cargo build --release -p orcacode
+        run: cargo build --release -p finecore
 
       # --harness orca: the comparison harnesses are node and python tools
       # installed out of band, and a missing one must not fail our own gate.

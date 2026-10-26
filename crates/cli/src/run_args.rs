@@ -45,7 +45,7 @@ pub(crate) fn parse_run_args(args: Vec<String>) -> Result<Config, String> {
         resume_id = Some(
             args.next()
                 .filter(|id| !id.is_empty() && !id.starts_with('-'))
-                .ok_or("usage: orcacode resume ID [OPTIONS]")?,
+                .ok_or("usage: finecore resume ID [OPTIONS]")?,
         );
     }
     while let Some(arg) = args.next() {
@@ -112,7 +112,7 @@ pub(crate) fn parse_run_args(args: Vec<String>) -> Result<Config, String> {
                 std::process::exit(0);
             }
             "-v" | "-V" | "--version" => {
-                println!("orcacode {}", env!("CARGO_PKG_VERSION"));
+                println!("finecore {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             other => return Err(format!("unknown flag: {other}\n\n{USAGE}")),

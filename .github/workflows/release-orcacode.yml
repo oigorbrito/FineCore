@@ -1,5 +1,9 @@
 name: release-orcacode
 
+# Upstream Orcacode release pipeline. FineCore keeps this file for provenance,
+# but the repository guard below prevents builds or publication outside the
+# canonical upstream repository. Do not repoint it without release approval.
+#
 # Release pipeline for the orcacode CLI (crates/cli). Pushing a tag that
 # matches orcacode-v* builds the binary for five targets, attaches the
 # archives plus SHA256SUMS to the GitHub Release for that tag, and pushes
@@ -43,6 +47,7 @@ permissions:
 
 jobs:
   tag:
+    if: github.repository == 'okikorg/orca-harness'
     name: resolve tag
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -94,6 +99,7 @@ jobs:
           echo "releasing orcacode $version from tag $tag"
 
   build:
+    if: github.repository == 'okikorg/orca-harness'
     name: build ${{ matrix.asset }}
     needs: tag
     runs-on: ${{ matrix.os }}
@@ -207,6 +213,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: github.repository == 'okikorg/orca-harness'
     name: publish ${{ needs.tag.outputs.tag }}
     needs: [tag, build]
     runs-on: ubuntu-latest

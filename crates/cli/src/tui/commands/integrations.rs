@@ -57,7 +57,7 @@ pub(crate) fn plugin_command(app: &mut App, args: &str, worker: &mpsc::Unbounded
         Some("test") => {
             let path = plugin_path(app, command_tail(args));
             if worker.send(WorkerCmd::TestPlugin { path }).is_err() {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "testing plugin executable components…");
             }
@@ -236,7 +236,7 @@ pub(crate) fn plugin_picker_action(
                 })
                 .is_err()
             {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, format!("testing plugin {name} executable components…"));
             }
@@ -320,7 +320,7 @@ pub(crate) fn skills_command(app: &mut App, args: &str, worker: &mpsc::Unbounded
                 here,
             };
             if worker.send(cmd).is_err() {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, format!("fetching {source}…"));
             }
@@ -355,7 +355,7 @@ pub(crate) fn skills_command(app: &mut App, args: &str, worker: &mpsc::Unbounded
             // The rescan itself is the worker's, so the tool the agent
             // carries and the catalog on screen never disagree.
             if worker.send(WorkerCmd::ReloadSkills).is_err() {
-                push_error(app, "worker is gone; restart orcacode");
+                push_error(app, "worker is gone; restart finecore");
             } else {
                 push_notice(app, "rescanning skills…");
             }
@@ -457,7 +457,7 @@ pub(crate) fn mcp_command(app: &mut App, args: &str, worker: &mpsc::UnboundedSen
                     };
                     push_notice(app, note);
                     if worker.send(WorkerCmd::ReloadMcp).is_err() {
-                        push_error(app, "worker is gone; restart orcacode");
+                        push_error(app, "worker is gone; restart finecore");
                     }
                 }
                 Err(err) => {
@@ -493,7 +493,7 @@ pub(crate) fn mcp_command(app: &mut App, args: &str, worker: &mpsc::UnboundedSen
                         format!("mcp server {name} removed (applies to the next run)"),
                     );
                     if worker.send(WorkerCmd::ReloadMcp).is_err() {
-                        push_error(app, "worker is gone; restart orcacode");
+                        push_error(app, "worker is gone; restart finecore");
                     }
                 }
                 Err(err) => {

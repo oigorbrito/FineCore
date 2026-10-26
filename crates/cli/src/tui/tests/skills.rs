@@ -259,7 +259,7 @@ mod skills_command_tests {
     /// against a local model endpoint.
     ///
     /// Run with:
-    /// `cargo test -p orcacode --bin orcacode e2e_ -- --ignored --nocapture`
+    /// `cargo test -p finecore --bin finecore e2e_ -- --ignored --nocapture`
     #[tokio::test]
     #[ignore = "network: clones a github repository and calls a model"]
     async fn e2e_add_use_and_remove_a_published_skill() {
@@ -342,7 +342,7 @@ mod skills_command_tests {
                  Use the skill tool.",
             ])
             .output()
-            .expect("run orcacode");
+            .expect("run finecore");
         let stderr = String::from_utf8_lossy(&run.stderr);
         let stdout = String::from_utf8_lossy(&run.stdout);
         println!("--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}");

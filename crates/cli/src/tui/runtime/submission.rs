@@ -97,7 +97,7 @@ pub(crate) fn start_shell(
         })
         .is_err()
     {
-        push_error(app, "worker is gone; restart orcacode");
+        push_error(app, "worker is gone; restart finecore");
         return false;
     }
     app.reset_activity();
@@ -140,7 +140,7 @@ pub(crate) fn start_prompt(
         })
         .is_err()
     {
-        push_error(app, "worker is gone; restart orcacode");
+        push_error(app, "worker is gone; restart finecore");
         return false;
     }
 

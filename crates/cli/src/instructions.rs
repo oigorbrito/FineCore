@@ -10,7 +10,7 @@
 //! | `<workspace>/.orca/AGENTS.md` | this project, unshared          |
 //!
 //! `AGENTS.md` is the cross-agent convention, so a repository that
-//! already has one works with `orcacode` without a second file. The
+//! already has one works with `finecore` without a second file. The
 //! `.orca/` path is for guidance that belongs to one checkout rather
 //! than to the repository.
 //!
@@ -18,7 +18,7 @@
 //! folded into `system_prompt()` itself, which is a fixed string with
 //! tests asserting its contents. A file is read once, at startup: the
 //! composed prompt is what `/clear` re-pushes, so an edited `AGENTS.md`
-//! reaches the model on the next `orcacode`, not mid-session.
+//! reaches the model on the next `finecore`, not mid-session.
 
 use std::path::{Path, PathBuf};
 

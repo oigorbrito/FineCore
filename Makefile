@@ -1,11 +1,11 @@
-# orca-harness
+# FineCore / Orca Harness
 #
 #   make help                     every target
 #   make check test               what CI runs before a merge
-#   make notes VERSION=0.3.0      start a release (then edit docs/releases/0.3.0.md)
-#   make release VERSION=0.3.0    prepare, push, tag: CI builds and publishes
+#   make notes VERSION=0.3.0      Orcacode release command (disabled in FineCore)
+#   make release VERSION=0.3.0    Orcacode release command (disabled in FineCore)
 #
-# Release targets wrap ci/release.sh and take VERSION=X.Y.Z.
+# Release targets wrap the upstream ci/release.sh, which fails closed in FineCore.
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
@@ -20,8 +20,8 @@ help:  ## list targets
 
 ## Development
 
-build:  ## release build of orcacode
-	cargo build --release -p orcacode
+build:  ## release build of the FineCore CLI
+	cargo build --release -p finecore
 
 test:  ## the workspace test suite plus the benchmark reporting tests, as CI runs them
 	cargo test --workspace
@@ -58,28 +58,28 @@ bench-all: build  ## every suite bench.yml runs, budgets informational off Linux
 	./benchmarks/subagent/run.sh --quick
 	./benchmarks/subagent/sim.sh --quick
 
-## Release: notes, edit the file, prepare, push, tag (VERSION=X.Y.Z)
+## Upstream Orcacode release commands (disabled in FineCore)
 
-notes:  ## draft docs/releases/VERSION.md from the commits since the last tag
+notes:  ## upstream Orcacode release helper (disabled in FineCore)
 	$(require_version)
 	./ci/release.sh notes $(VERSION)
 
-prepare:  ## bump the workspace version, refresh Cargo.lock, commit with the notes
+prepare:  ## upstream Orcacode release helper (disabled in FineCore)
 	$(require_version)
 	./ci/release.sh prepare $(VERSION)
 
-tag:  ## tag orcacode-vVERSION and push it; CI builds and publishes
+tag:  ## upstream Orcacode release helper (disabled in FineCore)
 	$(require_version)
 	./ci/release.sh tag $(VERSION)
 
-release: prepare  ## prepare, push, tag in one go, once the notes are written
+release: prepare  ## upstream Orcacode release helper (disabled in FineCore)
 	git push origin HEAD
 	./ci/release.sh tag $(VERSION)
 
-dist:  ## no-CI fallback: build all five targets into dist/release/VERSION
+dist:  ## upstream Orcacode release helper (disabled in FineCore)
 	$(require_version)
 	./ci/release.sh build $(VERSION)
 
-publish:  ## no-CI fallback: GitHub Release from dist, then the release host
+publish:  ## upstream Orcacode release helper (disabled in FineCore)
 	$(require_version)
 	./ci/release.sh publish $(VERSION)

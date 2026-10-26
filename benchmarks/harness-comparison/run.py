@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the isolated Orcacode, Pi, Oh My Pi, and Claude Code live benchmark.
+"""Run the isolated FineCore, Pi, Oh My Pi, and Claude Code live benchmark.
 
 The runner intentionally owns orchestration only: fresh fixture copies, balanced
 ordering, timestamped raw streams, timeouts, and post-run workspace validation.
@@ -62,7 +62,7 @@ def parse_args() -> argparse.Namespace:
         "--harness",
         choices=("all", "both", "orca-kiss", "orca", "pi", "omp", "claude", "kiss"),
         default="all",
-        help="'both' retains the Orcacode/Pi-only profile; 'orca-kiss' pairs Orcacode with KISS",
+        help="'both' retains the FineCore/Pi-only profile; 'orca-kiss' pairs FineCore with KISS",
     )
     parser.add_argument(
         "--task",
@@ -84,7 +84,9 @@ def parse_args() -> argparse.Namespace:
         help="Disable prompt caching where the harness exposes a control",
     )
     parser.set_defaults(prompt_cache=True)
-    parser.add_argument("--orca-bin", default="target/release/orcacode")
+    parser.add_argument(
+        "--finecore-bin", "--orca-bin", dest="finecore_bin", default="target/release/finecore"
+    )
     parser.add_argument("--pi-bin", default="pi")
     parser.add_argument("--omp-bin", default="omp")
     parser.add_argument("--claude-bin", default="claude")
@@ -651,7 +653,8 @@ def main() -> int:
             "OPENROUTER_API_KEY is required but must not be passed on the command line"
         )
     binary_args = {
-        "orca": args.orca_bin,
+        # Keep the inherited "orca" result key stable for historical comparison data.
+        "orca": args.finecore_bin,
         "pi": args.pi_bin,
         "omp": args.omp_bin,
         "claude": args.claude_bin,

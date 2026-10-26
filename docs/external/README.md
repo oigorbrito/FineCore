@@ -1,4 +1,9 @@
-# Orcacode external documentation
+# Imported Orcacode external documentation
+
+> This is an upstream documentation snapshot retained for provenance, not the
+> FineCore manual. Its install links, publishing instructions, and claims refer
+> to Orcacode and the Orca landing site. Do not publish this copy as FineCore
+> documentation until it receives a separate identity and release review.
 
 A static documentation site for people using `orcacode` (source checkout
 version 0.7.0, Apache-2.0). Run these commands from the repository root;
