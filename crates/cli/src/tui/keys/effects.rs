@@ -12,6 +12,13 @@ pub(super) enum After {
     /// Send to the worker with the overlay left open (toggle rows).
     Send(WorkerCmd),
     CloseAndSend(WorkerCmd),
+    StartCodexBrowser {
+        activate: bool,
+    },
+    SubmitCodexLoginCode {
+        sender: tokio::sync::oneshot::Sender<String>,
+        code: String,
+    },
     /// Close, remember the picked model's context window, switch model.
     CloseAndSetModel {
         id: String,

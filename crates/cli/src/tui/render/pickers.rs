@@ -111,6 +111,54 @@ pub(crate) fn login_provider_lines(
     )
 }
 
+pub(crate) fn codex_login_method_lines(picker: &ListPicker, width: usize) -> Vec<Line<'static>> {
+    picker.table_lines(
+        "OpenAI Codex login · ↑↓ move · →/enter select · esc close",
+        [
+            [
+                "Browser login (default)".to_string(),
+                "Local callback or pasted redirect URL".to_string(),
+            ],
+            [
+                "Device code login".to_string(),
+                "Headless-friendly verification code".to_string(),
+            ],
+        ],
+        [(25, 25), (0, usize::MAX)],
+        width,
+    )
+}
+
+pub(crate) fn codex_login_code_lines(
+    input: &str,
+    auth_url: Option<&str>,
+    width: usize,
+) -> Vec<Line<'static>> {
+    let t = theme();
+    let mut lines = vec![Line::from("Open the authorization URL in your browser:")];
+    if let Some(url) = auth_url {
+        lines.extend(
+            textwrap::wrap(url, width.max(1))
+                .into_iter()
+                .map(|part| Line::from(Span::styled(part.into_owned(), t.accent))),
+        );
+    } else {
+        lines.push(Line::from(Span::styled("Preparing authorization…", t.dim)));
+    }
+    lines.push(Line::from(
+        "Paste the authorization code or full redirect URL; Enter submits, Esc cancels.",
+    ));
+    lines.push(Line::from(format!(
+        "> {}",
+        "•".repeat(input.chars().count())
+    )));
+    lines.push(Line::from(Span::styled(
+        "Input is hidden · callback and manual entry race safely",
+        t.dim,
+    )));
+    lines
+}
+
 pub(crate) fn logout_provider_lines(
     providers: &[Provider],
     picker: &ListPicker,

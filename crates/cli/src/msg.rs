@@ -265,6 +265,10 @@ pub enum UiMsg {
     /// A one-line status notice for the transcript (session warnings,
     /// load failures).
     Notice(String),
+    /// Ephemeral OAuth URL shown only in the active Codex login overlay.
+    CodexLoginUrl(String),
+    /// Close the manual-code overlay when the Codex login attempt finishes.
+    CodexLoginPromptFinished,
     /// Visible even on the welcome screen, unlike transcript-only notices.
     McpConnecting(bool),
     /// The worker adopted a previously recorded session; the transcript
@@ -406,6 +410,11 @@ pub enum WorkerCmd {
     LoginProvider {
         provider: Provider,
         activate: bool,
+    },
+    /// Run Codex browser OAuth with a one-shot manual-code fallback.
+    LoginCodexBrowser {
+        activate: bool,
+        manual_code: tokio::sync::oneshot::Receiver<String>,
     },
     /// Result of a detached provider login; `attempt` rejects stale completions.
     LoginFinished {

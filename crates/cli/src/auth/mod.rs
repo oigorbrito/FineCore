@@ -194,3 +194,14 @@ pub async fn login(
         )),
     }
 }
+
+pub async fn login_codex_browser(
+    progress: impl Fn(String) + Send + Sync + 'static,
+    show_auth_url: impl Fn(String) + Send + Sync + 'static,
+    manual_code: tokio::sync::oneshot::Receiver<String>,
+) -> Result<(), String> {
+    openai_codex::login_browser(progress, show_auth_url, manual_code)
+        .await
+        .map(|_| ())
+        .map_err(|error| error.message)
+}

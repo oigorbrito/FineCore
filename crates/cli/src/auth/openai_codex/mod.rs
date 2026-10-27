@@ -1,6 +1,7 @@
 //! OpenAI Codex subscription authentication.
 
 mod browser;
+use tokio::sync::oneshot;
 
 use crate::auth::{oauth_device::DeviceOAuth, store};
 use async_trait::async_trait;
@@ -211,6 +212,40 @@ pub async fn login(progress: impl Fn(String)) -> Result<CodexCredential, Credent
     exchange_device_code(&client, &grant.authorization_code, &grant.code_verifier).await
 }
 
+pub async fn login_browser(
+    progress: impl Fn(String) + Send + Sync + 'static,
+    show_auth_url: impl Fn(String) + Send + Sync + 'static,
+    manual_code: oneshot::Receiver<String>,
+) -> Result<CodexCredential, CredentialError> {
+    let authorization = browser::BrowserAuthorization::new("FineCore").map_err(oauth_error)?;
+    let callback = browser::BrowserCallback::bind(&authorization.state, browser::port())
+        .await
+        .ok();
+    show_auth_url(authorization.url.clone());
+    if callback.is_some() {
+        progress("Complete sign-in in the browser, or paste the redirect URL/code here.".into());
+    } else {
+        progress(
+            "Browser callback port 1455 is unavailable; paste the redirect URL/code here.".into(),
+        );
+    }
+    let code = browser::wait_for_code(callback.as_ref(), manual_code, &authorization.state)
+        .await
+        .map_err(oauth_error)?;
+    progress("authorization approved · exchanging credentials…".into());
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|error| oauth_error(error.to_string()))?;
+    let (credential, refresh) = authorization
+        .exchange_at(&client, REFRESH_URL, &code)
+        .await
+        .map_err(oauth_error)?;
+    persist_login_tokens(&orcacode_auth_path()?, &credential, &refresh)?;
+    Ok(credential)
+}
+
 fn oauth_error(message: impl Into<String>) -> CredentialError {
     CredentialError::new(CredentialErrorKind::Refresh, message)
 }
@@ -263,12 +298,7 @@ async fn exchange_device_code(
         account_id,
     };
     let path = orcacode_auth_path()?;
-    persist_tokens(
-        &path,
-        json!({"auth_mode":"chatgpt", "tokens":{}}),
-        &credential,
-        &refresh_token,
-    )?;
+    persist_login_tokens(&path, &credential, &refresh_token)?;
     Ok(credential)
 }
 
@@ -403,6 +433,44 @@ fn decode_base64_url(input: &str) -> Option<Vec<u8>> {
         }
     }
     Some(out)
+}
+
+fn persist_login_tokens(
+    path: &Path,
+    credential: &CodexCredential,
+    refresh: &str,
+) -> Result<(), CredentialError> {
+    let mut root = match fs::read(path) {
+        Ok(bytes) => {
+            let root: Value = serde_json::from_slice(&bytes).map_err(|_| {
+                CredentialError::new(
+                    CredentialErrorKind::Malformed,
+                    "Codex auth file is malformed; existing credentials were not replaced",
+                )
+            })?;
+            if !root.is_object() || root.get("tokens").is_some_and(|tokens| !tokens.is_object()) {
+                return Err(CredentialError::new(
+                    CredentialErrorKind::Malformed,
+                    "Codex auth file has an unsupported shape; existing credentials were not replaced",
+                ));
+            }
+            root
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            json!({"auth_mode":"chatgpt", "tokens":{}})
+        }
+        Err(error) => {
+            return Err(CredentialError::new(
+                CredentialErrorKind::Storage,
+                format!("could not read existing Codex auth file: {error}"),
+            ));
+        }
+    };
+    root["auth_mode"] = json!("chatgpt");
+    if root.get("tokens").is_none() {
+        root["tokens"] = json!({});
+    }
+    persist_tokens(path, root, credential, refresh)
 }
 
 fn persist_tokens(

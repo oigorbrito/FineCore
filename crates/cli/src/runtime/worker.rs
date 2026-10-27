@@ -577,6 +577,37 @@ pub(crate) async fn worker<F>(
                     });
                 }));
             }
+            WorkerCmd::LoginCodexBrowser {
+                activate,
+                manual_code,
+            } => {
+                if let Some(task) = login_task.take() {
+                    task.abort();
+                }
+                login_attempt = login_attempt.wrapping_add(1);
+                let attempt = login_attempt;
+                let progress_ui = ui.clone();
+                let auth_url_ui = ui.clone();
+                let completion_tx = command_tx.clone();
+                login_task = Some(tokio::spawn(async move {
+                    let result = crate::auth::login_codex_browser(
+                        move |message| {
+                            let _ = progress_ui.send(UiMsg::Notice(message));
+                        },
+                        move |url| {
+                            let _ = auth_url_ui.send(UiMsg::CodexLoginUrl(url));
+                        },
+                        manual_code,
+                    )
+                    .await;
+                    let _ = completion_tx.send(WorkerCmd::LoginFinished {
+                        provider: crate::msg::Provider::OpenAiCodex,
+                        attempt,
+                        activate,
+                        result,
+                    });
+                }));
+            }
             WorkerCmd::LoginFinished {
                 provider,
                 attempt,
@@ -587,6 +618,9 @@ pub(crate) async fn worker<F>(
                     continue;
                 }
                 login_task = None;
+                if provider == crate::msg::Provider::OpenAiCodex {
+                    let _ = ui.send(UiMsg::CodexLoginPromptFinished);
+                }
                 match result {
                     Ok(()) if activate => {
                         let mut candidate = endpoint.clone();
@@ -613,6 +647,13 @@ pub(crate) async fn worker<F>(
                             provider,
                             model: endpoint.model.clone(),
                         });
+                    }
+                    Ok(()) if endpoint.provider == provider => {
+                        (agent, subagent) = rebuild(&mut build, &endpoint, false, &subagent);
+                        let _ = ui.send(UiMsg::Notice(format!(
+                            "login succeeded for {}; active provider auth reloaded",
+                            provider.label()
+                        )));
                     }
                     Ok(()) => {
                         let _ = ui.send(UiMsg::Notice(format!(
