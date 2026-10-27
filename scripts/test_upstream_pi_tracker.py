@@ -50,56 +50,44 @@ class PaginationTests(unittest.TestCase):
                 list(tracker.collection("/repos/earendil-works/pi/pulls"))
 
 
-class SearchContractTests(unittest.TestCase):
-    def test_exhaustive_count_and_git_search_query(self):
-        def read(method, path, payload=None):
-            self.assertEqual(method, "GET")
-            self.assertIn("/search/issues?", path)
-            return {"incomplete_results": False, "total_count": 2,
-                    "items": [{"number": 1, "pull_request": {}, "html_url": "https://github.com/earendil-works/pi/pull/1"}, {"number": 2, "pull_request": {}, "html_url": "https://github.com/earendil-works/pi/pull/2"}]}
-        with patch.object(tracker, "api", side_effect=read) as mock:
-            got = tracker.search_recent("pr", "2026-10-12T00:00:00Z")
-        self.assertEqual(len(got), 2)
-        mock.assert_called_once()
+class RestInventoryTests(unittest.TestCase):
+    def test_full_pr_history_is_paged_and_type_checked(self):
+        def pages(path, cutoff=None):
+            self.assertIn("/pulls?state=all", path)
+            return [
+                {"number": 10, "head": {"sha": "a" * 40},
+                 "html_url": "https://github.com/earendil-works/pi/pull/10"},
+                {"number": 9, "head": {"sha": "b" * 40},
+                 "html_url": "https://github.com/earendil-works/pi/pull/9"},
+            ]
+        with patch.object(tracker, "collection", side_effect=pages) as called:
+            items = tracker.complete_pi_pull_requests()
+        self.assertEqual(len(items), 2)
+        called.assert_called_once()
 
-    def test_source_type_mismatch_retries_only_with_distinct_qualifier(self):
-        broken = {"incomplete_results": False, "total_count": 1,
-                  "items": [{"number": 45, "html_url": "https://github.com/earendil-works/pi/issues/45"}]}
-        correct = {"incomplete_results": False, "total_count": 1,
-                   "items": [{"number": 44, "pull_request": {},
-                              "html_url": "https://github.com/earendil-works/pi/pull/44"}]}
-        with patch.object(tracker, "api", side_effect=[broken, correct]) as calls:
-            items = tracker.search_recent("pr", "2026-10-12T00:00:00Z")
-        self.assertEqual([i["number"] for i in items], [44])
-        paths = [call.args[1] for call in calls.call_args_list]
-        self.assertIn("type%3Apr", paths[0])
-        self.assertIn("is%3Apr", paths[1])
-
-    def test_misclassified_issues_cannot_be_counted_as_prs(self):
-        wrong = {"incomplete_results": False, "total_count": 1,
-                 "items": [{"number": 11450, "html_url": "https://github.com/earendil-works/pi/issues/11450"}]}
-        with patch.object(tracker, "api", return_value=wrong):
-            with self.assertRaisesRegex(RuntimeError, "wrong-type"):
-                tracker.search_recent("pr", "2026-10-12T00:00:00Z")
-
-    def test_misclassified_prs_cannot_be_counted_as_issues(self):
-        wrong = {"incomplete_results": False, "total_count": 1,
-                 "items": [{"number": 11440, "pull_request": {},
-                            "html_url": "https://github.com/earendil-works/pi/pull/11440"}]}
-        with patch.object(tracker, "api", return_value=wrong):
-            with self.assertRaisesRegex(RuntimeError, "wrong-type"):
-                tracker.search_recent("issue", "2026-10-12T00:00:00Z")
-
-    def test_incomplete_or_over_cap_search_fails_closed(self):
-        for record in [
-            {"incomplete_results": True, "total_count": 1, "items": [{"number": 1}]},
-            {"incomplete_results": False, "total_count": 901, "items": []},
-            {"incomplete_results": False, "total_count": 2, "items": [{"number": 1}]},
-            {"incomplete_results": False, "total_count": 2, "items": [{"number": 1}, {"number": 1}]},
+    def test_duplicate_or_non_pr_fails_without_downstream_write(self):
+        valid = {"number": 1, "head": {"sha": "a" * 40},
+                 "html_url": "https://github.com/earendil-works/pi/pull/1"}
+        for records in [
+            [valid, valid],
+            [{"number": 2, "head": {"sha": "b" * 40},
+              "html_url": "https://github.com/earendil-works/pi/issues/2"}],
+            [{"number": 3, "html_url": "https://github.com/earendil-works/pi/pull/3"}],
         ]:
-            with self.subTest(record=record), patch.object(tracker, "api", return_value=record):
+            with self.subTest(records=records), patch.object(tracker, "collection", return_value=records):
                 with self.assertRaises(RuntimeError):
-                    tracker.search_recent("pr", "2026-10-12T00:00:00Z")
+                    tracker.complete_pi_pull_requests()
+
+    def test_since_query_collects_full_issue_feed_and_excludes_pull_requests(self):
+        records = [
+            {"number": 1, "updated_at": "2026-10-25T00:00:00Z"},
+            {"number": 2, "pull_request": {}, "updated_at": "2026-10-25T00:00:00Z"},
+            {"number": 3, "updated_at": "2026-10-01T00:00:00Z"},
+        ]
+        with patch.object(tracker, "collection", return_value=records) as called:
+            issues = tracker.complete_recent_issues("2026-10-12T00:00:00Z")
+        self.assertEqual([i["number"] for i in issues], [1])
+        self.assertIn("since=", called.call_args.args[0])
 
 
 class InventoryTests(unittest.TestCase):
@@ -113,22 +101,17 @@ class InventoryTests(unittest.TestCase):
                 return {"sha": main}
             raise AssertionError(path)
         def pages(path, cutoff=None):
-            if "/pulls?state=open" in path:
+            if "/pulls?state=all" in path:
                 return [self.pr(8, "2026-01-01T00:00:00Z"),
                         self.pr(10, "2026-10-25T01:00:00Z")]
+            if "/issues?" in path:
+                return [{"number": 7, "state": "open", "updated_at": "2026-10-25T01:00:00Z"}]
             if "/releases" in path:
                 return [{"id": 1, "tag_name": "v1", "published_at": "2026-10-24T00:00:00Z",
                          "updated_at": "2026-10-24T00:00:00Z", "draft": False}]
             raise AssertionError(path)
-        def search(kind, cutoff):
-            if kind == "pr":
-                return [self.pr(10, "2026-10-25T01:00:00Z")]
-            if kind == "issue":
-                return [{"number": 7, "state": "open", "updated_at": "2026-10-25T01:00:00Z"}]
-            raise AssertionError(kind)
         with patch.object(tracker, "api", side_effect=request), patch.object(
-            tracker, "collection", side_effect=pages), patch.object(
-            tracker, "search_recent", side_effect=search):
+            tracker, "collection", side_effect=pages):
             state, report = tracker.source_snapshot(
                 dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc))
         self.assertEqual(state["head"], main)
