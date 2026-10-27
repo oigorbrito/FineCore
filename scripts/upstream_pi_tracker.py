@@ -22,6 +22,7 @@ API = "https://api.github.com"
 SOURCE = "earendil-works/pi"
 TARGET = os.environ.get("TRACKING_REPO", "")
 TOKEN = os.environ.get("GH_TOKEN", "")
+DRY_RUN = os.environ.get("PI_TRACKER_DRY_RUN") == "1"
 MARKER_START = "<!-- finecore-pi-monitor:"
 MARKER_END = " -->"
 MAX_PAGES = 20
@@ -256,11 +257,13 @@ def sync(state: dict, report: dict) -> dict:
 
 
 def main():
-    if not TOKEN or not TARGET:
-        raise RuntimeError("Missing GH_TOKEN or TRACKING_REPO")
+    if not TARGET or (not TOKEN and not DRY_RUN):
+        raise RuntimeError("Missing tracking target or read token")
     now = dt.datetime.now(dt.timezone.utc)
     state, report = source_snapshot(now)
-    report["sync"] = sync(state, report)
+    report["sync"] = ({"action": "dry_run", "issue": None} if DRY_RUN else sync(state, report))
+    if DRY_RUN:
+        report["delta"] = {"status": "no destination writes or checkpoint comparisons in dry run"}
     REPORT_PATH.write_text(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
                            encoding="utf-8")
     print(json.dumps({"source": SOURCE, "head": state["head"], "counts": report["counts"],
