@@ -86,6 +86,43 @@ def collection(path: str, *, cutoff: str | None = None):
     raise RuntimeError(f"Pagination exceeded {MAX_PAGES} pages: {path}")
 
 
+def search_recent(kind: str, cutoff: str):
+    """Exhaustive GitHub Search window, no ordering assumptions.
+
+    Search caps result access at 1,000 records. Reject over-cap or incomplete
+    results instead of claiming every upstream change was seen.
+    """
+    if kind not in {"pr", "issue"}:
+        raise ValueError("unknown GitHub search kind")
+    term = f"repo:{SOURCE} is:{kind} updated:>={cutoff[:10]}"
+    query = urllib.parse.urlencode({"q": term, "sort": "updated", "order": "desc"})
+    collected = []
+    expected = None
+    for page in range(1, 11):
+        data = api("GET", f"/search/issues?{query}&per_page=100&page={page}")
+        if not isinstance(data, dict) or data.get("incomplete_results"):
+            raise RuntimeError("Incomplete GitHub Search result")
+        total = data.get("total_count")
+        if not isinstance(total, int) or total > 900:
+            raise RuntimeError(f"GitHub Search result exceeds safe cap for {kind}: {total}")
+        if expected is None:
+            expected = total
+        if expected != total:
+            raise RuntimeError("GitHub Search inventory changed while paginating")
+        items = data.get("items")
+        if not isinstance(items, list):
+            raise RuntimeError("GitHub Search items missing")
+        collected.extend(items)
+        if len(collected) >= expected:
+            break
+        if len(items) < 100:
+            raise RuntimeError("GitHub Search pagination stopped early")
+    numbers = {i["number"] for i in collected}
+    if len(collected) != expected or len(numbers) != expected:
+        raise RuntimeError(f"Incomplete or duplicated {kind} search inventory")
+    return collected
+
+
 def source_snapshot(now: dt.datetime):
     cutoff = (now - dt.timedelta(days=WINDOW_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
     repository = api("GET", f"/repos/{SOURCE}")
@@ -93,17 +130,20 @@ def source_snapshot(now: dt.datetime):
     commit = api("GET", f"/repos/{SOURCE}/commits/{urllib.parse.quote(default, safe='')}")
     if not re.fullmatch(r"[a-f0-9]{40}", commit["sha"]):
         raise RuntimeError("Invalid upstream main SHA")
-    recent_prs = list(collection(
-        f"/repos/{SOURCE}/pulls?state=all&sort=updated&direction=desc",
-        cutoff=cutoff,
-    ))
-    open_prs = list(collection(f"/repos/{SOURCE}/pulls?state=open&sort=updated&direction=desc"))
-    recent_issues = [
-        item for item in collection(
-            f"/repos/{SOURCE}/issues?state=all&sort=updated&direction=desc",
-            cutoff=cutoff,
-        ) if "pull_request" not in item
+    search_prs = search_recent("pr", cutoff)
+    # Search issue records omit head.sha. The entire open-PR collection
+    # provides the actual SHA for each active candidate.
+    recent_prs = [
+        {
+            "number": issue["number"], "state": issue["state"],
+            "updated_at": issue["updated_at"], "title": issue["title"],
+            "html_url": issue["html_url"], "head": {"sha": None},
+            "merged_at": (issue.get("pull_request") or {}).get("merged_at"),
+        }
+        for issue in search_prs
     ]
+    open_prs = list(collection(f"/repos/{SOURCE}/pulls?state=open&sort=updated&direction=desc"))
+    recent_issues = search_recent("issue", cutoff)
     releases = list(collection(f"/repos/{SOURCE}/releases"))
     by_pr_number = {pr["number"]: pr for pr in recent_prs}
     for pr in open_prs:
@@ -211,7 +251,8 @@ def describe(state: dict, report: dict) -> str:
     for pr in top:
         title = html.escape(pr["title"]).replace("<!--", "&lt;!--")
         topics = ", ".join(pr["topics_title_heuristic"])
-        lines.append(f"- [Pi #{pr['pr']}]({pr['url']}) [{topics}]: {title} (head {pr['head'][:12]})")
+        head = pr["head"][:12] if pr["head"] else "não disponível no Search API"
+        lines.append(f"- [Pi #{pr['pr']}]({pr['url']}) [{topics}]: {title} (head {head})")
     lines += [
         "", "Antes de importar ou concluir vantagem: comparar contrato, qualidade em tarefas",
         "pareadas, custo/tarefa correta, tokens, tempo e regressões. Revisão e merge manuais.",
