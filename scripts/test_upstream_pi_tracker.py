@@ -56,11 +56,26 @@ class SearchContractTests(unittest.TestCase):
             self.assertEqual(method, "GET")
             self.assertIn("/search/issues?", path)
             return {"incomplete_results": False, "total_count": 2,
-                    "items": [{"number": 1}, {"number": 2}]}
+                    "items": [{"number": 1, "pull_request": {}, "html_url": "https://github.com/earendil-works/pi/pull/1"}, {"number": 2, "pull_request": {}, "html_url": "https://github.com/earendil-works/pi/pull/2"}]}
         with patch.object(tracker, "api", side_effect=read) as mock:
             got = tracker.search_recent("pr", "2026-10-12T00:00:00Z")
         self.assertEqual(len(got), 2)
         mock.assert_called_once()
+
+    def test_misclassified_issues_cannot_be_counted_as_prs(self):
+        wrong = {"incomplete_results": False, "total_count": 1,
+                 "items": [{"number": 11450, "html_url": "https://github.com/earendil-works/pi/issues/11450"}]}
+        with patch.object(tracker, "api", return_value=wrong):
+            with self.assertRaisesRegex(RuntimeError, "wrong-type"):
+                tracker.search_recent("pr", "2026-10-12T00:00:00Z")
+
+    def test_misclassified_prs_cannot_be_counted_as_issues(self):
+        wrong = {"incomplete_results": False, "total_count": 1,
+                 "items": [{"number": 11440, "pull_request": {},
+                            "html_url": "https://github.com/earendil-works/pi/pull/11440"}]}
+        with patch.object(tracker, "api", return_value=wrong):
+            with self.assertRaisesRegex(RuntimeError, "wrong-type"):
+                tracker.search_recent("issue", "2026-10-12T00:00:00Z")
 
     def test_incomplete_or_over_cap_search_fails_closed(self):
         for record in [
