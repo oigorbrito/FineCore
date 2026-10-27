@@ -1,0 +1,97 @@
+name: Pi upstream evolution tracker (read-only source)
+
+on:
+  schedule:
+    - cron: '37 */6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pi-upstream-evolution-tracker.yml'
+      - 'scripts/upstream_pi_tracker.py'
+      - 'scripts/test_upstream_pi_tracker.py'
+  pull_request:
+    paths:
+      - '.github/workflows/pi-upstream-evolution-tracker.yml'
+      - 'scripts/upstream_pi_tracker.py'
+      - 'scripts/test_upstream_pi_tracker.py'
+      - 'docs/engineering/pi-upstream-evolution.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finecore-pi-upstream-evolution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Offline Pi tracking contract tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Check Python syntax and tracker invariants
+        run: |
+          python3 -m py_compile scripts/upstream_pi_tracker.py scripts/test_upstream_pi_tracker.py
+          python3 -m unittest discover -s scripts -p 'test_upstream_pi_tracker.py' -v
+
+  observe:
+    name: Live Pi inventory scan (read only, no tracking issue write)
+    needs: validate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Probe upstream page coverage and save JSON evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKING_REPO: ${{ github.repository }}
+          PI_TRACKER_DRY_RUN: '1'
+          PI_TRACKER_REPORT: pi-upstream-evolution.json
+        run: python3 scripts/upstream_pi_tracker.py
+      - name: Publish observed source inventory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: finecore-pi-upstream-readonly-${{ github.run_id }}
+          path: pi-upstream-evolution.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  track:
+    name: Update FineCore Pi snapshot issue, no code changes
+    needs: validate
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Observe Pi upstream and reconcile one FineCore issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKING_REPO: ${{ github.repository }}
+          PI_TRACKER_REPORT: pi-upstream-evolution.json
+        run: python3 scripts/upstream_pi_tracker.py
+      - name: Preserve original data and candidate triage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: finecore-pi-upstream-evolution-${{ github.run_id }}
+          path: pi-upstream-evolution.json
+          if-no-files-found: warn
+          retention-days: 90
