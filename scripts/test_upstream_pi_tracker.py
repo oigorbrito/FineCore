@@ -101,22 +101,17 @@ class InventoryTests(unittest.TestCase):
                 return {"sha": main}
             raise AssertionError(path)
         def pages(path, cutoff=None):
-            if "/pulls?state=open" in path:
+            if "/pulls?state=all" in path:
                 return [self.pr(8, "2026-01-01T00:00:00Z"),
                         self.pr(10, "2026-10-25T01:00:00Z")]
+            if "/issues?" in path:
+                return [{"number": 7, "state": "open", "updated_at": "2026-10-25T01:00:00Z"}]
             if "/releases" in path:
                 return [{"id": 1, "tag_name": "v1", "published_at": "2026-10-24T00:00:00Z",
                          "updated_at": "2026-10-24T00:00:00Z", "draft": False}]
             raise AssertionError(path)
-        def search(kind, cutoff):
-            if kind == "pr":
-                return [self.pr(10, "2026-10-25T01:00:00Z")]
-            if kind == "issue":
-                return [{"number": 7, "state": "open", "updated_at": "2026-10-25T01:00:00Z"}]
-            raise AssertionError(kind)
         with patch.object(tracker, "api", side_effect=request), patch.object(
-            tracker, "collection", side_effect=pages), patch.object(
-            tracker, "search_recent", side_effect=search):
+            tracker, "collection", side_effect=pages):
             state, report = tracker.source_snapshot(
                 dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc))
         self.assertEqual(state["head"], main)
