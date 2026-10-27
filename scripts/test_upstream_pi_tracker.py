@@ -50,6 +50,30 @@ class PaginationTests(unittest.TestCase):
                 list(tracker.collection("/repos/earendil-works/pi/pulls"))
 
 
+class SearchContractTests(unittest.TestCase):
+    def test_exhaustive_count_and_git_search_query(self):
+        def read(method, path, payload=None):
+            self.assertEqual(method, "GET")
+            self.assertIn("/search/issues?", path)
+            return {"incomplete_results": False, "total_count": 2,
+                    "items": [{"number": 1}, {"number": 2}]}
+        with patch.object(tracker, "api", side_effect=read) as mock:
+            got = tracker.search_recent("pr", "2026-10-12T00:00:00Z")
+        self.assertEqual(len(got), 2)
+        mock.assert_called_once()
+
+    def test_incomplete_or_over_cap_search_fails_closed(self):
+        for record in [
+            {"incomplete_results": True, "total_count": 1, "items": [{"number": 1}]},
+            {"incomplete_results": False, "total_count": 901, "items": []},
+            {"incomplete_results": False, "total_count": 2, "items": [{"number": 1}]},
+            {"incomplete_results": False, "total_count": 2, "items": [{"number": 1}, {"number": 1}]},
+        ]:
+            with self.subTest(record=record), patch.object(tracker, "api", return_value=record):
+                with self.assertRaises(RuntimeError):
+                    tracker.search_recent("pr", "2026-10-12T00:00:00Z")
+
+
 class InventoryTests(unittest.TestCase):
     def test_merges_older_open_pr_with_recent_and_tracks_main(self):
         main = "a" * 40
@@ -61,20 +85,22 @@ class InventoryTests(unittest.TestCase):
                 return {"sha": main}
             raise AssertionError(path)
         def pages(path, cutoff=None):
-            if "/pulls?state=all" in path:
-                return [self.pr(10, "2026-10-25T01:00:00Z")]
             if "/pulls?state=open" in path:
                 return [self.pr(8, "2026-01-01T00:00:00Z"),
                         self.pr(10, "2026-10-25T01:00:00Z")]
-            if "/issues?" in path:
-                return [{"number": 7, "state": "open", "updated_at": "2026-10-25T01:00:00Z"},
-                        {"number": 10, "pull_request": {}, "updated_at": "2026-10-25T01:00:00Z"}]
             if "/releases" in path:
                 return [{"id": 1, "tag_name": "v1", "published_at": "2026-10-24T00:00:00Z",
                          "updated_at": "2026-10-24T00:00:00Z", "draft": False}]
             raise AssertionError(path)
+        def search(kind, cutoff):
+            if kind == "pr":
+                return [self.pr(10, "2026-10-25T01:00:00Z")]
+            if kind == "issue":
+                return [{"number": 7, "state": "open", "updated_at": "2026-10-25T01:00:00Z"}]
+            raise AssertionError(kind)
         with patch.object(tracker, "api", side_effect=request), patch.object(
-            tracker, "collection", side_effect=pages):
+            tracker, "collection", side_effect=pages), patch.object(
+            tracker, "search_recent", side_effect=search):
             state, report = tracker.source_snapshot(
                 dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc))
         self.assertEqual(state["head"], main)
