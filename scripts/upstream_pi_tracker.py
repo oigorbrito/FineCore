@@ -120,6 +120,21 @@ def search_recent(kind: str, cutoff: str):
     numbers = {i["number"] for i in collected}
     if len(collected) != expected or len(numbers) != expected:
         raise RuntimeError(f"Incomplete or duplicated {kind} search inventory")
+    # In production, the Search endpoint once returned normal issues to an
+    # is:pr query, creating an invalid PR count. Never trust only total_count.
+    # This is a fail-closed source type gate, not a cosmetic filter: dropping
+    # mismatched records would wrongly claim a complete scan.
+    bad_type = [
+        i["number"] for i in collected
+        if ("pull_request" in i) != (kind == "pr")
+    ]
+    if bad_type:
+        raise RuntimeError(
+            f"GitHub Search returned {len(bad_type)} wrong-type records for {kind}"
+        )
+    expected_segment = "/pull/" if kind == "pr" else "/issues/"
+    if any(expected_segment not in i.get("html_url", "") for i in collected):
+        raise RuntimeError(f"GitHub Search has invalid {kind} URLs")
     return collected
 
 
