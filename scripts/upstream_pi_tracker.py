@@ -25,7 +25,7 @@ TOKEN = os.environ.get("GH_TOKEN", "")
 DRY_RUN = os.environ.get("PI_TRACKER_DRY_RUN") == "1"
 MARKER_START = "<!-- finecore-pi-monitor:"
 MARKER_END = " -->"
-MAX_PAGES = 20
+MAX_PAGES = 60  # Pi has over 3,500 PRs: full PR inventory requires 36+ pages
 WINDOW_DAYS = 14
 MAX_BODY_BYTES = 62000
 REPORT_PATH = Path(os.environ.get("PI_TRACKER_REPORT", "pi-upstream-evolution.json"))
@@ -86,63 +86,39 @@ def collection(path: str, *, cutoff: str | None = None):
     raise RuntimeError(f"Pagination exceeded {MAX_PAGES} pages: {path}")
 
 
-def search_recent(kind: str, cutoff: str):
-    """Search each bounded window with a second type qualifier when needed.
+def complete_pi_pull_requests():
+    """Scan the authoritative PR endpoint, including merged/closed history.
 
-    A production Search request with is:pr returned regular issues twice.
-    The result can never be used without an explicit per-record type gate.
-    The alternative type:pr query avoids silently publishing this response.
+    GitHub's Search endpoint intermittently returned issues to a PR query
+    only in the writer job. Reading the authoritative /pulls API avoids this
+    cross-type search anomaly. No date ordering is assumed.
     """
-    if kind not in {"pr", "issue"}:
-        raise ValueError("unknown GitHub search kind")
+    records = list(collection(f"/repos/{SOURCE}/pulls?state=all&sort=created&direction=desc"))
+    numbers = [record["number"] for record in records]
+    if len(set(numbers)) != len(numbers):
+        raise RuntimeError("Duplicated PR during full upstream pagination")
+    for record in records:
+        if "head" not in record or "sha" not in record["head"]:
+            raise RuntimeError("Upstream PR lacks head SHA")
+        if "/pull/" not in record.get("html_url", ""):
+            raise RuntimeError("Upstream PR returned a non-PR URL")
+    return records
 
-    def once(qualifier: str):
-        term = f"repo:{SOURCE} {qualifier}:{kind} updated:>={cutoff[:10]}"
-        query = urllib.parse.urlencode({"q": term, "sort": "updated", "order": "desc"})
-        collected = []
-        expected = None
-        for page in range(1, 11):
-            data = api("GET", f"/search/issues?{query}&per_page=100&page={page}")
-            if not isinstance(data, dict) or data.get("incomplete_results"):
-                raise RuntimeError("Incomplete GitHub Search result")
-            total = data.get("total_count")
-            if not isinstance(total, int) or total > 900:
-                raise RuntimeError(f"GitHub Search result exceeds safe cap for {kind}: {total}")
-            if expected is None:
-                expected = total
-            if expected != total:
-                raise RuntimeError("GitHub Search inventory changed while paginating")
-            items = data.get("items")
-            if not isinstance(items, list):
-                raise RuntimeError("GitHub Search items missing")
-            collected.extend(items)
-            if len(collected) >= expected:
-                break
-            if len(items) < 100:
-                raise RuntimeError("GitHub Search pagination stopped early")
-        numbers = {i["number"] for i in collected}
-        if len(collected) != expected or len(numbers) != expected:
-            raise RuntimeError(f"Incomplete or duplicated {kind} search inventory")
-        bad_type = [i["number"] for i in collected
-                    if ("pull_request" in i) != (kind == "pr")]
-        if bad_type:
-            raise RuntimeError(
-                f"GitHub Search returned {len(bad_type)} wrong-type records for {kind}"
-            )
-        segment = "/pull/" if kind == "pr" else "/issues/"
-        if any(segment not in i.get("html_url", "") for i in collected):
-            raise RuntimeError(f"GitHub Search has invalid {kind} URLs")
-        return collected
 
-    try:
-        return once("type")
-    except RuntimeError as error:
-        # Never bypass a page limit, missing page or partial inventory.
-        if "wrong-type" not in str(error) and "invalid " not in str(error):
-            raise
-        # An independent qualifier is queried; if this also returns
-        # misclassified records, the tracker leaves the prior issue intact.
-        return once("is")
+def complete_recent_issues(cutoff: str):
+    """GitHub issues API supports since; scan every returned page.
+
+    PR records in this endpoint are excluded only AFTER the full collection
+    succeeds. No order or shortcut based on updated_at is used.
+    """
+    query = urllib.parse.urlencode({"state": "all", "since": cutoff,
+                                   "sort": "updated", "direction": "desc"})
+    records = list(collection(f"/repos/{SOURCE}/issues?{query}"))
+    numbers = [i["number"] for i in records]
+    if len(set(numbers)) != len(numbers):
+        raise RuntimeError("Duplicated issue/PR while paginating issue updates")
+    return [i for i in records if "pull_request" not in i and i["updated_at"] >= cutoff]
+
 
 
 def source_snapshot(now: dt.datetime):
@@ -152,24 +128,12 @@ def source_snapshot(now: dt.datetime):
     commit = api("GET", f"/repos/{SOURCE}/commits/{urllib.parse.quote(default, safe='')}")
     if not re.fullmatch(r"[a-f0-9]{40}", commit["sha"]):
         raise RuntimeError("Invalid upstream main SHA")
-    search_prs = search_recent("pr", cutoff)
-    # Search issue records omit head.sha. The entire open-PR collection
-    # provides the actual SHA for each active candidate.
-    recent_prs = [
-        {
-            "number": issue["number"], "state": issue["state"],
-            "updated_at": issue["updated_at"], "title": issue["title"],
-            "html_url": issue["html_url"], "head": {"sha": None},
-            "merged_at": (issue.get("pull_request") or {}).get("merged_at"),
-        }
-        for issue in search_prs
-    ]
-    open_prs = list(collection(f"/repos/{SOURCE}/pulls?state=open&sort=updated&direction=desc"))
-    recent_issues = search_recent("issue", cutoff)
+    all_prs = complete_pi_pull_requests()
+    recent_prs = [pr for pr in all_prs if pr["updated_at"] >= cutoff]
+    open_prs = [pr for pr in all_prs if pr["state"] == "open"]
+    recent_issues = complete_recent_issues(cutoff)
     releases = list(collection(f"/repos/{SOURCE}/releases"))
-    by_pr_number = {pr["number"]: pr for pr in recent_prs}
-    for pr in open_prs:
-        by_pr_number[pr["number"]] = pr
+    by_pr_number = {pr["number"]: pr for pr in recent_prs + open_prs}
     prs = sorted(by_pr_number.values(), key=lambda p: (p["updated_at"], p["number"]), reverse=True)
     issue_ids = [
         [i["number"], i["state"], i["updated_at"]] for i in recent_issues
@@ -190,6 +154,7 @@ def source_snapshot(now: dt.datetime):
         "open_pr_count": len(open_prs),
         "recent_pr_count": len(recent_prs),
         "recent_issue_count": len(recent_issues),
+        "total_upstream_prs": len(all_prs),
         "pr_digest": digest(pr_ids),
         "issue_digest": digest(issue_ids),
         "release_digest": digest([[r.get("id"), r.get("tag_name"), r.get("updated_at")] for r in releases]),
@@ -217,8 +182,9 @@ def source_snapshot(now: dt.datetime):
         "target": TARGET,
         "source_head": commit["sha"],
         "cutoff": cutoff,
-        "counts": {"open_prs": len(open_prs), "recent_prs": len(recent_prs),
-                   "recent_issues": len(recent_issues), "releases": len(releases)},
+        "counts": {"total_prs": len(all_prs), "open_prs": len(open_prs),
+                   "recent_prs": len(recent_prs), "recent_issues": len(recent_issues),
+                   "releases": len(releases)},
         "candidates": candidates,
         "latest_release": state["latest_release"],
         "full_recent_prs": pr_ids,
