@@ -62,6 +62,19 @@ class SearchContractTests(unittest.TestCase):
         self.assertEqual(len(got), 2)
         mock.assert_called_once()
 
+    def test_source_type_mismatch_retries_only_with_distinct_qualifier(self):
+        broken = {"incomplete_results": False, "total_count": 1,
+                  "items": [{"number": 45, "html_url": "https://github.com/earendil-works/pi/issues/45"}]}
+        correct = {"incomplete_results": False, "total_count": 1,
+                   "items": [{"number": 44, "pull_request": {},
+                              "html_url": "https://github.com/earendil-works/pi/pull/44"}]}
+        with patch.object(tracker, "api", side_effect=[broken, correct]) as calls:
+            items = tracker.search_recent("pr", "2026-10-12T00:00:00Z")
+        self.assertEqual([i["number"] for i in items], [44])
+        paths = [call.args[1] for call in calls.call_args_list]
+        self.assertIn("type%3Apr", paths[0])
+        self.assertIn("is%3Apr", paths[1])
+
     def test_misclassified_issues_cannot_be_counted_as_prs(self):
         wrong = {"incomplete_results": False, "total_count": 1,
                  "items": [{"number": 11450, "html_url": "https://github.com/earendil-works/pi/issues/11450"}]}
