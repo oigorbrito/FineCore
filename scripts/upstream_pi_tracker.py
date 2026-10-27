@@ -87,55 +87,62 @@ def collection(path: str, *, cutoff: str | None = None):
 
 
 def search_recent(kind: str, cutoff: str):
-    """Exhaustive GitHub Search window, no ordering assumptions.
+    """Search each bounded window with a second type qualifier when needed.
 
-    Search caps result access at 1,000 records. Reject over-cap or incomplete
-    results instead of claiming every upstream change was seen.
+    A production Search request with is:pr returned regular issues twice.
+    The result can never be used without an explicit per-record type gate.
+    The alternative type:pr query avoids silently publishing this response.
     """
     if kind not in {"pr", "issue"}:
         raise ValueError("unknown GitHub search kind")
-    term = f"repo:{SOURCE} is:{kind} updated:>={cutoff[:10]}"
-    query = urllib.parse.urlencode({"q": term, "sort": "updated", "order": "desc"})
-    collected = []
-    expected = None
-    for page in range(1, 11):
-        data = api("GET", f"/search/issues?{query}&per_page=100&page={page}")
-        if not isinstance(data, dict) or data.get("incomplete_results"):
-            raise RuntimeError("Incomplete GitHub Search result")
-        total = data.get("total_count")
-        if not isinstance(total, int) or total > 900:
-            raise RuntimeError(f"GitHub Search result exceeds safe cap for {kind}: {total}")
-        if expected is None:
-            expected = total
-        if expected != total:
-            raise RuntimeError("GitHub Search inventory changed while paginating")
-        items = data.get("items")
-        if not isinstance(items, list):
-            raise RuntimeError("GitHub Search items missing")
-        collected.extend(items)
-        if len(collected) >= expected:
-            break
-        if len(items) < 100:
-            raise RuntimeError("GitHub Search pagination stopped early")
-    numbers = {i["number"] for i in collected}
-    if len(collected) != expected or len(numbers) != expected:
-        raise RuntimeError(f"Incomplete or duplicated {kind} search inventory")
-    # In production, the Search endpoint once returned normal issues to an
-    # is:pr query, creating an invalid PR count. Never trust only total_count.
-    # This is a fail-closed source type gate, not a cosmetic filter: dropping
-    # mismatched records would wrongly claim a complete scan.
-    bad_type = [
-        i["number"] for i in collected
-        if ("pull_request" in i) != (kind == "pr")
-    ]
-    if bad_type:
-        raise RuntimeError(
-            f"GitHub Search returned {len(bad_type)} wrong-type records for {kind}"
-        )
-    expected_segment = "/pull/" if kind == "pr" else "/issues/"
-    if any(expected_segment not in i.get("html_url", "") for i in collected):
-        raise RuntimeError(f"GitHub Search has invalid {kind} URLs")
-    return collected
+
+    def once(qualifier: str):
+        term = f"repo:{SOURCE} {qualifier}:{kind} updated:>={cutoff[:10]}"
+        query = urllib.parse.urlencode({"q": term, "sort": "updated", "order": "desc"})
+        collected = []
+        expected = None
+        for page in range(1, 11):
+            data = api("GET", f"/search/issues?{query}&per_page=100&page={page}")
+            if not isinstance(data, dict) or data.get("incomplete_results"):
+                raise RuntimeError("Incomplete GitHub Search result")
+            total = data.get("total_count")
+            if not isinstance(total, int) or total > 900:
+                raise RuntimeError(f"GitHub Search result exceeds safe cap for {kind}: {total}")
+            if expected is None:
+                expected = total
+            if expected != total:
+                raise RuntimeError("GitHub Search inventory changed while paginating")
+            items = data.get("items")
+            if not isinstance(items, list):
+                raise RuntimeError("GitHub Search items missing")
+            collected.extend(items)
+            if len(collected) >= expected:
+                break
+            if len(items) < 100:
+                raise RuntimeError("GitHub Search pagination stopped early")
+        numbers = {i["number"] for i in collected}
+        if len(collected) != expected or len(numbers) != expected:
+            raise RuntimeError(f"Incomplete or duplicated {kind} search inventory")
+        bad_type = [i["number"] for i in collected
+                    if ("pull_request" in i) != (kind == "pr")]
+        if bad_type:
+            raise RuntimeError(
+                f"GitHub Search returned {len(bad_type)} wrong-type records for {kind}"
+            )
+        segment = "/pull/" if kind == "pr" else "/issues/"
+        if any(segment not in i.get("html_url", "") for i in collected):
+            raise RuntimeError(f"GitHub Search has invalid {kind} URLs")
+        return collected
+
+    try:
+        return once("type")
+    except RuntimeError as error:
+        # Never bypass a page limit, missing page or partial inventory.
+        if "wrong-type" not in str(error) and "invalid " not in str(error):
+            raise
+        # An independent qualifier is queried; if this also returns
+        # misclassified records, the tracker leaves the prior issue intact.
+        return once("is")
 
 
 def source_snapshot(now: dt.datetime):
