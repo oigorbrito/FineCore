@@ -277,6 +277,17 @@ pub(crate) fn handle_ui_msg(
         UiMsg::Notice(text) => {
             push_notice(app, text);
         }
+        UiMsg::CodexLoginUrl(url) => {
+            if let Some(Overlay::CodexLoginCode { auth_url, .. }) = app.overlay.as_mut() {
+                *auth_url = Some(url);
+            }
+        }
+        UiMsg::CodexLoginPromptFinished => {
+            if matches!(&app.overlay, Some(Overlay::CodexLoginCode { .. })) {
+                app.overlay = None;
+                app.overlay_stack.clear();
+            }
+        }
         UiMsg::RunStarted { id, cancel } => match &app.run {
             RunState::Running {
                 id: active_id,

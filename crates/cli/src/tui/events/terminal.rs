@@ -88,6 +88,8 @@ pub(crate) fn handle_terminal_event(
                 error.clear();
             } else if let Some(Overlay::ApiKey { input, .. }) = app.overlay.as_mut() {
                 input.push_str(&text);
+            } else if let Some(Overlay::CodexLoginCode { input, .. }) = app.overlay.as_mut() {
+                input.push_str(&text);
             } else if app.approval.is_none() && app.overlay.is_none() && app.agent_browser.is_none()
             {
                 insert_paste(app, &text);

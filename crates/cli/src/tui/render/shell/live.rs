@@ -208,6 +208,10 @@ pub(crate) fn live_region(app: &App, width: usize) -> LiveRegion {
             Overlay::LoginProviders { providers, picker } => {
                 login_provider_lines(providers, picker, width)
             }
+            Overlay::CodexLoginMethod { picker, .. } => codex_login_method_lines(picker, width),
+            Overlay::CodexLoginCode {
+                input, auth_url, ..
+            } => codex_login_code_lines(input, auth_url.as_deref(), width),
             Overlay::LogoutProviders { providers, picker } => {
                 logout_provider_lines(providers, picker, width)
             }

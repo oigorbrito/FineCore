@@ -370,11 +370,18 @@
     }
 
     #[test]
-    fn login_codex_uses_existing_native_flow_without_switching() {
+    fn login_codex_offers_browser_and_existing_device_code_without_switching() {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let mut app = test_app();
         let active_provider = app.cfg.provider;
         slash_command(&mut app, "login openai-codex", &tx, 80);
+        assert!(matches!(
+            app.overlay,
+            Some(Overlay::CodexLoginMethod { activate: false, .. })
+        ));
+        assert!(rx.try_recv().is_err());
+        press(&mut app, &tx, KeyCode::Down);
+        press(&mut app, &tx, KeyCode::Enter);
         assert!(matches!(
             rx.try_recv(),
             Ok(WorkerCmd::LoginProvider {
@@ -383,6 +390,66 @@
             })
         ));
         assert_eq!(app.cfg.provider, active_provider);
+    }
+
+    #[test]
+    fn codex_browser_login_displays_url_hides_manual_code_and_submits_it_once() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        slash_command(&mut app, "login openai-codex", &tx, 80);
+        press(&mut app, &tx, KeyCode::Enter);
+        let Ok(WorkerCmd::LoginCodexBrowser { mut manual_code, .. }) = rx.try_recv() else {
+            panic!("browser method should launch Codex login");
+        };
+        let auth_url = "https://auth.openai.com/oauth/authorize?response_type=code&client_id=app_EMoamEEZ73f0CkXaXp7hrann&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&scope=openid%20profile%20email%20offline_access&code_challenge=synthetic&code_challenge_method=S256&state=ephemeral&id_token_add_organizations=true&codex_cli_simplified_flow=true&originator=FineCore";
+        handle_ui_msg(
+            &mut app,
+            UiMsg::CodexLoginUrl(auth_url.into()),
+            &tx,
+            80,
+        );
+        for c in "secret-code#expected-state".chars() {
+            press(&mut app, &tx, KeyCode::Char(c));
+        }
+        let lines = flat_lines(&live_lines(&app, 80));
+        assert!(lines.contains(auth_url));
+        assert!(!lines.contains("secret-code#expected-state"));
+        assert!(!flat_lines(&app.pending_history).contains(auth_url));
+        press(&mut app, &tx, KeyCode::Enter);
+        assert_eq!(manual_code.try_recv().unwrap(), "secret-code#expected-state");
+        assert!(app.overlay.is_none());
+    }
+
+    #[test]
+    fn completed_codex_browser_callback_closes_manual_input() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        slash_command(&mut app, "login openai-codex", &tx, 80);
+        press(&mut app, &tx, KeyCode::Enter);
+        let Ok(WorkerCmd::LoginCodexBrowser { mut manual_code, .. }) = rx.try_recv() else {
+            panic!("browser method should launch Codex login");
+        };
+
+        handle_ui_msg(&mut app, UiMsg::CodexLoginPromptFinished, &tx, 80);
+
+        assert!(app.overlay.is_none());
+        assert!(manual_code.try_recv().is_err());
+    }
+
+    #[test]
+    fn cancelling_codex_browser_prompt_cancels_manual_fallback() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        slash_command(&mut app, "login openai-codex", &tx, 80);
+        press(&mut app, &tx, KeyCode::Enter);
+        let Ok(WorkerCmd::LoginCodexBrowser { mut manual_code, .. }) = rx.try_recv() else {
+            panic!("browser method should launch Codex login");
+        };
+
+        press(&mut app, &tx, KeyCode::Esc);
+
+        assert!(manual_code.try_recv().is_err());
+        assert!(app.overlay.is_none());
     }
 
     #[test]

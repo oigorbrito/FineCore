@@ -62,6 +62,12 @@ pub(crate) fn login_command(app: &mut App, args: &str, worker: &mpsc::UnboundedS
                 login_only: true,
             });
         }
+        crate::msg::ProviderAuth::OAuth if provider == crate::Provider::OpenAiCodex => {
+            app.overlay = Some(Overlay::CodexLoginMethod {
+                picker: ListPicker::new(2),
+                activate: false,
+            });
+        }
         crate::msg::ProviderAuth::OAuth => {
             if worker
                 .send(WorkerCmd::LoginProvider {

@@ -77,6 +77,12 @@ pub(crate) fn handle_overlay_key(
                             provider,
                             api_key: None,
                         }),
+                        Err(_) if provider == Provider::OpenAiCodex => {
+                            After::Push(Overlay::CodexLoginMethod {
+                                picker: ListPicker::new(2),
+                                activate: true,
+                            })
+                        }
                         Err(_) => After::CloseAndSend(WorkerCmd::LoginProvider {
                             provider,
                             activate: true,
@@ -99,6 +105,12 @@ pub(crate) fn handle_overlay_key(
                         input: String::new(),
                         login_only: true,
                     }),
+                    ProviderAuth::OAuth if provider == Provider::OpenAiCodex => {
+                        After::Push(Overlay::CodexLoginMethod {
+                            picker: ListPicker::new(2),
+                            activate: false,
+                        })
+                    }
                     ProviderAuth::OAuth => After::CloseAndSend(WorkerCmd::LoginProvider {
                         provider,
                         activate: false,
@@ -107,6 +119,36 @@ pub(crate) fn handle_overlay_key(
                         After::CloseWithNote(format!("{} does not require login", provider.label()))
                     }
                 }
+            }
+            _ => After::Nothing,
+        },
+        Overlay::CodexLoginMethod { picker, activate } => match picker.on_key(key.code) {
+            PickerEvent::Activated(0) => After::StartCodexBrowser {
+                activate: *activate,
+            },
+            PickerEvent::Activated(1) => After::CloseAndSend(WorkerCmd::LoginProvider {
+                provider: Provider::OpenAiCodex,
+                activate: *activate,
+            }),
+            _ => After::Nothing,
+        },
+        Overlay::CodexLoginCode { input, sender, .. } => match key.code {
+            KeyCode::Enter if !input.trim().is_empty() => {
+                let Some(sender) = sender.take() else {
+                    return;
+                };
+                After::SubmitCodexLoginCode {
+                    sender,
+                    code: input.trim().to_string(),
+                }
+            }
+            KeyCode::Char(c) => {
+                input.push(c);
+                After::Nothing
+            }
+            KeyCode::Backspace => {
+                input.pop();
+                After::Nothing
             }
             _ => After::Nothing,
         },

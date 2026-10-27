@@ -239,6 +239,14 @@ pub(crate) enum Overlay {
         providers: Vec<Provider>,
         picker: ListPicker,
     },
+    /// Codex login method selection, with provider activation preserved.
+    CodexLoginMethod { picker: ListPicker, activate: bool },
+    /// Ephemeral manual OAuth input; never rendered or persisted in plaintext.
+    CodexLoginCode {
+        input: String,
+        auth_url: Option<String>,
+        sender: Option<tokio::sync::oneshot::Sender<String>>,
+    },
     /// FineCore-saved API keys that can be removed without touching external auth.
     LogoutProviders {
         providers: Vec<Provider>,

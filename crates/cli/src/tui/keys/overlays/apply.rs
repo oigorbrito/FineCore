@@ -27,6 +27,31 @@ pub(super) fn apply_after(app: &mut App, worker: &mpsc::UnboundedSender<WorkerCm
             finish_picker_flow(app);
             send_or_report(app, worker, cmd);
         }
+        After::StartCodexBrowser { activate } => {
+            finish_picker_flow(app);
+            let (sender, manual_code) = tokio::sync::oneshot::channel();
+            if worker
+                .send(WorkerCmd::LoginCodexBrowser {
+                    activate,
+                    manual_code,
+                })
+                .is_ok()
+            {
+                app.overlay = Some(Overlay::CodexLoginCode {
+                    input: String::new(),
+                    auth_url: None,
+                    sender: Some(sender),
+                });
+            } else {
+                push_error(app, "worker is gone; restart finecore");
+            }
+        }
+        After::SubmitCodexLoginCode { sender, code } => {
+            finish_picker_flow(app);
+            if sender.send(code).is_err() {
+                push_error(app, "Codex login is no longer waiting for manual input");
+            }
+        }
         After::CloseAndSetModel {
             id,
             window,

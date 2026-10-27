@@ -1,0 +1,83 @@
+name: Pi Codex interaction 02 CI
+
+on:
+  push:
+    branches:
+      - feature/pi-auth-codex-login-interaction-02
+    paths:
+      - 'crates/cli/src/**'
+      - 'crates/cli/Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/pi-auth-codex-interaction-02.yml'
+      - 'docs/engineering/PI_AUTH_CODEX_INTERACTION_02.md'
+  pull_request:
+    branches:
+      - feature/pi-auth-codex-browser-parity-01
+    paths:
+      - 'crates/cli/src/**'
+      - 'crates/cli/Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/pi-auth-codex-interaction-02.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-codex-interaction-02-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  focused:
+    name: Codex interaction focused / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: 1.99.1
+          components: rustfmt
+      - name: Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Compile CLI
+        run: cargo check -p finecore --locked
+      - name: Codex auth regression
+        run: cargo test -p finecore --locked auth::openai_codex -- --nocapture
+      - name: Login interaction regression
+        run: cargo test -p finecore --locked login_ -- --nocapture
+
+  full:
+    name: Full CLI regression / ${{ matrix.os }} (failures visible)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: 1.99.1
+      - name: Full CLI suite
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test -p finecore --locked -- --nocapture 2>&1 | tee full-cli-test.log
+      - name: Preserve raw suite log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: codex-interaction-02-full-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: full-cli-test.log
+          if-no-files-found: warn
+          retention-days: 30
