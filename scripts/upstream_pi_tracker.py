@@ -74,7 +74,7 @@ def collection(path: str, *, cutoff: str | None = None):
             raise RuntimeError("Expected paginated GitHub list")
         for item in items:
             updated = item.get("updated_at") or ""
-            if cutoff and previous and updated > previous:
+            if cutoff is not None and previous and updated > previous:
                 raise RuntimeError("Upstream updated_at ordering changed")
             if updated:
                 previous = updated
