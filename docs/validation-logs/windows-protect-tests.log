@@ -1,0 +1,27 @@
+# Unix-only protect tests — focused Windows validation
+
+## Source and scope
+
+- Staging base: `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6`.
+- `crates/sandbox-providers/src/local/protect.rs` has the same blob (`cff47cb96368923b569edb478e5fd33415b23d1d)) in the pinned Orca source and FineCore staging.
+- The Windows workspace log for this staging revision stops compiling tests at an unconditional `std::os::unix::fs::symlink` call. The test module also contains a POSIX `/workspace` path assertion and a `sh` helper.
+- Applied `#[cfg(unix)]` to the two POSIX-only tests and their shell helper. Production code and portable tests are unchanged.
+
+## Environment and results
+
+- Windows, Rust/Cargo 1.99.1.
+- `cargo fmt --all -- --check`: PASS.
+- `cargo test -p orca-harness-sandbox-providers local::protect::tests -- --test-threads=1`: PASS; 1 portable test passed, 0 failed, 2 Unix-only tests were excluded. The command compiled the crate's test targets; the prior Windows `E0433` compile error is absent.
+- This is focused crate evidence only. The full Windows workspace suite was not rerun; Windows-specific runtime coverage of symlink protection remains unverified.
+- Linux full tests and hosted CI remain pending, so no migration-wide or platform-wide gate is closed.
+
+The limitation is preserved: the Unix path/symlink tests do not run on Windows, where this module's shell-based test is not portable.
+
+
+## Independent Windows rerun (2026-10-28)
+
+- Candidate: staging `53d8f8344f3f17f28766c7c880981147d3e128c6` plus the PR's `protect.rs` changes and one formatting-only removal of a trailing blank line. Original PR-head blob `3d7c979f`; corrected blob `9860bead`.
+- Host: Windows 10.0.26300 x64, Rust/Cargo 1.99.1.
+- `cargo fmt --all -- --check`: PASS after the formatting correction. On the prior head it failed only on that trailing blank line.
+- `cargo test --locked -p orca-harness-sandbox-providers local::protect::tests -- --test-threads=1`: PASS, 1 portable test passed, 0 failed; two Unix-only tests excluded. Other package test binaries compiled and had no matching filtered tests.
+- No full-workspace, Linux, or hosted-CI result is claimed.
