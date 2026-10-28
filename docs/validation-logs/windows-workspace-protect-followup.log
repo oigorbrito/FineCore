@@ -1,0 +1,19 @@
+# Windows workspace follow-up — interrupted in restricted sandbox
+
+## Scope and environment
+
+- Exact source: staging `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6` with only the two `cfg(unix)` test annotations from this PR applied in a temporary copy.
+- Windows 10.0.26300 x64, Rust/Cargo 1.99.1; `CARGO_BUILD_JOBS=2`.
+- Command: `cargo test --workspace --no-fail-fast`.
+- The workspace test profile compiled successfully in 7m42s. The previously failing `orca-harness-sandbox-providers` test target compiled, confirming the `std::os::unix` compile error is removed.
+
+## Partial execution
+
+- The `finecore` test binary started 638 tests. The tool stream exposed multiple unrelated Windows sandbox failures, including ACL/file operations and shell-policy cases; the captured stream was truncated and no final aggregate summary was available.
+- `subagent_models::tests::same_openrouter_route_sends_parent_budgets_for_worker_model` remained running for over 60 seconds. Its test creates a `TcpListener` on `127.0.0.1` and awaits an HTTP request without a test timeout.
+- A separate PowerShell loopback listener/client probe failed with Windows access denied: “A socket operation was attempted in a way forbidden by its access permissions.”
+- Interrupted the workspace run after reproducing this sandbox restriction. It exited via Ctrl+C; this is not a test pass or a complete failure count.
+
+## Status
+
+The focused crate check remains PASS (see `windows-protect-tests.log`). Full Windows workspace validation is BLOCKED in this sandbox by loopback socket permissions and other restricted filesystem behavior. No full-suite result is inferred. Hosted CI and Linux validation remain pending.
