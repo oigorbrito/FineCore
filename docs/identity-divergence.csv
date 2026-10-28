@@ -1115,8 +1115,8 @@ docs/superpowers/specs/2026-09-01-tui-style-modes-design.md,docs/superpowers/spe
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
-,AGENTS.md,,c4dd75264ac9f3579a77a48113ffd9dcef99fce4,added,repository-integration,"FineCore agent operating contract for harness staging; not part of the pinned Orca source tree."
-,.agents/skills/finecore-migration-identity/SKILL.md,,bc3ce3a9d47cd94a5a79b7783ca55170c75b49c4,added,repository-integration,"FineCore-specific migration and identity policy; not part of the pinned Orca source tree."
+,AGENTS.md,,146e36e819badfa6f4debfcb883e7acc15ea4790,added,repository-integration,FineCore agent operating contract for harness staging; not part of the pinned Orca source tree.
+,.agents/skills/finecore-migration-identity/SKILL.md,,bc3ce3a9d47cd94a5a79b7783ca55170c75b49c4,added,repository-integration,FineCore-specific migration and identity policy; not part of the pinned Orca source tree.
 ,docs/validation-logs/windows-clippy-finecore-53d8.log,,28038e2ac9127b91c71739ab85be04744f1c717a,added,validation-evidence,"Raw Windows workspace Clippy output for FineCore staging commit 53d8f834."
 ,docs/validation-logs/windows-config-storage-finecore-53d8.log,,0ee3f4f4835c58b80d20b126d1ad958f5f272a9c,added,validation-evidence,"Raw Windows focused configuration storage test output for FineCore staging commit 53d8f834."
 ,docs/validation-logs/windows-config-storage-orca-c3.log,,46e6823ac38e92c8a617e7c18dd5ead119910513,added,validation-evidence,"Raw Windows focused configuration storage test output for the c3bbf29 baseline."
