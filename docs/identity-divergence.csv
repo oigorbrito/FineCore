@@ -1042,7 +1042,7 @@ crates/tools/tests/workflow.rs,crates/tools/tests/workflow.rs,3b5023f55a7c3d6202
 crates/tools/tests/workflow_host.rs,crates/tools/tests/workflow_host.rs,87f9989bc45ca543e591a6c93d69dbb5e2d8dace,87f9989bc45ca543e591a6c93d69dbb5e2d8dace,identical,unchanged,Content matches pinned source blob.
 crates/tools/tests/workflow_support/mod.rs,crates/tools/tests/workflow_support/mod.rs,b83b77a81d50b960a5e9307429639e3770ecb046,b83b77a81d50b960a5e9307429639e3770ecb046,identical,unchanged,Content matches pinned source blob.
 ,docs/FINECORE_IDENTITY_INVENTORY.md,,ad13478d4a33d443d5a302b0012e86d1a3a869e3,added,repository-integration,FineCore migration inventory/evidence and release/package status.
-,docs/MIGRATION_VALIDATION.md,,7a6479c061d54c004aa77d05e4d70274f53e9ac3,added,repository-integration,Migration acceptance assessment and differential validation results.
+,docs/MIGRATION_VALIDATION.md,,bfc50c85dfbab7cc5713ed6047a003c25d4c691c,added,repository-integration,Migration acceptance assessment and differential validation results.
 ,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
 docs/assets/benchmarks/cold-start.png,docs/assets/benchmarks/cold-start.png,5182142cf0ec2336e45bf01085a19634c678cb99,5182142cf0ec2336e45bf01085a19634c678cb99,identical,unchanged,Content matches pinned source blob.
 docs/assets/benchmarks/footprint.png,docs/assets/benchmarks/footprint.png,240549fcd278c833cc684234e2035a2979de50c3,240549fcd278c833cc684234e2035a2979de50c3,identical,unchanged,Content matches pinned source blob.
@@ -1117,3 +1117,7 @@ rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
 ,AGENTS.md,,c4dd75264ac9f3579a77a48113ffd9dcef99fce4,added,repository-integration,"FineCore agent operating contract for harness staging; not part of the pinned Orca source tree."
 ,.agents/skills/finecore-migration-identity/SKILL.md,,bc3ce3a9d47cd94a5a79b7783ca55170c75b49c4,added,repository-integration,"FineCore-specific migration and identity policy; not part of the pinned Orca source tree."
+,docs/validation-logs/windows-clippy-finecore-53d8.log,,28038e2ac9127b91c71739ab85be04744f1c717a,added,validation-evidence,"Raw Windows workspace Clippy output for FineCore staging commit 53d8f834."
+,docs/validation-logs/windows-config-storage-finecore-53d8.log,,0ee3f4f4835c58b80d20b126d1ad958f5f272a9c,added,validation-evidence,"Raw Windows focused configuration storage test output for FineCore staging commit 53d8f834."
+,docs/validation-logs/windows-config-storage-orca-c3.log,,46e6823ac38e92c8a617e7c18dd5ead119910513,added,validation-evidence,"Raw Windows focused configuration storage test output for the c3bbf29 baseline."
+,docs/validation-logs/windows-workspace-finecore-53d8.log,,63aa32040f7f2dec5968744fbcc801c41304c3a7,added,validation-evidence,"Raw Windows full workspace test output for FineCore staging commit 53d8f834."
