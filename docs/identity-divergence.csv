@@ -16,7 +16,7 @@ benchmarks/README.md,benchmarks/README.md,3097f302d249514771b1ac824e1e5f35c3abfe
 benchmarks/compare.sh,benchmarks/compare.sh,c086ca31133177f0ce4de9ecc4ef004bf38f32fc,c086ca31133177f0ce4de9ecc4ef004bf38f32fc,identical,unchanged,Content matches pinned source blob.
 benchmarks/compare/README.md,benchmarks/compare/README.md,f033b04f5d616512df5b64910aa61f466c3bdcb6,7390029ff8cb26ada8d5aa1851d9259f6b6b3139,modified,identity-only,Update active comparison docs for the FineCore binary identity.
 benchmarks/compare/report.py,benchmarks/compare/report.py,55e3813c77fc18ba65e8626438f81a29816d2d64,e27ce6d7368b1d0a314259331b82268ba6974ad7,modified,identity-only,Use FineCore labels in active benchmark comparison output.
-benchmarks/compare/report_test.py,benchmarks/compare/report_test.py,,0f34da774efa273a92c62e86c2208ead2ab13195,added,repository-integration,Regression test for the active FineCore benchmark report identity.
+,benchmarks/compare/report_test.py,,0f34da774efa273a92c62e86c2208ead2ab13195,added,repository-integration,Regression test for the active FineCore benchmark report identity.
 benchmarks/compare/run.sh,benchmarks/compare/run.sh,af2ad8592b5d6565b849a85645d54374dd33335d,0426a296f1d98b673a7c88d575c4658d7d883b22,modified,identity-only,"Point active runners/labels at FineCore, preserve metric stems and legacy orca series key, and mark old results as Orca data."
 benchmarks/core-tools/README.md,benchmarks/core-tools/README.md,a38bc7da8eddb488e4e87158a400dd2070dd9707,a38bc7da8eddb488e4e87158a400dd2070dd9707,identical,unchanged,Content matches pinned source blob.
 benchmarks/core-tools/report.py,benchmarks/core-tools/report.py,7381d7ac14a0857e43752dec46b7931965889cc2,7381d7ac14a0857e43752dec46b7931965889cc2,identical,unchanged,Content matches pinned source blob.
@@ -1041,9 +1041,9 @@ crates/tools/tests/tools/process_host.rs,crates/tools/tests/tools/process_host.r
 crates/tools/tests/workflow.rs,crates/tools/tests/workflow.rs,3b5023f55a7c3d62020442e5c26757672d0ef8c6,3b5023f55a7c3d62020442e5c26757672d0ef8c6,identical,unchanged,Content matches pinned source blob.
 crates/tools/tests/workflow_host.rs,crates/tools/tests/workflow_host.rs,87f9989bc45ca543e591a6c93d69dbb5e2d8dace,87f9989bc45ca543e591a6c93d69dbb5e2d8dace,identical,unchanged,Content matches pinned source blob.
 crates/tools/tests/workflow_support/mod.rs,crates/tools/tests/workflow_support/mod.rs,b83b77a81d50b960a5e9307429639e3770ecb046,b83b77a81d50b960a5e9307429639e3770ecb046,identical,unchanged,Content matches pinned source blob.
-docs/FINECORE_IDENTITY_INVENTORY.md,docs/FINECORE_IDENTITY_INVENTORY.md,,ad13478d4a33d443d5a302b0012e86d1a3a869e3,added,repository-integration,FineCore migration inventory/evidence and release/package status.
-docs/MIGRATION_VALIDATION.md,docs/MIGRATION_VALIDATION.md,,7a6479c061d54c004aa77d05e4d70274f53e9ac3,added,repository-integration,Migration acceptance assessment and differential validation results.
-docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
+,docs/FINECORE_IDENTITY_INVENTORY.md,,ad13478d4a33d443d5a302b0012e86d1a3a869e3,added,repository-integration,FineCore migration inventory/evidence and release/package status.
+,docs/MIGRATION_VALIDATION.md,,7a6479c061d54c004aa77d05e4d70274f53e9ac3,added,repository-integration,Migration acceptance assessment and differential validation results.
+,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
 docs/assets/benchmarks/cold-start.png,docs/assets/benchmarks/cold-start.png,5182142cf0ec2336e45bf01085a19634c678cb99,5182142cf0ec2336e45bf01085a19634c678cb99,identical,unchanged,Content matches pinned source blob.
 docs/assets/benchmarks/footprint.png,docs/assets/benchmarks/footprint.png,240549fcd278c833cc684234e2035a2979de50c3,240549fcd278c833cc684234e2035a2979de50c3,identical,unchanged,Content matches pinned source blob.
 docs/assets/screenshots/answer.png,docs/assets/screenshots/answer.png,307e6ad493c93a21b2f3c95305bb324f03f4419e,307e6ad493c93a21b2f3c95305bb324f03f4419e,identical,unchanged,Content matches pinned source blob.
@@ -1101,17 +1101,17 @@ docs/releases/0.7.0.md,docs/releases/0.7.0.md,20e7717c0ad8bb15373d8c6dc651de8c03
 docs/releases/0.8.0.md,docs/releases/0.8.0.md,66c1dd70efb4b9b01374f1937f4d1f7d6961cad1,66c1dd70efb4b9b01374f1937f4d1f7d6961cad1,identical,unchanged,Content matches pinned source blob.
 docs/releases/0.9.0.md,docs/releases/0.9.0.md,acecc448eea2afbdc3b38ed08b35f94a189afa67,acecc448eea2afbdc3b38ed08b35f94a189afa67,identical,unchanged,Content matches pinned source blob.
 docs/superpowers/specs/2026-09-01-tui-style-modes-design.md,docs/superpowers/specs/2026-09-01-tui-style-modes-design.md,32e120a7f26943774e3459754ad2f2bf7935b727,32e120a7f26943774e3459754ad2f2bf7935b727,identical,unchanged,Content matches pinned source blob.
-docs/validation-logs/linux-cli-finecore.log,docs/validation-logs/linux-cli-finecore.log,,0a56c1844fd12b665dc1b50169af416a907e00f5,added,validation-evidence,Raw WSL2 ext4 CLI package test output for FineCore.
-docs/validation-logs/linux-cli-upstream.log,docs/validation-logs/linux-cli-upstream.log,,2ea38c6198400829f0cf90a5ec4ef9b37a021294,added,validation-evidence,Raw WSL2 ext4 CLI package test output for pinned Orca source.
-docs/validation-logs/linux-clippy-finecore.log,docs/validation-logs/linux-clippy-finecore.log,,001b71badc962affdda84f2fe5cd7eb255f3a278,added,validation-evidence,Raw WSL2 ext4 strict workspace Clippy output for FineCore.
-docs/validation-logs/linux-clippy-upstream.log,docs/validation-logs/linux-clippy-upstream.log,,264eab6e1ee67a5cef45bcb76c23a696ee887ae2,added,validation-evidence,Raw WSL2 ext4 strict workspace Clippy output for pinned Orca source.
-docs/validation-logs/linux-source-size-finecore.log,docs/validation-logs/linux-source-size-finecore.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for FineCore.
-docs/validation-logs/linux-source-size-upstream.log,docs/validation-logs/linux-source-size-upstream.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for pinned Orca source.
-docs/validation-logs/linux-workspace-finecore.log,docs/validation-logs/linux-workspace-finecore.log,,59d34a5bbac27b6e0981d50e13a907a545faff17,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for FineCore.
-docs/validation-logs/linux-workspace-upstream.log,docs/validation-logs/linux-workspace-upstream.log,,5cca9cb6fa2713583eeb6fe30ded7a1bca23f1d6,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for pinned Orca source.
-docs/upstream-import-manifest.csv,docs/upstream-import-manifest.csv,,1c8688f52393e3be1d79c39e997470842c932deb,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
-npm/finecore/README.md,npm/finecore/README.md,,b57c31369b815e0cf30d1513acb3294dfa00fe33,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
-npm/finecore/package.json,npm/finecore/package.json,,9de1cd31f26dde90c09210f42aca7490e7c62111,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
+,docs/validation-logs/linux-cli-finecore.log,,0a56c1844fd12b665dc1b50169af416a907e00f5,added,validation-evidence,Raw WSL2 ext4 CLI package test output for FineCore.
+,docs/validation-logs/linux-cli-upstream.log,,2ea38c6198400829f0cf90a5ec4ef9b37a021294,added,validation-evidence,Raw WSL2 ext4 CLI package test output for pinned Orca source.
+,docs/validation-logs/linux-clippy-finecore.log,,001b71badc962affdda84f2fe5cd7eb255f3a278,added,validation-evidence,Raw WSL2 ext4 strict workspace Clippy output for FineCore.
+,docs/validation-logs/linux-clippy-upstream.log,,264eab6e1ee67a5cef45bcb76c23a696ee887ae2,added,validation-evidence,Raw WSL2 ext4 strict workspace Clippy output for pinned Orca source.
+,docs/validation-logs/linux-source-size-finecore.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for FineCore.
+,docs/validation-logs/linux-source-size-upstream.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for pinned Orca source.
+,docs/validation-logs/linux-workspace-finecore.log,,59d34a5bbac27b6e0981d50e13a907a545faff17,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for FineCore.
+,docs/validation-logs/linux-workspace-upstream.log,,5cca9cb6fa2713583eeb6fe30ded7a1bca23f1d6,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for pinned Orca source.
+,docs/upstream-import-manifest.csv,,1c8688f52393e3be1d79c39e997470842c932deb,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
+,npm/finecore/README.md,,b57c31369b815e0cf30d1513acb3294dfa00fe33,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
+,npm/finecore/package.json,,9de1cd31f26dde90c09210f42aca7490e7c62111,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
