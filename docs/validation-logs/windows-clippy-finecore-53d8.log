@@ -1,0 +1,220 @@
+rustc 1.99.1 (58cf8f9c3 2026-10-13); cargo 1.99.1 (5f94df478 2026-08-27); Microsoft Windows 10.0.26300 X64
+remote code inputs: migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6; command: cargo clippy --workspace --all-targets -- -D warnings
+    Checking orca-harness-core v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\harness-core)
+    Checking tokio-rustls v0.26.4
+   Compiling phf_generator v0.13.1
+   Compiling cfg-if v1.0.4
+    Checking precomputed-hash v0.1.1
+    Checking phf v0.13.1
+   Compiling phf_shared v0.14.0
+    Checking tendril v0.5.1
+    Checking string_cache v0.9.0
+   Compiling getrandom v0.2.17
+   Compiling phf_codegen v0.13.1
+   Compiling string_cache_codegen v0.6.1
+    Checking hyper-rustls v0.27.9
+   Compiling const-random-macro v0.1.16
+   Compiling phf_generator v0.14.0
+    Checking winapi-util v0.1.11
+    Checking hashbrown v0.17.1
+    Checking reqwest v0.12.28
+   Compiling phf_macros v0.14.0
+    Checking same-file v1.0.6
+    Checking astral-tl v0.7.11
+    Checking walkdir v2.5.0
+   Compiling web_atoms v0.2.6
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\agent.rs:68:46
+   |
+68 |     pub async fn run(&self, prompt: &str) -> Result<String, HarnessError> {
+   |                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:17:5
+   |
+17 |     Model(#[from] ModelError),
+   |     ------------------------- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+   = note: `-D clippy::result-large-err` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::result_large_err)]`
+
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\agent.rs:79:10
+   |
+79 |     ) -> Result<String, HarnessError> {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:17:5
+   |
+17 |     Model(#[from] ModelError),
+   |     ------------------------- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\agent.rs:94:10
+   |
+94 |     ) -> Result<String, HarnessError> {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:17:5
+   |
+17 |     Model(#[from] ModelError),
+   |     ------------------------- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\agent_loop.rs:29:6
+   |
+29 | ) -> Result<String, HarnessError> {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:17:5
+   |
+17 |     Model(#[from] ModelError),
+   |     ------------------------- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\agent_loop.rs:42:6
+   |
+42 | ) -> Result<String, HarnessError> {
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:17:5
+   |
+17 |     Model(#[from] ModelError),
+   |     ------------------------- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\harness-core\src\agent_loop.rs:106:6
+    |
+106 | ) -> Result<ModelResponse, HarnessError> {
+    |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\harness-core\src\error.rs:17:5
+    |
+ 17 |     Model(#[from] ModelError),
+    |     ------------------------- the largest variant contains at least 160 bytes
+    |
+    = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\dispatcher.rs:83:10
+   |
+83 |     ) -> Result<Vec<ToolResult>, HarnessError> {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:17:5
+   |
+17 |     Model(#[from] ModelError),
+   |     ------------------------- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\harness-core\src\dispatcher.rs:379:51
+    |
+379 |     async fn guarded<F: Future>(&self, fut: F) -> Result<F::Output, HarnessError> {
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\harness-core\src\error.rs:17:5
+    |
+ 17 |     Model(#[from] ModelError),
+    |     ------------------------- the largest variant contains at least 160 bytes
+    |
+    = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\harness-core\src\dispatcher.rs:499:44
+    |
+499 | fn validate_pairing(calls: &[ToolCall]) -> Result<(), HarnessError> {
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\harness-core\src\error.rs:17:5
+    |
+ 17 |     Model(#[from] ModelError),
+    |     ------------------------- the largest variant contains at least 160 bytes
+    |
+    = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\harness-core\src\extension.rs:322:10
+    |
+322 |     ) -> Result<(), HarnessError> {
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\harness-core\src\error.rs:17:5
+    |
+ 17 |     Model(#[from] ModelError),
+    |     ------------------------- the largest variant contains at least 160 bytes
+    |
+    = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\harness-core\src\extension.rs:333:75
+    |
+333 |     pub(crate) async fn run_before_model(&self, context: &mut Context) -> Result<(), HarnessError> {
+    |                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\harness-core\src\error.rs:17:5
+    |
+ 17 |     Model(#[from] ModelError),
+    |     ------------------------- the largest variant contains at least 160 bytes
+    |
+    = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+   --> crates\harness-core\src\extension.rs:344:10
+    |
+344 |     ) -> Result<(), HarnessError> {
+    |          ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\harness-core\src\error.rs:17:5
+    |
+ 17 |     Model(#[from] ModelError),
+    |     ------------------------- the largest variant contains at least 160 bytes
+    |
+    = help: try reducing the size of `error::HarnessError`, for example by boxing large elements or replacing it with `Box<error::HarnessError>`
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+error: the `Err`-variant returned from this function is very large
+  --> crates\harness-core\src\testing.rs:70:51
+   |
+70 |       fn next_response(&self, context: &Context) -> Result<ModelResponse, ModelError> {
+   |                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+  ::: crates\harness-core\src\error.rs:79:5
+   |
+79 | /     MalformedToolArguments {
+80 | |         tool_name: String,
+81 | |         argument_bytes: usize,
+82 | |         finish_reason: Option<String>,
+83 | |         message: String,
+84 | |         usage: Option<Usage>,
+85 | |     },
+   | |_____- the largest variant contains at least 160 bytes
+   |
+   = help: try reducing the size of `error::ModelError`, for example by boxing large elements or replacing it with `Box<error::ModelError>`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#result_large_err
+
+    Checking base64 v0.23.1
+error: could not compile `orca-harness-core` (lib) due to 13 previous errors
+warning: build failed, waiting for other jobs to finish...
+exit_code=101
+
