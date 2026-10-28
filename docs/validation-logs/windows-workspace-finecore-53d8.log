@@ -1,0 +1,105 @@
+rustc 1.99.1 (58cf8f9c3 2026-10-13); cargo 1.99.1 (5f94df478 2026-08-27); Microsoft Windows 10.0.26300 X64
+remote code inputs: migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6; command: cargo test --workspace --no-fail-fast
+   Compiling orca-harness-dag v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\harness-dag)
+   Compiling orca-harness-tool-extensions v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\tool-extensions)
+warning: unused import: `std::process::Command`
+ --> crates\cli\src\tui\clipboard_image.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `empty` is never used
+   --> crates\cli\src\mcp\plugins.rs:103:19
+    |
+ 10 | impl PluginSnapshot {
+    | ------------------- associated function in this implementation
+...
+103 |     pub(super) fn empty() -> Self {
+    |                   ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PNG_MAGIC` is never used
+ --> crates\cli\src\tui\clipboard_image.rs:6:7
+  |
+6 | const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
+  |       ^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `interpret` is never used
+  --> crates\cli\src\tui\clipboard_image.rs:45:4
+   |
+45 | fn interpret(success: bool, bytes: Vec<u8>, stderr: &[u8]) -> Result<Option<Vec<u8>>, String> {
+   |    ^^^^^^^^^
+
+   Compiling finecore v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\cli)
+   Compiling orca-harness-core v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\harness-core)
+warning: `finecore` (bin "finecore" test) generated 2 warnings (run `cargo fix --bin "finecore" -p finecore --tests` to apply 1 suggestion)
+warning: `finecore` (bin "finecore") generated 3 warnings (1 duplicate)
+   Compiling orca-harness-tools v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\tools)
+   Compiling orca-harness-extensions v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\extensions)
+warning: unused import: `std::collections::BTreeMap`
+   --> crates\tool-extensions\src\plugin_hooks.rs:446:9
+    |
+446 |     use std::collections::BTreeMap;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::time::Duration`
+   --> crates\tool-extensions\src\plugin_hooks.rs:447:9
+    |
+447 |     use std::time::Duration;
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `orca_harness_core::Extension`
+   --> crates\tool-extensions\src\plugin_hooks.rs:449:9
+    |
+449 |     use orca_harness_core::Extension;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `ProcessEnvironment` and `StdioLaunch`
+   --> crates\tool-extensions\src\plugin_hooks.rs:452:22
+    |
+452 |     use crate::mcp::{ProcessEnvironment, StdioLaunch};
+    |                      ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: function `call` is never used
+   --> crates\tool-extensions\src\plugin_hooks.rs:471:8
+    |
+471 |     fn call() -> ToolCall {
+    |        ^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated method `std::sync::atomic::Atomic::<usize>::fetch_update`: renamed to `try_update` for consistency
+  --> crates\sdk\tests\retry_config.rs:56:14
+   |
+56 |             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+   |              ^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+help: replace the use of the deprecated method
+   |
+56 -             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+56 +             .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+   |
+
+warning: `orca-harness-sdk` (test "retry_config") generated 1 warning (run `cargo fix --test "retry_config" -p orca-harness-sdk` to apply 1 suggestion)
+   Compiling orca-harness-sandbox-providers v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\sandbox-providers)
+   Compiling orca-harness-model-providers v0.9.0 (D:\projetos\finecore\.finecore-validation-53d8\crates\model-providers)
+error[E0433]: cannot find `unix` in `os`
+   --> crates\sandbox-providers\src\local\protect.rs:142:18
+    |
+142 |         std::os::unix::fs::symlink(&outside, &link).unwrap();
+    |                  ^^^^ could not find `unix` in `os`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `orca-harness-sandbox-providers` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+warning: `orca-harness-tool-extensions` (lib test) generated 5 warnings (run `cargo fix --lib -p orca-harness-tool-extensions --tests` to apply 4 suggestions)
+exit_code=101
+
