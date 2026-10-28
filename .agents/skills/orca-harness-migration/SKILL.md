@@ -11,7 +11,7 @@ Use `docs/MIGRATION_ROADMAP.md` as the phase plan and gate definition. This skil
 
 - FineCore is the canonical public product identity. Preserve upstream code and compatibility contracts as closely as possible; change identity only through reviewed, narrow decisions.
 - The canonical Orca import is documented on `migration/orca-faithful-import`, descended from the greenfield `bootstrap/finecore-independent`. This skill and roadmap are proposals under review; before adoption, reconcile them against applicable instructions and evidence at the actual staging revision, recording paths, revisions, authority, and unresolved conflicts. Until accepted, follow applicable instructions at the revision used. Do not repeat the import into bootstrap; promotion is separate and requires explicit approval.
-- Split remaining migration work into focused PRs by phase or independently verifiable deliverable. Keep commits coherent and defensible for each scope; do not impose a fixed count or fragment commits without review/validation value. Make dependencies and PR bases explicit.
+- Split remaining migration work into focused PRs by independently verifiable deliverable or genuine dependency. Follow the governing identity skill and `AGENTS.md` for commit-history checkpoints (review at 5; stop routine commit/push cycles for human review at 20 against the actual PR base), stack hygiene, and no automatic history rewriting. These are **project review controls**, not hard universal limits; do not duplicate their implementation here. Make dependencies and PR bases explicit.
 
 ## Fixed source reference
 
@@ -29,7 +29,7 @@ The source reference clone and commit/tree/counts above are historical records. 
 1. Read the roadmap and any repository-specific agent instructions.
 2. Run `git status --short --branch`; inspect current branch, commit, remotes, and refs. Never discard unrelated changes.
 3. State the current phase, phase gate, intended files/actions, and validation before editing.
-4. Do not switch branches, rewrite history, run destructive Git commands, commit, push, publish, promote staging to bootstrap, or change `main` unless the user explicitly authorizes that exact action.
+4. Do not switch branches, rewrite history, run destructive Git commands, commit, push, publish, or promote staging to bootstrap unless the user explicitly authorizes that exact action. Do not change or target remote `main` for harness integration: this skill cannot override the governing prohibition; revising that policy requires a separate explicit policy decision.
 
 ## Phase discipline
 
