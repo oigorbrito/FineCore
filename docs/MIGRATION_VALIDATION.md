@@ -53,3 +53,14 @@ No live provider login, external API call, or benchmark measurement was performe
 - Do not fold inherited source-size, Clippy, Bun REPL, or binary-size failures into this identity migration; address them as separate engineering work if approved.
 - Preserve manual review for any eventual merge to `main`; model-picker/login parity remains deferred to [`PI_MODEL_AUTH_PARITY_ROADMAP.md`](PI_MODEL_AUTH_PARITY_ROADMAP.md).
 - The npm package at `npm/finecore/` remains an unpublished placeholder. Registry lookup returned 404 (available at check time), but `npm whoami` returned 401, so the name has not been reserved.
+
+
+## Current staging delta after the recorded validation
+
+The preceding commands and raw logs describe the earlier imported product snapshot. They do not validate later code changes.
+
+- PR #135 was merged into `migration/orca-faithful-import` at `53d8f8344f3f17f28766c7c880981147d3e128c6`. It changed `Cargo.lock`, `crates/cli/Cargo.toml`, `crates/cli/src/config/storage.rs`, and `crates/cli/src/config/tests.rs`.
+- At that staging revision, the GitHub blobs for `storage.rs` and `tests.rs` contain 835 and 935 lines respectively. The unchanged CI source-size gate rejects files above 599 lines. These are two additional current RED paths; the 15 earlier source-size paths are untouched by PR #135. The current tree therefore has at least 17 source-size violations.
+- The current `.github/workflows/ci.yml` triggers on pushes and pull requests to `main`, plus manual dispatch. The Actions API showed no workflow run for commit `53d8f834`; this is NOT RUN evidence, not a pass.
+- A Windows check on the predecessor code at `c3bbf29` passed formatting, while `cargo test --workspace --no-fail-fast` failed compiling the Unix-only symlink test and strict Clippy failed with 13 `result_large_err` diagnostics in unchanged `harness-core` files. Those results do not validate PR #135 or the current `53d8f834` staging tree.
+- Current full-workspace tests, strict Clippy, Linux/Windows validation of PR #135, and current release-size validation remain NOT RUN or unverified at `53d8f834`. Keep migration status `MIGRATION_PENDING` until the affected gates are rerun on the current revision and compared with the pinned baseline.
