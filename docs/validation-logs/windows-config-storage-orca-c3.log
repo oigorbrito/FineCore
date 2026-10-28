@@ -1,0 +1,80 @@
+rustc 1.99.1 (58cf8f9c3 2026-10-13); cargo 1.99.1 (5f94df478 2026-08-27); Microsoft Windows 10.0.26300 X64
+command: cargo test -p finecore --bin finecore config::storage::tests -- --test-threads=1
+warning: unused import: `std::process::Command`
+ --> crates\cli\src\tui\clipboard_image.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `write_private` is never used
+   --> crates\cli\src\config\storage.rs:529:4
+    |
+529 | fn write_private(path: &Path, body: &str) -> io::Result<()> {
+    |    ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `empty` is never used
+   --> crates\cli\src\mcp\plugins.rs:103:19
+    |
+ 10 | impl PluginSnapshot {
+    | ------------------- associated function in this implementation
+...
+103 |     pub(super) fn empty() -> Self {
+    |                   ^^^^^
+
+warning: `finecore` (bin "finecore" test) generated 3 warnings (run `cargo fix --bin "finecore" -p finecore --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
+     Running unittests src\main.rs (D:\projetos\finecore\.finecore-validation-53d8\target\debug\deps\finecore-665827d00b220377.exe)
+
+running 20 tests
+test config::storage::tests::approvals_are_scoped_per_workspace_and_removable ... ok
+test config::storage::tests::corrupt_config_is_replaced_not_fatal ... ok
+test config::storage::tests::enabling_a_plugin_atomically_canonicalizes_root_and_preserves_unknown_fields ... ok
+test config::storage::tests::every_numeric_subagent_setting_round_trips_custom_values ... ok
+test config::storage::tests::extension_overrides_round_trip_and_coexist ... ok
+test config::storage::tests::fresh_installs_use_glyph_without_overwriting_saved_style ... ok
+test config::storage::tests::malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state ... FAILED
+test config::storage::tests::mcp_invalid_input_never_writes_config ... ok
+test config::storage::tests::mcp_servers_round_trip_and_are_removable ... ok
+test config::storage::tests::mcp_valid_executables_allow_flags_and_url_arguments ... ok
+test config::storage::tests::plugin_data_directory_creation_is_explicit_and_yields_a_directory ... ok
+test config::storage::tests::plugin_data_path_is_beside_config_under_the_plugin_name ... ok
+test config::storage::tests::plugins_round_trip_in_name_order_and_preserve_unrelated_config ... FAILED
+test config::storage::tests::provider_theme_and_models_round_trip_alongside_keys ... ok
+test config::storage::tests::save_preserves_unknown_fields ... ok
+test config::storage::tests::save_then_load_round_trips_per_provider ... ok
+test config::storage::tests::saved_subagent_model_chosen_routes_load_without_a_model_catalog ... ok
+test config::storage::tests::skill_overrides_default_on_and_round_trip ... ok
+test config::storage::tests::subagent_preferences_round_trip_and_preserve_other_config ... ok
+test config::storage::tests::toggling_preserves_the_command_and_promotes_the_string_shape ... ok
+
+failures:
+
+---- config::storage::tests::malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state stdout ----
+
+thread 'config::storage::tests::malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state' (2456) panicked at crates\cli\src\config\tests.rs:380:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- config::storage::tests::plugins_round_trip_in_name_order_and_preserve_unrelated_config stdout ----
+
+thread 'config::storage::tests::plugins_round_trip_in_name_order_and_preserve_unrelated_config' (33620) panicked at crates\cli\src\config\tests.rs:347:9:
+assertion `left == right` failed
+  left: []
+ right: [RegisteredPlugin { name: "alpha", root: "/plugins/alpha", enabled: true }, RegisteredPlugin { name: "zeta", root: "/plugins/zeta", enabled: false }]
+
+
+failures:
+    config::storage::tests::malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state
+    config::storage::tests::plugins_round_trip_in_name_order_and_preserve_unrelated_config
+
+test result: FAILED. 18 passed; 2 failed; 0 ignored; 0 measured; 606 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p finecore --bin finecore`
+exit_code=101
+
