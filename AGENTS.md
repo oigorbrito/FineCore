@@ -42,11 +42,11 @@ If anything in this file conflicts with actual Git ancestry or test evidence: **
 
 The executor must use files **in its checked-out branch**, not documents from chat history or another un-fetched branch. Resolve the repository root first; if a required file is absent, report its exact path/ref and do not silently substitute. Read-only GitHub access to other branches is permitted for evidence gathering; copying or integrating their history is not.
 
-Canonical operational records shipped in this staging lineage: `docs/FINECORE_IDENTITY_INVENTORY.md`, `docs/upstream-import-manifest.csv`, `docs/identity-divergence.csv`, `docs/MIGRATION_VALIDATION.md`, and the separate **Pi feature** roadmap `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md`. The root `AGENTS.md` and this skill exist in the **policy PR branch** until that PR is integrated; checking out plain staging before integration will not expose them.
+Canonical operational records shipped in this staging lineage: `docs/FINECORE_IDENTITY_INVENTORY.md`, `docs/upstream-import-manifest.csv`, `docs/identity-divergence.csv`, `docs/MIGRATION_VALIDATION.md`, and the separate **Pi feature** roadmap `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md`. The root `AGENTS.md` and `.agents/skills/finecore-migration-identity/SKILL.md` are available in staging following the integration of PR #133. Verify their presence at the exact checked-out revision; this is not evidence that a particular executor has loaded them.
 
 Historical records are **not** current execution authority: `migration/finecore-m01@a0b9d775` holds `AGENTS.md`, `.github/skills/reconciliation/SKILL.md`, `docs/migration/FINECORE-M01.md` for an older migration from `oigorbrito/core@8ca24d26`; `migration/orca-tree-import@41be0191` holds `docs/migration/ORCA-IMPORT-04.md` proposing an Orca subtree under `vendor/orca-harness/`; `feature/pi-auth-parity-02@5b652a84` holds `docs/engineering/ORCA_MIGRATION_INTEGRATION.md` describing PR #111 targeting main. These are different histories/strategies. Inspect them at pinned refs when evaluating provenance; never execute their promotion instructions against current staging without an explicit decision.
 
-A local untracked `docs/MIGRATION_ROADMAP.md` has been reported, but is **not present in the verified remote policy/staging trees** and its full contents have not been reconciled. Treat it as a local proposal only: do not delete, overwrite, execute or claim that it is an approved remote roadmap. Do not invent a replacement roadmap to hide this conflict.
+`docs/MIGRATION_ROADMAP.md` and `.agents/skills/orca-harness-migration/SKILL.md` are proposed in PR #134 against staging, not yet approved as canonical execution policy. When reviewing that branch, reconcile against this root contract and the general identity skill; when running plain staging without PR #134, treat both files as unavailable proposals, not required execution inputs. Never assume an untracked local copy has authority.
 
 For a missing document or conflicting instruction: continue **independent read-only or non-conflicting tasks**, record the missing source as UNKNOWN/BLOCKED for the dependent gate, and halt only mutations that rely on that disputed decision. Never broadly halt safe inventory work or silently assume precedence.
 
@@ -56,4 +56,5 @@ For a missing document or conflicting instruction: continue **independent read-o
 - `docs/identity-divergence.csv` — classified identity differences.
 - `docs/FINECORE_IDENTITY_INVENTORY.md` — compatibility surfaces and decisions.
 - `docs/MIGRATION_VALIDATION.md` — recorded, not necessarily current, validation.
-- `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md` — deferred feature roadmap and identity 0A proposed separately in PR #132.
+- `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md` — separate Pi feature roadmap; proposed changes in PR #132 must be checked at the current ref.
+- `docs/MIGRATION_ROADMAP.md` — Orca-specific migration proposal from PR #134, **not canonical until separately approved/integrated**.
