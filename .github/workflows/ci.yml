@@ -11,9 +11,9 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, migration/orca-faithful-import]
   pull_request:
-    branches: [main]
+    branches: [main, migration/orca-faithful-import]
   workflow_dispatch:
 
 concurrency:
