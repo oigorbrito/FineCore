@@ -1115,7 +1115,6 @@ npm/finecore/package.json,npm/finecore/package.json,,9de1cd31f26dde90c09210f42ac
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
-
 ,crates/cli/src/main/endpoint.rs,,2261a97bff28c0a32a0acb691d1e5ffe25e153d3,added,repository-integration,Extract existing CLI source into a focused included file to meet the source-size limit.
 ,crates/cli/src/main_tests/continuation.rs,,16abef03429612818cf79c9743ddccfdc734202d,added,repository-integration,Extract existing CLI source into a focused included file to meet the source-size limit.
 ,crates/cli/src/tui/commands/dispatch/sidekick.rs,,d31562677bc127e7702acb9610a9742c04f748d3,added,repository-integration,Extract existing CLI source into a focused included file to meet the source-size limit.
