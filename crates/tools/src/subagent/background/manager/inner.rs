@@ -1,7 +1,7 @@
 use super::*;
 
 impl SubagentManagerInner {
-    fn wake(&self) {
+    pub(super) fn wake(&self) {
         self.slots
             .send_modify(|epoch| *epoch = epoch.wrapping_add(1));
     }
