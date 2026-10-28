@@ -9,7 +9,7 @@ name: bench-live
 # The budgets live in benchmarks/harness-comparison/check_budgets.py and are
 # set to catch cliffs, not drift: a correctness collapse, an exploration
 # blowup, a blocking call in front of the loop, a prompt prefix that stopped
-# being cacheable. Only FineCore is gated; the other harnesses are measured
+# being cacheable. Only Orcacode is gated; the other harnesses are measured
 # for comparison.
 #
 # FineCore retains this workflow only as source evidence; a repository guard
@@ -72,7 +72,7 @@ jobs:
 
       - name: build
         if: steps.key.outputs.present == 'true'
-        run: cargo build --release -p finecore
+        run: cargo build --release -p orcacode
 
       # --harness orca: the comparison harnesses are node and python tools
       # installed out of band, and a missing one must not fail our own gate.
@@ -82,7 +82,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
-          python3 benchmarks/harness-comparison/run.py --harness orca | tee run.log
+          python3 benchmarks/harness-comparison/run.py --orca-bin target/release/orcacode --harness orca | tee run.log
           # run.py names the directory on its own line, and also inside the
           # "Analyze with:" hint that follows. Anchor on the first so the
           # interpreter and script paths in the hint cannot be picked up.
