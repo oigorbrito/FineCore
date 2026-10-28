@@ -43,19 +43,19 @@ your repo, runs commands, edits files, and delegates work to parallel
 subagents, with approval controls for actions that touch your machine. You can
 sign in with ChatGPT, use an API key, or point it at a local model.
 
-Underneath is **Orca Harness**, a minimal agent execution kernel. The loop is
-small and fast: it fans out 100 parallel tool calls in well under a
-millisecond. Everything else (memory, MCP, policy, retries, sessions) plugs in
-as an extension. FineCore is one host built on it, and you can build your own
-through the Rust SDK.
+Underneath is **Orca Harness**, a minimal agent execution kernel. Memory, MCP,
+policy, retries and sessions plug in as extensions; FineCore is one host built
+on that kernel, and you can build your own through the Rust SDK. The often-quoted
+100-call sub-millisecond result belongs to historical upstream Orcacode
+measurements below, not to a FineCore benchmark.
 
 > **The loop is sacred. Everything around it is extensible.**
 
 ## Why FineCore
 
-- **Tiny and native.** A single static binary with no Node, Python or Bun
-  runtime to install. It idles at about 26 MB. See the
-  [comparison](#footprint).
+- **Native Rust CLI.** No Node, Python or Bun runtime is required to run it.
+  FineCore binary size and idle memory have not yet been measured in a
+  dedicated benchmark.
 - **You approve what runs.** Gated tools ask first. Plan mode is read-only; any shell command there asks every time.
   Orchestrate mode delegates. Auto mode reviews only the risky calls. Yolo
   mode is loud about being yolo.
@@ -246,7 +246,12 @@ container through an `Executor` (`Executor::ssh("user@host")`,
 [`docs/crate-diagram.md`](docs/crate-diagram.md) has the dependency graph and
 [`docs/design.html`](docs/design.html) walks through the design.
 
-## Performance
+## Historical Orcacode performance (not FineCore measurements)
+
+> Every measurement in this section is retained from upstream Orcacode 0.7.0
+> or the explicitly dated Orcacode comparisons. These results were not rerun
+> for FineCore and must not be read as FineCore performance claims. A matched
+> FineCore baseline remains future work.
 
 <div align="center">
 

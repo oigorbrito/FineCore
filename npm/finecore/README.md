@@ -1,13 +1,6 @@
-# FineCore npm name reservation
+# Repository-only FineCore npm placeholder
 
-This package reserves the `finecore` name on the npm registry. **It is a
-placeholder and does not install or run the FineCore CLI.** Do not use it as a
-CLI or add it as an application dependency.
+This directory is an internal placeholder, not a distribution of the FineCore Rust CLI. It does not reserve the `finecore` name. Its `package.json` sets `private: true` to prevent accidental publication.
 
-The official FineCore project is at <https://github.com/oigorbrito/finecore>.
-A functional npm distribution will be released separately after its platform
-binaries, integrity verification, and release process are ready.
-
-This placeholder is published under the Apache-2.0 license. FineCore is based
-on Orca Harness; see the project repository for upstream attribution and
-notices.
+The FineCore Rust project is at <https://github.com/oigorbrito/finecore>.
+FineCore is based on Orca Harness; see the project repository for upstream attribution and notices. Any functional npm distribution is separate future work; this placeholder must remain private.
