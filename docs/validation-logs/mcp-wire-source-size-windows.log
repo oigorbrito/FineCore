@@ -1,0 +1,27 @@
+# MCP wire extraction — focused validation
+
+## Source and scope
+
+- Base: canonical staging tree `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6`.
+- Existing `crates/tool-extensions/src/mcp/client.rs` blob: `db5c0888be17e40c37051619baca40c121255231` (650 newline-counted lines).
+- Existing `crates/tool-extensions/src/mcp/mod.rs` blob: `28ed4886dc560aa777c79e752206bc203a81d63e`.
+- Scope: move the existing `Wire` struct and send/receive implementation into `mcp/wire.rs`; preserve I/O error mapping, protocol behavior, public APIs, dependencies, and execution behavior. No error classification change from unrelated donor PR #114 was carried over.
+- Candidate sizes: `client.rs` 563 newline-counted lines; new `wire.rs` 98 newline-counted lines; the client file is below the 599-line threshold.
+
+## Environment
+
+- Windows NT 10.0.26300.0, x64.
+- rustc 1.99.1 (58cf8f9c3 2026-10-13).
+- cargo 1.99.1 (5f94df478 2026-08-27).
+- Validation used a temporary extraction of exact staging commit `53d8f834`; the main checkout was not modified.
+
+## Results
+
+- `cargo fmt --all -- --check`: PASS.
+- `cargo test -p orca-harness-tool-extensions mcp::client::tests -- --test-threads=1`: PASS, 10 passed, 0 failed, 44 filtered out.
+- `cargo test -p orca-harness-tool-extensions --test mcp_stdio -- --test-threads=1`: NOT RUN on Windows; the test target is gated by `#![cfg(unix)]` and selected 0 tests.
+- Source-size predicate (`wc -l > 599`) evaluated on the temporary staging-plus-change tree: 16 files remain over threshold; `client.rs` is no longer one of them. The overall source-size gate remains FAIL.
+- The Bash gate itself could not start in this sandbox (Git for Windows failed to create its MSYS named object with access denied); the equivalent line-count predicate was evaluated with PowerShell. This is not recorded as a gate PASS.
+- Linux end-to-end validation and hosted CI remain pending; the Linux/WSL and Docker interfaces were unavailable in this session.
+
+No benchmark, provider call, merge, or promotion was performed.
