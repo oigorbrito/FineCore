@@ -2,7 +2,7 @@
   "name": "finecore",
   "version": "0.0.1",
   "private": true,
-  "description": "Internal placeholder only; not the published bootstrap package or the FineCore Rust CLI.",
+  "description": "Private repository placeholder; not the FineCore Rust CLI.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
