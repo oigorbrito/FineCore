@@ -68,6 +68,18 @@ For each affected surface, maintain an identity contract row: source symbol/path
 - Known historical red gates (Bun REPL, strict Clippy, source-size, binary-size, Windows platform failures) stay **RED** until independently fixed and revalidated. Never weaken budgets, skip tests, or relabel an inherited failure as PASS.
 - Distinguish prior stored test logs from current execution, and mock auth from live authenticated behavior. Never expose credentials, run paid-provider calls or destructive state changes without authorization.
 
+## Change hygiene — avoid stacked-PR and documentation sprawl
+
+- Prefer **one independently reviewable change per PR**, with several cohesive commits allowed on the same branch. Do not create a new branch/PR for every commit, test, failed gate or documentation adjustment. Update the existing scoped PR when its purpose is unchanged.
+- Stack PRs **only for an actual code dependency** that cannot be reviewed independently. In each stacked PR description state its parent PR, exact base branch, scope, and unblock condition. Limit each stack to **three open layers by default**; exceeding that requires a concrete dependency explanation and a review checkpoint, not an automatic prohibition of work.
+- Before opening a branch, search existing issues/PRs for the same concern; prefer extending a current issue, PR, or test artifact. Name branches by stable *concern* (e.g. `fix/config-store-integrity`) instead of incrementing arbitrary numeric suffixes. Do not rename or rewrite pre-existing branches solely to satisfy naming guidance.
+- Do not automatically restack, rebase, force-push, retarget, delete, merge or close existing PRs; these operations can change reviewed commits or invalidate dependent stacks. The remote `main` is **never** the trunk for harness PRs; their trunk is `migration/orca-faithful-import`.
+- Keep **one canonical policy entry** (root `AGENTS.md`), **one specialized procedure** (this skill), and existing focused evidence ledgers. Prefer revising the existing roadmap or issue/PR description over adding a parallel markdown status report. Create a durable document only for a distinct, reusable contract or audit that cannot reasonably live in an existing file.
+- Keep bulky raw logs, trial outputs and temporary reports in CI artifacts or designated evidence storage, linked by immutable SHA/run ID in the relevant PR or existing validation report; do not commit redundant copies, generated summaries or repeated handoffs.
+- Periodically inspect open branches and dependency chains **read-only**; report candidates for manual consolidation. Never prune worktrees, delete refs or squash histories automatically.
+
+**Basis and limits:** [GitHub stacked PRs](https://docs.github.com/en/pull-requests/reference/stacked-pull-requests) documents focused dependent reviews; [Git worktree](https://git-scm.com/docs/git-worktree) supports isolated worktrees; [Graphite restacking](https://graphite.com/docs/restack-branches) illustrates dependency maintenance but may rewrite stack commits. The three-layer review checkpoint, branch naming and documentation budget are **FineCore governance heuristics**, not scientific optimal thresholds. No mandatory third-party stack tool and no automatic rewriting.
+
 ## Gate D — review, publication, promotion
 
 1. Commit only scoped, audited files in isolated branch descended from staging. Preserve original authorship, notices and licenses; no force-push. Do not modify unrelated local work.
