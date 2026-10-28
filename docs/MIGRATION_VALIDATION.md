@@ -4,7 +4,7 @@
 
 - Source: `okikorg/orca-harness` commit `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`, tree `9c35d0dd0d7e0f226063f16dd80161e231628e2b`.
 - Verbatim import commit: `e036dd7a7e2a040b4da1152d99aede0552cb1641`.
-- FineCore migration worktree: branch `migration/orca-faithful-import`; working changes are not committed.
+- Validation workspace: branch `migration/orca-faithful-import`; at the time these checks ran, working changes were uncommitted. This record does not establish the current branch or worktree cleanliness.
 - Source/destination inventory: 1,101 source files and 1,101 destination files at the import commit; all 1,101 blobs compare identical. See [`upstream-import-manifest.csv`](upstream-import-manifest.csv).
 - Post-import comparison: 1,040 source blobs remain identical; 61 source files have classified changes, with no missing or unexplained source paths; 15 FineCore integration/evidence files are recorded as added (including eight raw Linux gate logs, an unpublished npm name-reservation placeholder, and a benchmark-report regression test). See [`identity-divergence.csv`](identity-divergence.csv); that report excludes itself. Changes cover FineCore metadata/CLI/docs and generated plugin scaffolds, CI and benchmark invocation plumbing, and fail-closed upstream release/update paths. Public `orca-harness-*` crates, provider/config IDs, persistent paths, and upstream attribution/notices remain unchanged.
 
