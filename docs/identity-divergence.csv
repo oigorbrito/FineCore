@@ -1000,7 +1000,7 @@ crates/tools/src/subagent/background.rs,crates/tools/src/subagent/background.rs,
 crates/tools/src/subagent/background/completions.rs,crates/tools/src/subagent/background/completions.rs,9c6802d872fb448865f19db7c3e796910935dbd2,9c6802d872fb448865f19db7c3e796910935dbd2,identical,unchanged,Content matches pinned source blob.
 crates/tools/src/subagent/background/completions/tests.rs,crates/tools/src/subagent/background/completions/tests.rs,231b2af0ecc63aae3e6dc1b1089c09a4cc51275b,231b2af0ecc63aae3e6dc1b1089c09a4cc51275b,identical,unchanged,Content matches pinned source blob.
 crates/tools/src/subagent/background/inventory.rs,crates/tools/src/subagent/background/inventory.rs,792bcbe3ed7d67250bf67135e1017bff51d3d37f,792bcbe3ed7d67250bf67135e1017bff51d3d37f,identical,unchanged,Content matches pinned source blob.
-crates/tools/src/subagent/background/manager.rs,crates/tools/src/subagent/background/manager.rs,e449a95e03f65218333137b73039e61d3093561c,e449a95e03f65218333137b73039e61d3093561c,identical,unchanged,Content matches pinned source blob.
+crates/tools/src/subagent/background/manager.rs,crates/tools/src/subagent/background/manager.rs,e449a95e03f65218333137b73039e61d3093561c,3e1ced342d425ef73f14b00bb14d1728495f28c2,modified,repository-integration,Extract existing private manager implementation into a child module without changing runtime behavior.
 crates/tools/src/subagent/background/manager/tests.rs,crates/tools/src/subagent/background/manager/tests.rs,a7b385854a20b96db0cc48863721b098166ae065,a7b385854a20b96db0cc48863721b098166ae065,identical,unchanged,Content matches pinned source blob.
 crates/tools/src/subagent/background/protocol.rs,crates/tools/src/subagent/background/protocol.rs,a2bb12d3028e9204070d0985fbca052ca6c030d3,a2bb12d3028e9204070d0985fbca052ca6c030d3,identical,unchanged,Content matches pinned source blob.
 crates/tools/src/subagent/host.rs,crates/tools/src/subagent/host.rs,a5b4e5ba31cc4ba1a9f5f707d75c904595195c69,a5b4e5ba31cc4ba1a9f5f707d75c904595195c69,identical,unchanged,Content matches pinned source blob.
@@ -1115,3 +1115,5 @@ npm/finecore/package.json,npm/finecore/package.json,,9de1cd31f26dde90c09210f42ac
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
+
+,crates/tools/src/subagent/background/manager/inner.rs,,443b661a9c4b419d58cd190fe97c17efce2c9a9f,added,repository-integration,Move existing manager implementation into a focused module without changing behavior.
