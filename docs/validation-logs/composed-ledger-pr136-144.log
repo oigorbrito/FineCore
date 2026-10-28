@@ -1,0 +1,37 @@
+# Read-only composed-tree ledger reconciliation — PRs #136–#144
+
+## Scope and method
+
+This audit reconstructs the proposed migration tree without creating a merge commit or changing staging. It starts from FineCore staging `53d8f8344f3f17f28766c7c880981147d3e128c6` and overlays the changed file/blob entries from these immutable PR heads in dependency order:
+
+- #136 `1a8e355958ef4a1c713d276b1a076eff10b5620b`
+- #137 `459cab92c6fb244bb5e1ed2d1bf691a9079b924c`
+- #138 `89117a52bb5881d200f6a70327d382660e677857`
+- #139 `6bf0a7f550779d9b6eef52a0560845cce46f8184` (delta from #136)
+- #140 `aac1ac3d0dc65be19dcc679d73e47625b530dbad`
+- #141 `8044ad9977a0c92f6f5dff3b901a6757fedccd77` (delta from #139)
+- #142 `83d25af67dd41fef92a6a4690a211e400e6feb6f` (delta from #141)
+- #143 implementation/evidence `598d158bd473592295dca903264a0de73fa93b4f` (delta from #142)
+- #144 `760cf836cfcef43bc6c61c8b553548202d5e9cf5` (non-ledger code/log deltas from staging)
+
+PR #144 has its own staging-based ledger snapshot, so its ledger file is not overlaid wholesale. Its modified `protect.rs` row and two new validation-log rows are reconciled into the descendant ledger. This avoids discarding the #136–#143 classifications.
+
+## Provenance and ledger checks
+
+Pinned Orca source: `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`, tree `9c35d0dd0d7e0f226063f16dd80161e231628e2b`.
+
+The upstream import manifest contains 1,101 unique source paths; all source blob hashes match the pinned upstream tree. The composed divergence ledger contains 1,137 unique destination rows, including the two PR #144 validation logs and this audit record. Its 1,101 non-empty source paths are unique and match upstream blobs.
+
+The final composed tree has 1,138 blob paths, including `docs/identity-divergence.csv` itself. Excluding that self-referential CSV:
+- Destination rows: 1,137 unique.
+- Duplicate source or destination paths: 0.
+- Missing destination paths: 0.
+- Ledger destination hash/path mismatches: 0.
+- Source blob mismatches against pinned Orca: 0.
+- Extra unclassified destination paths: 0.
+
+The overlay exposed two stale destination hashes that were corrected in the composed ledger: `Cargo.lock` → `3cfe3b83ef857d67eab65bdd629c8d3791695da9`; `crates/cli/Cargo.toml` → `7df1ea662ba4281300c105b43d3d46b8275de195`. It also reconciles the changed `protect.rs` blob and PR #144 logs.
+
+## Limits and status
+
+This is a deterministic tree/blob overlay, not an executed Git merge, runtime test, human review, or approval of PR content. All listed PRs remain subject to their individual validation and review gates. The source-size, workspace, Clippy, binary-size, hosted-CI, and platform gates remain open as recorded in their focused evidence. Stack depth and integration ordering still require human review; no merge, bootstrap promotion, release, or migration completion is claimed.
