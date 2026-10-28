@@ -96,6 +96,7 @@ pub(super) fn anchored(directory: &str, action: &str) -> String {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     #[test]
     fn directories_are_canonical_or_refused() {
         assert_eq!(canonical("/workspace").unwrap(), "/workspace");
@@ -115,6 +116,7 @@ mod tests {
         assert_eq!(found, ["/workspace/.orca", "/workspace/.orca/skills"]);
     }
 
+    #[cfg(unix)]
     fn sh(command: &str) -> std::process::Output {
         std::process::Command::new("sh")
             .args(["-c", command])
@@ -124,6 +126,7 @@ mod tests {
 
     /// The command itself, run with a harmless action: it acts inside a
     /// real directory and refuses a symlink, whatever it points at.
+    #[cfg(unix)]
     #[test]
     fn anchored_commands_act_in_place_and_refuse_symlinks() {
         let base = std::env::temp_dir().join(format!("orca-protect-{}", std::process::id()));
@@ -153,3 +156,4 @@ mod tests {
         std::fs::remove_dir_all(&base).unwrap();
     }
 }
+
