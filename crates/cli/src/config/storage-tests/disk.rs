@@ -105,4 +105,3 @@
         assert!(dir.join(".config.json.lock").is_file());
         fs::remove_dir_all(dir).unwrap();
     }
-
