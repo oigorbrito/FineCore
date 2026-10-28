@@ -1,14 +1,14 @@
 use super::*;
 
 impl SubagentManagerInner {
-    pub(super) fn wake(&self) {
+    fn wake(&self) {
         self.slots
             .send_modify(|epoch| *epoch = epoch.wrapping_add(1));
     }
 
     /// Register a job at the back of the queue and start it right away if
     /// it is already at the front with a free slot.
-    pub(crate) fn admit(
+    pub(in crate::subagent::background) fn admit(
         self: &Arc<Self>,
         spawn: &SubagentSpawn,
     ) -> Result<Admission, &'static str> {
