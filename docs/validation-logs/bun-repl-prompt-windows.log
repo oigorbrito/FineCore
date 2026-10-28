@@ -1,0 +1,26 @@
+# Bun REPL prompt cleanup — focused validation
+
+## Source and scope
+
+- Base staging: `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6`, with the proposed changes from PR #141 overlaid in a temporary copy.
+- The recorded Linux workspace logs show the same six `bun_repl` assertions failing on pinned Orca and FineCore with a leading standalone `> \n` before the expected user output.
+- `clean_stdout` now strips only that leading prompt prefix. A unit test verifies that later literal `>` output is preserved.
+- No API, dependency, protocol, or product-identity change.
+
+## Environment
+
+- Windows NT 10.0.26300.0, x64.
+- rustc 1.99.1 (58cf8f9c3 2026-10-13).
+- cargo 1.99.1 (5f94df478 2026-08-27).
+- Bun 1.4.2.
+- Temporary tree based on exact staging commit `53d8f834` plus the proposed PR #141 and prompt-cleanup files; the user's checkout was not modified.
+
+## Results
+
+- `cargo fmt --all -- --check`: PASS.
+- `cargo test -p orca-harness-tools bun_repl::tests -- --test-threads=1`: 18 passed, 1 failed, 0 ignored, 46 filtered out.
+- All six tests matching the prior Linux prompt-output failures passed on Windows: `stderr_is_returned_separately`, `imports_resolve_from_the_working_directory`, `multiline_typescript_and_top_level_await_work`, `crash_is_reported_and_next_call_restarts`, `reset_discards_state_without_a_second_restart_notice`, and `timeout_kills_repl_and_next_call_restarts_fresh`.
+- The remaining Windows failure, `tools_frames_are_answered_in_sequence_through_the_response_file`, ended with `PermissionDenied` while writing the response file in this restricted sandbox. It is not one of the six prompt failures and is not classified as a code pass.
+- Linux end-to-end validation and hosted CI remain pending. WSL/Docker access is denied in this session and CI has no executable result.
+
+This evidence supports the output-filter change only. It does not close the Linux workspace/Bun gate.

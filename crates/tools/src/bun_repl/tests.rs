@@ -241,6 +241,12 @@ fn terminal_redraws_and_banners_are_removed() {
 }
 
 #[test]
+fn leading_repl_prompt_is_removed_without_losing_output() {
+    let raw = b"> \nout\n>\n";
+    assert_eq!(clean_stdout(raw), "out\n>");
+}
+
+#[test]
 fn ansi_is_removed_without_losing_text() {
     assert_eq!(strip_ansi("a\x1b[31mred\x1b[0mz\r\n"), "aredz\n");
 }

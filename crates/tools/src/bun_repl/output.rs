@@ -36,7 +36,7 @@ pub(super) fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 /// input echo, not program output, so discard them along with the banner and
 /// `.load` notice. User output is otherwise preserved as plain text.
 pub(super) fn clean_stdout(raw: &[u8]) -> String {
-    String::from_utf8_lossy(raw)
+    let cleaned = String::from_utf8_lossy(raw)
         .split_inclusive('\n')
         .filter(|line| !line.contains("\u{1b}[2K"))
         .map(strip_ansi)
@@ -46,7 +46,11 @@ pub(super) fn clean_stdout(raw: &[u8]) -> String {
                 && !line.starts_with("Type .copy")
                 && !line.starts_with("Loading ")
         })
-        .collect::<String>()
+        .collect::<String>();
+    let cleaned = cleaned.trim();
+    cleaned
+        .strip_prefix("> \n")
+        .unwrap_or(cleaned)
         .trim()
         .to_owned()
 }
