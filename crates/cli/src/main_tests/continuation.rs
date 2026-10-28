@@ -1,0 +1,383 @@
+    fn user(text: &str) -> Message {
+        Message::User {
+            content: text.into(),
+            images: Vec::new(),
+        }
+    }
+
+    fn assistant(text: &str) -> Message {
+        Message::Assistant {
+            content: Some(text.into()),
+            tool_calls: Vec::new(),
+        }
+    }
+
+    /// A three-turn conversation: system, then user/assistant pairs.
+    fn conversation() -> Vec<Message> {
+        vec![
+            Message::System {
+                content: "sys".into(),
+            },
+            user("one"),
+            assistant("a1"),
+            user("two"),
+            assistant("a2"),
+            user("three"),
+            assistant("a3"),
+        ]
+    }
+
+    #[test]
+    fn rewind_cuts_on_a_user_boundary() {
+        let messages = conversation();
+        // One turn: cut at the last user message, dropping it and what
+        // followed it.
+        assert_eq!(rewind_cut(&messages, 1), Some((5, 1)));
+        assert_eq!(rewind_cut(&messages, 2), Some((3, 2)));
+        // Every cut lands on a user message, never mid-turn.
+        for turns in 1..=3 {
+            let (cut, _) = rewind_cut(&messages, turns).unwrap();
+            assert!(matches!(messages[cut], Message::User { .. }), "{turns}");
+        }
+    }
+
+    #[test]
+    fn rewinding_past_the_start_rewinds_everything_it_can() {
+        let messages = conversation();
+        // Three turns exist; asking for ten keeps the system prompt.
+        assert_eq!(rewind_cut(&messages, 10), Some((1, 3)));
+        let (cut, dropped) = rewind_cut(&messages, 10).unwrap();
+        assert_eq!(dropped, 3);
+        let kept = context_from(&messages[..cut]);
+        assert_eq!(kept.messages().len(), 1);
+        assert!(matches!(kept.messages()[0], Message::System { .. }));
+    }
+
+    #[test]
+    fn rewinding_a_conversation_with_no_turns_is_a_no_op() {
+        let only_system = vec![Message::System {
+            content: "sys".into(),
+        }];
+        assert_eq!(rewind_cut(&only_system, 1), None);
+        assert_eq!(rewind_cut(&[], 1), None);
+    }
+
+    /// The remaining transcript must never end in tool calls with no
+    /// results — a chat-completions endpoint rejects that shape.
+    #[test]
+    fn rewind_never_leaves_dangling_tool_calls() {
+        let messages = vec![
+            Message::System {
+                content: "sys".into(),
+            },
+            user("one"),
+            Message::Assistant {
+                content: None,
+                tool_calls: vec![orca_harness_core::ToolCall {
+                    id: "c1".into(),
+                    name: "shell".into(),
+                    arguments: serde_json::json!({}),
+                }],
+            },
+            Message::Tool {
+                results: vec![ToolResult {
+                    call_id: "c1".into(),
+                    tool_name: "shell".into(),
+                    output: serde_json::json!("ok"),
+                    is_error: false,
+                }],
+            },
+            user("two"),
+        ];
+        let (cut, _) = rewind_cut(&messages, 1).unwrap();
+        let kept = context_from(&messages[..cut]);
+        // The call and its result are both kept, or both dropped.
+        if let Some(Message::Assistant { tool_calls, .. }) = kept.messages().last() {
+            assert!(tool_calls.is_empty());
+        }
+        assert_eq!(kept.messages().len(), 4);
+    }
+
+    #[test]
+    fn context_from_copies_the_messages_it_is_given() {
+        let messages = conversation();
+        let rebuilt = context_from(&messages[..3]);
+        assert_eq!(rebuilt.messages().len(), 3);
+        assert_eq!(
+            serde_json::to_string(rebuilt.messages()).unwrap(),
+            serde_json::to_string(&messages[..3]).unwrap()
+        );
+    }
+
+    /// Plan mode must reach every level of the agent tree. Spawning is
+    /// denied in plan mode, so the case this covers is the reachable
+    /// one: a subagent already running when the user flips `/mode`.
+    #[tokio::test]
+    async fn spawned_subagents_inherit_the_plan_gate() {
+        use orca_harness_core::{ToolCall, ToolDecision};
+
+        let (ui, _rx) = mpsc::unbounded_channel();
+        let mode = ModeHandle::new(Mode::Normal);
+        let spawn = SubagentSpawn {
+            stage: None,
+            run: None,
+            id: 1,
+            parent_id: None,
+            depth: 0,
+            call_id: "c1".into(),
+            task: "do the thing".into(),
+            identity: Some(orca_harness_tools::SubagentIdentity::new(
+                "openrouter",
+                "anthropic/claude-sonnet-5",
+            )),
+        };
+        let settings = orca_harness_tools::SubagentDepth::default();
+        let extensions =
+            subagent_extensions(&spawn, &ui, &mode, &PlanArea::new(), &settings, None, None);
+        let names: Vec<&str> = extensions.iter().map(|ext| ext.name()).collect();
+        assert!(names.contains(&"plan-mode"), "{names:?}");
+        assert!(names.contains(&"truncation"), "{names:?}");
+
+        let gate = extensions
+            .iter()
+            .find(|ext| ext.name() == "plan-mode")
+            .expect("a plan gate");
+        let call = ToolCall {
+            id: "c2".into(),
+            name: "write_file".into(),
+            arguments: serde_json::json!({}),
+        };
+        // The inner gate shares the session's handle, so flipping the
+        // mode reaches an already-spawned agent.
+        assert!(matches!(
+            gate.before_tool(&call).await.unwrap(),
+            ToolDecision::Continue
+        ));
+        mode.set(Mode::Plan);
+        assert!(matches!(
+            gate.before_tool(&call).await.unwrap(),
+            ToolDecision::Deny { .. }
+        ));
+
+        // The worker view is what actually reaches workers: orchestrate
+        // does not propagate (its whole point is to push work down to
+        // these agents), while plan does.
+        mode.set(Mode::Orchestrate);
+        let worker_gate = extensions
+            .iter()
+            .find(|ext| ext.name() == "plan-mode")
+            .expect("a plan gate");
+        let gate_call = ToolCall {
+            id: "c3".into(),
+            name: "shell".into(),
+            arguments: serde_json::json!({"command": "cargo test"}),
+        };
+        assert!(matches!(
+            worker_gate.before_tool(&gate_call).await.unwrap(),
+            ToolDecision::Continue
+        ));
+    }
+
+    fn planning(mode: Mode) -> Planning {
+        Planning {
+            mode: ModeHandle::new(mode),
+            area: PlanArea::new(),
+        }
+    }
+
+    /// A planning episode briefs the model once and names no file: what
+    /// to write, and whether to write anything, is the agent's call.
+    #[test]
+    fn a_planning_episode_briefs_once_and_names_no_file() {
+        let planning = planning(Mode::Plan);
+        let mut context = Context::new();
+        context.push_system("base prompt");
+
+        assert!(planning.open_episode(&mut context), "the first turn briefs");
+        let briefing = match context.messages().last() {
+            Some(Message::System { content }) => content.clone(),
+            other => panic!("expected a system briefing, got {other:?}"),
+        };
+        assert!(briefing.contains("docs/plan/"), "{briefing}");
+        assert!(briefing.contains("You choose the name"), "{briefing}");
+        assert!(briefing.contains("Decide for yourself"), "{briefing}");
+        // Nothing has been written, so nothing is claimed.
+        assert!(planning.area.written().is_empty());
+
+        // Later turns in the same episode add nothing.
+        let before = context.messages().len();
+        assert!(!planning.open_episode(&mut context));
+        assert_eq!(context.messages().len(), before);
+    }
+
+    /// Normal mode never briefs, so an ordinary session's context is
+    /// untouched by any of this.
+    #[test]
+    fn normal_mode_opens_no_episode() {
+        let planning = planning(Mode::Normal);
+        let mut context = Context::new();
+        context.push_system("base prompt");
+        assert!(!planning.open_episode(&mut context));
+        assert_eq!(context.messages().len(), 1, "no briefing pushed");
+    }
+
+    /// Ending an episode and planning again briefs afresh — the model in
+    /// the second episode has to be told the rules too.
+    #[test]
+    fn a_second_episode_briefs_again() {
+        let planning = planning(Mode::Plan);
+        let mut context = Context::new();
+        assert!(planning.open_episode(&mut context));
+        planning.area.record("docs/plan/2026-08-22-first.md");
+
+        let written = planning.area.end();
+        assert_eq!(written, ["docs/plan/2026-08-22-first.md".to_string()]);
+        assert!(planning.open_episode(&mut context));
+        assert!(planning.area.written().is_empty(), "a fresh list");
+    }
+
+    /// Ambiguous startup combinations resolve toward the safer mode.
+    #[test]
+    fn startup_flags_pick_the_safest_requested_mode() {
+        let base = Config {
+            provider: Provider::Local,
+            model: "m".into(),
+            base_url: "u".into(),
+            api_key: None,
+            firecrawl_key: None,
+            openrouter: false,
+            list_models: false,
+            workspace: PathBuf::from("."),
+            prompt: None,
+            json: false,
+            auto_approve: false,
+            max_steps: 4,
+            max_output_tokens: None,
+            reasoning_effort: None,
+            prompt_cache: false,
+            tools: None,
+            bare: false,
+            subagent_depth: 1,
+            continue_latest: false,
+            resume_id: None,
+            no_session: true,
+            theme: "default".into(),
+            plan: false,
+            orchestrate: false,
+            normal: false,
+            auto: false,
+            yolo: false,
+        };
+        assert_eq!(base.mode(), Mode::Normal);
+        assert_eq!(
+            Config {
+                plan: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Plan
+        );
+        assert_eq!(
+            Config {
+                orchestrate: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Orchestrate
+        );
+        assert_eq!(
+            Config {
+                normal: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Normal
+        );
+        assert_eq!(
+            Config {
+                auto: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Auto
+        );
+        assert_eq!(
+            Config {
+                yolo: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Yolo
+        );
+        // Orchestrate outranks auto/yolo, normal outranks auto/yolo, and
+        // plan outranks all four.
+        assert_eq!(
+            Config {
+                normal: true,
+                auto: true,
+                yolo: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Normal
+        );
+        assert_eq!(
+            Config {
+                orchestrate: true,
+                auto: true,
+                yolo: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Orchestrate
+        );
+        // Orchestrate also outranks normal: it is normal's stance with the
+        // top-level agent's mutations removed.
+        assert_eq!(
+            Config {
+                normal: true,
+                orchestrate: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Orchestrate
+        );
+        assert_eq!(
+            Config {
+                auto: true,
+                yolo: true,
+                ..base.clone()
+            }
+            .mode(),
+            Mode::Auto
+        );
+        assert_eq!(
+            Config {
+                plan: true,
+                normal: true,
+                orchestrate: true,
+                auto: true,
+                yolo: true,
+                ..base
+            }
+            .mode(),
+            Mode::Plan
+        );
+    }
+
+    #[test]
+    fn provider_precedence_is_explicit_not_inferred_from_url_text() {
+        assert_eq!(
+            select_provider(true, true, Some(Provider::OpenAiCodex)),
+            Provider::OpenRouter
+        );
+        assert_eq!(
+            select_provider(false, true, Some(Provider::OpenAiCodex)),
+            Provider::Local
+        );
+        assert_eq!(
+            select_provider(false, false, Some(Provider::OpenAiCodex)),
+            Provider::OpenAiCodex
+        );
+        assert_eq!(select_provider(false, false, None), Provider::OpenAi);
+    }
