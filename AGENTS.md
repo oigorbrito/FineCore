@@ -8,6 +8,10 @@ This file is the root entry point for automated and human-assisted work on the F
 - `bootstrap/finecore-independent` is the greenfield base; `migration/orca-faithful-import` is its Orca harness staging descendant. Develop on isolated descendants of staging; PR Draft base must be staging or an explicitly reviewed descendant, **never main**.
 - No merge or auto-merge to any branch, no bootstrap promotion, release, tag, publish, branch protection change, worktree/alias deletion, or destructive rebase without a separate explicit decision. Respect dirty worktrees and existing PR stacks.
 
+## Rule provenance and review status
+
+The [skill evidence and authority map](.agents/skills/finecore-migration-identity/SKILL.md#evidence-and-authority-map) states for each gate whether its basis is a technical contract, the repository's recorded evidence, or FineCore-specific governance. Cite the exact revision and command/output for PASS; do not infer current validation from archived logs. GitHub mergeability alone does not establish approval, test success, or compliance. FineCore's no-automatic-merge and history separation rules are deliberate governance restrictions, **not claims that SLSA, NIST or Git requires this exact workflow**. This policy references established practices but makes **no certification claim**.
+
 ## Definition of evidence
 
 Every change must have a source commit and scope, tests or a documented research protocol, and a clear distinction between observed behavior, upstream data and inference. An external Pi/Marshall/Orca benchmark is not a FineCore benchmark. No passing status from historical logs. Inherited failing gates remain RED until fixed, not waived by a comparison.
