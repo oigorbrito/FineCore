@@ -22,6 +22,17 @@ Pi is TypeScript and FineCore is Rust; the target is **observable functional par
 - Decide which Pi providers/auth methods have viable Rust backends and whether unsupported providers should be hidden or reported as unsupported.
 - Define observable acceptance tests before implementation. No credential migration or deletion without explicit approval.
 
+### 0A. Canonical FineCore identity (mandatory cross-cutting gate)
+
+- Define **FineCore** as the canonical public identity for the CLI binary and `--version`, TUI labels, user-facing commands and help, first-party documentation, benchmark results, and any future release/distribution artifacts. Do not attribute upstream Orcacode measurements, installation endpoints, or releases to FineCore.
+- Keep inherited `orca-harness-*` library crate/API identifiers, `ORCA_*` environment variables, plugin namespaces, persisted paths, and compatible provider/config IDs **where required for compatibility**. A public-facing FineCore name does not authorize broad internal renaming.
+- Build an identity contract matrix for each surface: canonical external name, inherited compatibility identifier, current implementation, permitted alias, migration strategy, and test/evidence link. Explicitly identify third-party Pi names and behaviors as reference material, never as FineCore branding.
+- Make aliases deliberate and documented; retain read compatibility for existing configuration and sessions. Any new canonical write format, namespace, path, or environment variable requires a separately reviewed, non-destructive migration plan with rollback. Never silently rewrite or remove user credentials or settings.
+- Add deterministic automated regression tests for CLI/help/version, TUI/model-selector/login/logout labels, registry/provider IDs and persistence, benchmark identity/provenance, generated plugin scaffolds, and release/updater fail-closed behavior. Distinguish source-identity tests from behavioral parity tests; do not claim performance parity without a matched FineCore measurement.
+- Treat the identity matrix and tests as a prerequisite for implementing stages 1–3 and as a release gate at stage 4. Do not promote or merge unrelated Git histories: `main` remains tracker/evidence-only, `migration/orca-faithful-import` remains harness staging, and `bootstrap/finecore-independent` promotion is a separate audited decision.
+
+**0A acceptance:** public identity uses FineCore consistently; inherited compatibility identifiers are intentional and tested; no destructive migration or implicit Pi/Orcacode branding; benchmarks are provenance-labelled; release/update pathways cannot install upstream binaries as FineCore; the identity contract matrix is reviewed and linked to executable test results. Unmet criteria remain explicitly blocked, not waived silently.
+
 ### 1. Provider and model registry
 
 - Replace hard-coded selection assumptions with a provider/model registry that can represent configured, unavailable, and dynamically discovered models.
