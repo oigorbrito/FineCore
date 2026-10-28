@@ -1121,3 +1121,5 @@ scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f4
 ,docs/validation-logs/windows-config-storage-finecore-53d8.log,,0ee3f4f4835c58b80d20b126d1ad958f5f272a9c,added,validation-evidence,"Raw Windows focused configuration storage test output for FineCore staging commit 53d8f834."
 ,docs/validation-logs/windows-config-storage-orca-c3.log,,46e6823ac38e92c8a617e7c18dd5ead119910513,added,validation-evidence,"Raw Windows focused configuration storage test output for the c3bbf29 baseline."
 ,docs/validation-logs/windows-workspace-finecore-53d8.log,,63aa32040f7f2dec5968744fbcc801c41304c3a7,added,validation-evidence,"Raw Windows full workspace test output for FineCore staging commit 53d8f834."
+,docs/MIGRATION_ROADMAP.md,,fb089c01d4ae1844ec3af11e666ef0f1da8014a9,added,repository-integration,"Accepted FineCore Orca migration phase plan; not part of the pinned Orca source tree."
+,.agents/skills/orca-harness-migration/SKILL.md,,50d7887ea5245b466a12e9720a13597e548b710c,added,repository-integration,"FineCore migration execution guidance; not part of the pinned Orca source tree."
