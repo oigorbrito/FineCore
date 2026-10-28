@@ -1111,7 +1111,7 @@ docs/validation-logs/linux-workspace-finecore.log,docs/validation-logs/linux-wor
 docs/validation-logs/linux-workspace-upstream.log,docs/validation-logs/linux-workspace-upstream.log,,5cca9cb6fa2713583eeb6fe30ded7a1bca23f1d6,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for pinned Orca source.
 docs/upstream-import-manifest.csv,docs/upstream-import-manifest.csv,,1c8688f52393e3be1d79c39e997470842c932deb,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
 ,npm/finecore/README.md,,7073525ba324d5e5cf86eb4b87c362140f059d36,added,repository-integration,Internal placeholder; explicitly states that this directory does not reserve the npm name and is not the FineCore CLI.
-,npm/finecore/package.json,,a69f45f726f3e27c473efac1301e5ef62d85d0d6,added,repository-integration,private=true prevents accidental publication of this repository placeholder; no npm name reservation claim.
+,npm/finecore/package.json,,89a340b9b3917c78101d46035258c381845eeb9e,added,repository-integration,private=true prevents accidental publication of this repository placeholder; no npm name reservation claim.
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
