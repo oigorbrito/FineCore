@@ -1,0 +1,100 @@
+---
+name: finecore-migration-identity
+description: Evidence-gated migration and canonical FineCore identity across isolated Git histories; use before importing, branding, adapting, proposing, or promoting harness changes.
+---
+
+# FineCore migration and canonical identity — mandatory procedure
+
+## Authority and scope
+
+This skill governs changes involving the Orca-to-FineCore import, canonical product identity, compatibility aliases, upstream adaptations, documentation and benchmark provenance. Read the repository root `AGENTS.md`, `docs/FINECORE_IDENTITY_INVENTORY.md`, `docs/identity-divergence.csv`, `docs/upstream-import-manifest.csv`, and `docs/MIGRATION_VALIDATION.md` before acting. If files disagree, stop, record the discrepancy, and resolve via evidence; do not assume this skill supersedes Git reality.
+
+**Protected histories:** remote `main` contains tracker/evidence history only, not the Rust harness. `bootstrap/finecore-independent` is greenfield. `migration/orca-faithful-import` descends from bootstrap and is the designated harness staging base. Never merge harness commits into remote `main`, rewrite unrelated histories, force-push, rebase destructively, modify branch protection, delete worktrees/aliases, publish releases, or auto-merge. Promotion to bootstrap is a separate explicit decision after audit; no automation may promote it.
+
+
+## Executor access and roadmap reconciliation gate
+
+Never assume the executor has access to this conversation, an untracked local roadmap or another Git branch. At the start, verify that the checked-out root contains the required files. On the policy PR branch the root `AGENTS.md`, this skill, migration manifests and validation records are present; on unmerged `migration/orca-faithful-import` the newly authored policy files are not yet available. Provide exact relative paths and immutable Git refs for cross-branch material. Read-only remote retrieval may establish provenance; do not execute historical instructions as current policy.
+
+**Current Orca staging evidence** (ref `migration/orca-faithful-import@2d95a810`): `docs/upstream-import-manifest.csv`, `docs/identity-divergence.csv`, `docs/FINECORE_IDENTITY_INVENTORY.md`, `docs/MIGRATION_VALIDATION.md`. The file `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md` is a **separate future feature roadmap**, not the Orca migration roadmap. Stage 0A is proposed in PR #132 and must not be claimed present in plain staging until integrated.
+
+**Alternative/historical paths** (retrieve only for comparison): `migration/finecore-m01@a0b9d775:docs/migration/FINECORE-M01.md` plus `AGENTS.md` and `.github/skills/reconciliation/SKILL.md` concern an earlier `oigorbrito/core` source; `migration/orca-tree-import@41be0191:docs/migration/ORCA-IMPORT-04.md` concerns an alternate `vendor/orca-harness/` subtree import; `feature/pi-auth-parity-02@5b652a84:docs/engineering/ORCA_MIGRATION_INTEGRATION.md` discusses the PR #111 route to tracker `main`, which is **not authorized** by current policy. Do not merge or cherry-pick these unrelated histories to reconcile documents.
+
+A reported untracked local `docs/MIGRATION_ROADMAP.md` proposes importing directly into bootstrap, contrary to the observed staging lineage and the separate promotion gate. It has **not** been located in the verified remote staging/policy trees. If locally available, preserve it and capture content/provenance for review; if unavailable, mark its reconciliation UNKNOWN. Never treat the 404 as permission to fabricate or discard it.
+
+If source or decision conflicts, mark only **dependent** operations BLOCKED and continue independent inventory, test characterization and evidence collection. For any write, require verified destination branch, current SHA and unaffected scope; no edits whose correctness depends on an unresolved roadmap decision. An instruction without a repository-accessible reference is not an executable gate.
+
+## Classification: separate facts from hypotheses
+
+- **Verified**: link to immutable commit/tree/blob, complete command, environment, raw output/artifact and pass/fail comparison.
+- **Inherited failure**: reproduce at pinned Orca source *and* FineCore with matching versions and environment; cite equivalent test name and failure signature. Inherited does not mean passed.
+- **Unverified**: missing log, unavailable source, incomplete coverage, no comparable baseline, or unstable/flaky outcome. Mark BLOCKED, never infer success.
+- **External evidence**: Pi, Marshall, papers or upstream benchmarks may justify a local experiment, not a FineCore performance claim; record transfer assumptions and limitations.
+
+## Evidence and authority map
+
+Each rule must be traceable to an authoritative technical contract, recorded FineCore evidence, or an explicitly labeled project governance decision. A reference supports the *principle*, not automatic compliance or demonstrated agent effectiveness.
+
+| Gate | Basis / reference | FineCore evidence and executable check | Classification / limitation |
+| --- | --- | --- | --- |
+| A — lineage, branch safety | [Git merge-base](https://git-scm.com/docs/git-merge-base), [Git rev-parse](https://git-scm.com/docs/git-rev-parse), [SLSA Source Track](https://slsa.dev/spec/v1.2/source/) | Inspect refs and merge bases; compare Git trees and complete `docs/upstream-import-manifest.csv` against pinned Orca/import SHAs | Git behavior is technical; protecting remote `main` and forbidding auto-merge are **FineCore governance**, not Git/SLSA mandates |
+| A — identity divergence and provenance | [SLSA v1.2](https://slsa.dev/spec/v1.2/), [NIST SSDF SP 800-218](https://csrc.nist.gov/pubs/sp/800/218/final) | Recompute blob SHAs and reconcile `docs/identity-divergence.csv`; preserve upstream `LICENSE`/`NOTICE`; verify changed-path disposition | Practices align with provenance/secure development; **no SLSA or NIST certification/conformance is claimed** |
+| B — canonical identity and compatibility | `docs/FINECORE_IDENTITY_INVENTORY.md`, `docs/MIGRATION_VALIDATION.md` and `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md` (project-specific contracts) | Check `finecore --version`, CLI/TUI identifiers, `ORCA_*` and plugin/config compatibility, historical benchmark labels and disabled upstream updater; run affected contract tests | **FineCore architecture and naming decisions**, not externally standardized product names; compatibility requires targeted tests |
+| C — testing and reproducibility | [NIST SSDF SP 800-218](https://csrc.nist.gov/pubs/sp/800/218/final), [Google SRE — Testing for Reliability](https://sre.google/sre-book/testing-reliability/) | Capture command, toolchain/OS, revision, raw logs, baseline and regression comparison; report FAIL/UNKNOWN without waivers; distinguish inherited red gates | An upstream/third-party benchmark is only transferable evidence subject to matching workload; it is not a FineCore result |
+| D — review and deployment gate | [GitHub pull requests](https://docs.github.com/en/pull-requests/reference/pull-requests), [Draft PRs](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests#draft-pull-requests), NIST SSDF | Confirm PR base/head, draft/checks/reviews, reported blockers and explicit human promotion decision | Draft-only, no merges, bootstrap promotion approval and no writes to `main` are **FineCore governance choices** |
+| Executor-document access and conflict handling | [NIST SSDF SP 800-218](https://csrc.nist.gov/pubs/sp/800/218/final) plus local reproducibility requirement | Verify required files exist at the checked-out ref; disclose missing refs; block only dependent mutations, continue independent read-only work | Local **operational policy**; the cited standard does not prescribe these exact paths or branch names |
+
+**Evidence decision rule:** `PASS` requires the stated check and linked output from the specified revision; `FAIL` records reproduced noncompliance; `UNKNOWN` means not checked or inaccessible; `BLOCKED` means a required dependency/decision is unresolved. Documentation-only changes may use focused structural checks; runtime/security changes require relevant executable regressions. A historical report is evidence **of that historical run only**. References are informative, not a waiver of tests.
+
+## Gate A — source, lineage, scope (required before edits)
+
+1. Record `git status --porcelain=v1`, `git branch --show-current`, `git rev-parse HEAD`, `git remote -v`, and `git merge-base` against staging. Do not overwrite dirty files or assume current working tree belongs to staging.
+2. Pin upstream Orca commit and verbatim import commit; compare the complete source manifest, count and blob SHA. Baseline at this revision: Orca `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`, initial import `e036dd7a7e2a040b4da1152d99aede0552cb1641`, 1,101 source files. These are recorded reference facts, **not perpetual expected counts**.
+3. Identify changed paths against the correct ancestor, and prove that proposed branch descends from staging; default PR base for harness changes is `migration/orca-faithful-import` or a reviewed descendant, never `main`.
+4. Inventory every affected source blob and identity change in `docs/identity-divergence.csv`, with truthful classification, justification, and corresponding destination hash. Validate the whole current manifest, including new paths, not only selected rows. Keep historical source artifacts intact.
+5. If branch ancestry or manifests conflict, stop modifications and report exact refs, paths, mismatch counts, and reproducer.
+
+## Gate B — canonical identity and compatibility
+
+Canonical **public** identity is `FineCore`: CLI executable/crate `finecore`, UI/help/version, user-facing commands, new documentation, new benchmark-result metadata and future distribution. This does **not** authorize mechanically renaming inherited Rust libraries `orca-harness-*`, `ORCA_*` variables, `.orca` persistence, plugin namespace `io.github.okikorg.orcacode`, protocol headers, MCP identities, or historical fixture/result identifiers.
+
+For each affected surface, maintain an identity contract row: source symbol/path; canonical public name; retained compatibility name; observed behavior; reader/writer precedence; storage/security implications; tests; planned rollback. Alias changes require round-trip and backward-compatibility tests, no silent credential/session migrations or deletion. Historical upstream measurements and release links must be labeled upstream; never present them as measured FineCore performance or available FineCore install methods. FineCore updater/release channels must fail closed until their ownership and artifacts are separately approved. Do not claim npm names are reserved without registry/publisher evidence; a placeholder must be `private: true` or removed.
+
+## Gate C — experimental and regression proof
+
+- Classify each change as **documentation-only**, **identity/compatibility**, **behavioral**, **performance**, or **release/security**. Declare a focused acceptance matrix *before* implementation.
+- For behavior/performance changes require trustworthy reproduced upstream tests, directly applicable independent evidence or a local controlled experiment; document baseline, workload, tool versions, sample size, variance/CI where appropriate, pass criteria, safety and negative cases. Re-run FineCore-specific regressions after adaptation. No unmeasured claims.
+- Verify `git diff --check`, manifests/hashes, schema/JSON and targeted checks even for docs-only changes. Runtime/config changes also require formatting, build, CLI/workspace tests and relevant Linux/Windows paths, with documented differences against pinned Orca.
+- Known historical red gates (Bun REPL, strict Clippy, source-size, binary-size, Windows platform failures) stay **RED** until independently fixed and revalidated. Never weaken budgets, skip tests, or relabel an inherited failure as PASS.
+- Distinguish prior stored test logs from current execution, and mock auth from live authenticated behavior. Never expose credentials, run paid-provider calls or destructive state changes without authorization.
+
+## Change hygiene — avoid stacked-PR and documentation sprawl
+
+- Prefer **one independently reviewable change per PR**, with several cohesive commits allowed on the same branch. Do not create a new branch/PR for every commit, test, failed gate or documentation adjustment. Update the existing scoped PR when its purpose is unchanged.
+- **Commit hygiene inside a PR:** make each commit an intentional, reviewable unit with a descriptive message; do not commit after every agent step, failed test, minor edit, or log update. Run focused checks before recording an implementation milestone. Iterative local edits may stay uncommitted until a coherent slice is ready, provided existing uncommitted user work is preserved.
+- **Commit-count review checkpoint:** at **5 commits on a new scoped PR** (excluding inherited base commits), pause further *routine* commits and examine whether history contains fixup/revert churn, unrelated scope or redundant documentation. Five is a **FineCore review heuristic, not a scientific limit**. Document why more commits are necessary; do not block essential fixes or safety work merely to meet a number.
+- **Runaway-history circuit breaker:** before every routine commit/push, inspect the actual PR comparison base and unique commits using `git merge-base <base> HEAD`, `git rev-list --count <merge-base>..HEAD`, `git log --oneline <merge-base>..HEAD` and `git diff --stat <base>...HEAD`. If the base has no common ancestor, **STOP** and report a topology error; do not misinterpret the thousands of unrelated commits as new changes or try `--allow-unrelated-histories`. Distinguish inherited stack commits from commits authored on the PR branch; verify the GitHub PR base/head, not only local branch names.
+- **Escalation, not endless commits:** after the 5-commit review checkpoint, a PR reaching **20 unique commits compared with its intended integration base** enters `HISTORY_REVIEW_REQUIRED`: stop *routine* commit/push cycles and request an explicit human decision based on the commit list, net diff, dependency graph and preserved SHAs. Exceptions for urgent safety fixes require a recorded reason; this is a **local risk threshold**, not a scientific optimum. Never silently continue to 100/1,000+ commits because the agent has more tasks.
+- **Remediation without losing history:** classify whether the inflation comes from a wrong base, inherited stacked ancestors, agent-generated checkpoint churn or genuinely distinct changes. Provide a read-only plan to retarget the PR, split scope, consolidate at approved merge time, or construct a clean replacement branch after an explicit decision. Do not automatically squash, reset, force-push, delete or replace published refs; preserve the original PR for traceability.
+- **Enforcement boundary:** this skill is an instruction, **not a server-side guard**. A fail-closed GitHub required status check or branch ruleset is needed to block noncompliant pushes/merges independently of agent obedience; propose it separately and obtain authorization before modifying CI or repository settings.
+- When a PR's history is noisy, prefer **a proposed human-reviewed consolidation plan** (e.g., grouped logical changes or GitHub squash at explicitly authorized merge time), not automatic amend/rebase/squash/force-push. Rewriting pushed commits changes SHAs and can invalidate dependent PRs or review comments. Never rewrite a published stack without explicit approval.
+- CI results, experiment iterations and explanatory notes belong in the **PR description/comments or linked artifacts**, not in a new commit unless tracked content or executable tests actually changed. Review both the net diff and commit history; passing checks alone does not justify an opaque series of unrelated commits.
+- Stack PRs **only for an actual code dependency** that cannot be reviewed independently. In each stacked PR description state its parent PR, exact base branch, scope, and unblock condition. Limit each stack to **three open layers by default**; exceeding that requires a concrete dependency explanation and a review checkpoint, not an automatic prohibition of work.
+- Before opening a branch, search existing issues/PRs for the same concern; prefer extending a current issue, PR, or test artifact. Name branches by stable *concern* (e.g. `fix/config-store-integrity`) instead of incrementing arbitrary numeric suffixes. Do not rename or rewrite pre-existing branches solely to satisfy naming guidance.
+- Do not automatically restack, rebase, force-push, retarget, delete, merge or close existing PRs; these operations can change reviewed commits or invalidate dependent stacks. The remote `main` is **never** the trunk for harness PRs; their trunk is `migration/orca-faithful-import`.
+- Keep **one canonical policy entry** (root `AGENTS.md`), **one specialized procedure** (this skill), and existing focused evidence ledgers. Prefer revising the existing roadmap or issue/PR description over adding a parallel markdown status report. Create a durable document only for a distinct, reusable contract or audit that cannot reasonably live in an existing file.
+- Keep bulky raw logs, trial outputs and temporary reports in CI artifacts or designated evidence storage, linked by immutable SHA/run ID in the relevant PR or existing validation report; do not commit redundant copies, generated summaries or repeated handoffs.
+- Periodically inspect open branches and dependency chains **read-only**; report candidates for manual consolidation. Never prune worktrees, delete refs or squash histories automatically.
+
+**Basis and limits:** [GitHub stacked PRs](https://docs.github.com/en/pull-requests/reference/stacked-pull-requests) documents focused dependent reviews; [Git worktree](https://git-scm.com/docs/git-worktree) supports isolated worktrees; [Graphite restacking](https://graphite.com/docs/restack-branches) illustrates dependency maintenance but may rewrite stack commits. The three-layer review checkpoint, branch naming and documentation budget are **FineCore governance heuristics**, not scientific optimal thresholds. No mandatory third-party stack tool and no automatic rewriting.
+
+## Gate D — review, publication, promotion
+
+1. Commit only scoped, audited files in isolated branch descended from staging. Preserve original authorship, notices and licenses; no force-push. Do not modify unrelated local work.
+2. Open **Draft PR** against staging (or appropriate descendant), link upstream ref, divergence rows, test logs, baseline comparisons and explicit RED/UNKNOWN gates. Research-only findings get an issue with falsifiable protocol, not speculative production PR.
+3. No checks shown on GitHub is **NOT VERIFIED**, not CI passing. `mergeable: true` is only a Git conflict check, not readiness. Never auto-merge or auto-close.
+4. Promotion from staging to bootstrap requires: complete 61-divergence re-review for the pinned snapshot (or updated audited count), identity acceptance matrix, independently refreshed test evidence, resolved/accepted inherited gates with named owner, and explicit human approval. A bootstrap promotion does not authorize touching remote `main`.
+
+## Required completion report
+
+Record: source and destination SHAs; branch and PR base; exact changed paths; blob/manifests deltas; commands run with environment/results; inherited failures and blockers; identity/compatibility implications; upstream/external evidence and limitations; actions explicitly **not** taken (especially `main`, merge, release and force-push). Never say “validated” without specifying which gate and evidence.
