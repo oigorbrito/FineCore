@@ -12,7 +12,7 @@
 - Windows, Rust/Cargo 1.99.1.
 - `cargo fmt --all -- --check`: PASS.
 - `cargo test -p orca-harness-extensions memory::tests -- --test-threads=1`: 14 passed, 0 failed.
-- Source-size predicate from `ci/check-source-size.sh` evaluated over all Rust/include/part files in the exact temporary staging copy: 16 files remain over 599 lines. The memory source is now 595 lines and its helper is 8 lines; aggregate source-size gate remains RED.
+- Source-size predicate from `ci/check-source-size.sh` evaluated over all Rust/include/part files in the isolated staging-plus-memory-change copy: 16 files remain over 599 lines (the MCP client is still over the limit in this isolated comparison). The actual PR #143 branch also inherits PR #141's MCP extraction; its composed tree has 15 remaining violations. Two other independent violations are addressed by Draft PR #138 and are not included in this PR branch. The memory source is now 596 newline-counted lines and its helper is 9 newline-counted lines; aggregate source-size gate remains RED.
 - The shell gate itself was not run here because the MSYS execution path is denied in this sandbox. The equivalent file enumeration and line-count predicate was evaluated in PowerShell.
 - Linux workspace validation and hosted CI remain pending.
 
