@@ -837,6 +837,7 @@ crates/sdk/examples/agent_tour.rs,crates/sdk/examples/agent_tour.rs,edaf7932daba
 crates/sdk/examples/background_cancellation.rs,crates/sdk/examples/background_cancellation.rs,5391809765ad1ecb263c0eeb3f67b13a120e7166,5391809765ad1ecb263c0eeb3f67b13a120e7166,identical,unchanged,Content matches pinned source blob.
 crates/sdk/examples/custom_tool_events.rs,crates/sdk/examples/custom_tool_events.rs,863936d2cc4fea5a8caac9a9cb85e7ac3733318e,863936d2cc4fea5a8caac9a9cb85e7ac3733318e,identical,unchanged,Content matches pinned source blob.
 crates/sdk/examples/host_assembly.rs,crates/sdk/examples/host_assembly.rs,fcf4cf7ef78af096836ea8febfd7d488d40fb58b,963194aaa518b0db2be9b47926d31e1d153caed9,modified,repository-integration,Extract host assembly workflow phases into a focused included example source without changing its flow.
+,crates/sdk/examples/host_assembly/phases.rs,,e4eee9a70032cf149cf9737eefe9fdb0e140e371,added,repository-integration,Move host assembly workflow phase implementations from the oversized SDK example.
 crates/sdk/examples/live_host_assembly.rs,crates/sdk/examples/live_host_assembly.rs,1d92851a13c11d880277b3000ca18722f3ab572e,1d92851a13c11d880277b3000ca18722f3ab572e,identical,unchanged,Content matches pinned source blob.
 crates/sdk/examples/local_mcp.rs,crates/sdk/examples/local_mcp.rs,ac83607105d198a416d643be770daa86c2aceabf,ac83607105d198a416d643be770daa86c2aceabf,identical,unchanged,Content matches pinned source blob.
 crates/sdk/examples/memory_skills.rs,crates/sdk/examples/memory_skills.rs,d5bc4ee59aa43545df46a4d2dfc5dbea2d528a5c,d5bc4ee59aa43545df46a4d2dfc5dbea2d528a5c,identical,unchanged,Content matches pinned source blob.
@@ -1115,4 +1116,3 @@ npm/finecore/package.json,npm/finecore/package.json,,9de1cd31f26dde90c09210f42ac
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
-,crates/sdk/examples/host_assembly/phases.rs,,e4eee9a70032cf149cf9737eefe9fdb0e140e371,added,repository-integration,Move host assembly workflow phase implementations from the oversized SDK example.
