@@ -16,3 +16,12 @@
 - Linux full tests and hosted CI remain pending, so no migration-wide or platform-wide gate is closed.
 
 The limitation is preserved: the Unix path/symlink tests do not run on Windows, where this module's shell-based test is not portable.
+
+
+## Independent Windows rerun (2026-10-28)
+
+- Candidate: staging `53d8f8344f3f17f28766c7c880981147d3e128c6` plus the PR's `protect.rs` changes and one formatting-only removal of a trailing blank line. Original PR-head blob `3d7c979f`; corrected blob `9860bead`.
+- Host: Windows 10.0.26300 x64, Rust/Cargo 1.99.1.
+- `cargo fmt --all -- --check`: PASS after the formatting correction. On the prior head it failed only on that trailing blank line.
+- `cargo test --locked -p orca-harness-sandbox-providers local::protect::tests -- --test-threads=1`: PASS, 1 portable test passed, 0 failed; two Unix-only tests excluded. Other package test binaries compiled and had no matching filtered tests.
+- No full-workspace, Linux, or hosted-CI result is claimed.
