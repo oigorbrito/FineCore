@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
@@ -17,10 +17,12 @@ mod model;
 mod permissions;
 mod public_id;
 mod schema;
+mod time;
 
 pub use model::MemoryModel;
 use permissions::{open_owner_only, restrict};
 use schema::{MIGRATE_V1_TO_V2, RECORD_COLUMNS, SCHEMA, SCHEMA_VERSION};
+use time::unix_now;
 
 pub const MEMORY_SEARCH_TOOL: &str = "memory_search";
 pub const MEMORY_MANAGE_TOOL: &str = "memory_manage";
@@ -588,13 +590,7 @@ fn bounded_limit(limit: usize) -> usize {
     limit.clamp(1, MAX_LIMIT)
 }
 
-fn unix_now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .unwrap_or(0)
-}
-
 #[cfg(test)]
 #[path = "memory/tests.rs"]
 mod tests;
+

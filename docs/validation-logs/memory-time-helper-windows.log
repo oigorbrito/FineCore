@@ -1,0 +1,19 @@
+# Memory timestamp helper extraction — focused Windows validation
+
+## Source and scope
+
+- Base staging: `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6`.
+- The imported `crates/extensions/src/memory.rs` exceeded the inherited 599-line source-size limit.
+- Moved the private `unix_now()` helper to `crates/extensions/src/memory/time.rs`; call sites and behavior are unchanged.
+- The staged validation copy included only this proposed refactor on top of exact staging. No public API, dependency, or product identity changed.
+
+## Environment and results
+
+- Windows, Rust/Cargo 1.99.1.
+- `cargo fmt --all -- --check`: PASS.
+- `cargo test -p orca-harness-extensions memory::tests -- --test-threads=1`: 14 passed, 0 failed.
+- Source-size predicate from `ci/check-source-size.sh` evaluated over all Rust/include/part files in the exact temporary staging copy: 16 files remain over 599 lines. The memory source is now 595 lines and its helper is 8 lines; aggregate source-size gate remains RED.
+- The shell gate itself was not run here because the MSYS execution path is denied in this sandbox. The equivalent file enumeration and line-count predicate was evaluated in PowerShell.
+- Linux workspace validation and hosted CI remain pending.
+
+This focused evidence supports the helper extraction only; it does not close the migration source-size gate.
