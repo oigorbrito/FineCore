@@ -1,4 +1,4 @@
-# FineCore Orca migration roadmap — local draft, reconcile before execution
+# FineCore Orca migration roadmap — proposal under review
 
 ## Purpose and constraints
 
