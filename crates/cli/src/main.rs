@@ -300,7 +300,7 @@ fn system_prompt(ws: &Workspace, web_search: bool) -> String {
     };
     let memory_guidance = MEMORY_GUIDANCE;
     format!(
-        "You are Orca Code, a coding agent operating in the workspace at {root} on {os}. \
+        "You are FineCore, a coding agent operating in the workspace at {root} on {os}. \
          You act through tools: shell, process (persistent sessions and background \
          processes), pykernel (persistent Python — variables survive across calls; \
          print what you need to see), bun_repl (persistent JavaScript and TypeScript — \
@@ -482,7 +482,7 @@ impl Endpoint {
                     .base_url(self.base_url.clone())
                     .user_agent(ORCACODE_USER_AGENT)
                     .referer(ORCACODE_REFERER)
-                    .title("Orca Code")
+                    .title("FineCore")
                     .categories("cli-agent");
                 if let Some(key) = &self.api_key {
                     model = model.api_key(key.clone());
