@@ -11,7 +11,7 @@ Cargo.toml,Cargo.toml,214457aa2a6dd3b8b7c7b01492c2dc3102ff0109,8bd2cf36c9d9554ad
 LICENSE,LICENSE,16fe87b06e802f094b3fbb0894b137bca2b16ef1,16fe87b06e802f094b3fbb0894b137bca2b16ef1,identical,unchanged,Content matches pinned source blob.
 Makefile,Makefile,dd26921ca1879a882ee61638d02fa58cf5097efd,8c71970ae031a40dea18980a3366af8f3b780c68,modified,identity-only,FineCore development targets; upstream release targets are labeled disabled.
 NOTICE,NOTICE,3b56a3c7fcdaa2040bba1fbf358aa3572fa32312,3b56a3c7fcdaa2040bba1fbf358aa3572fa32312,identical,unchanged,Content matches pinned source blob.
-README.md,README.md,67d0f0281a2cbb4898755d40ecef58de0d890fcf,bbdcd8d7672c194e9c73dfd2160d3aaf21dac8ed,modified,identity-only,FineCore branding/source guidance with upstream installer
+README.md,README.md,67d0f0281a2cbb4898755d40ecef58de0d890fcf,bbdcd8d7672c194e9c73dfd2160d3aaf21dac8ed,modified,identity-only,"FineCore branding/source guidance with upstream installer, docs, and historical material clearly labeled."
 benchmarks/README.md,benchmarks/README.md,3097f302d249514771b1ac824e1e5f35c3abfe84,ff9c09f9ec88f28535a1e942e04b50d00532ee7d,modified,identity-only,"Point active runners/labels at FineCore, preserve metric stems and legacy orca series key, and mark old results as Orca data."
 benchmarks/compare.sh,benchmarks/compare.sh,c086ca31133177f0ce4de9ecc4ef004bf38f32fc,c086ca31133177f0ce4de9ecc4ef004bf38f32fc,identical,unchanged,Content matches pinned source blob.
 benchmarks/compare/README.md,benchmarks/compare/README.md,f033b04f5d616512df5b64910aa61f466c3bdcb6,7390029ff8cb26ada8d5aa1851d9259f6b6b3139,modified,identity-only,Update active comparison docs for the FineCore binary identity.
