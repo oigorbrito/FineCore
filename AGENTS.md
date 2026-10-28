@@ -46,7 +46,7 @@ Canonical operational records shipped in this staging lineage: `docs/FINECORE_ID
 
 Historical records are **not** current execution authority: `migration/finecore-m01@a0b9d775` holds `AGENTS.md`, `.github/skills/reconciliation/SKILL.md`, `docs/migration/FINECORE-M01.md` for an older migration from `oigorbrito/core@8ca24d26`; `migration/orca-tree-import@41be0191` holds `docs/migration/ORCA-IMPORT-04.md` proposing an Orca subtree under `vendor/orca-harness/`; `feature/pi-auth-parity-02@5b652a84` holds `docs/engineering/ORCA_MIGRATION_INTEGRATION.md` describing PR #111 targeting main. These are different histories/strategies. Inspect them at pinned refs when evaluating provenance; never execute their promotion instructions against current staging without an explicit decision.
 
-`docs/MIGRATION_ROADMAP.md` and `.agents/skills/orca-harness-migration/SKILL.md` are proposed in PR #134 against staging, not yet approved as canonical execution policy. When reviewing that branch, reconcile against this root contract and the general identity skill; when running plain staging without PR #134, treat both files as unavailable proposals, not required execution inputs. Never assume an untracked local copy has authority.
+`docs/MIGRATION_ROADMAP.md` and `.agents/skills/orca-harness-migration/SKILL.md` were added by PR #134 and merged into staging at `3dd7dadd8acf650c7f130223985cdf44e8ef0f5a`. They are available in staging, and the roadmap is the accepted phase plan for Orca migration. It does not override this root contract or the identity skill. Verify both files at the exact checked-out ref and do not substitute copies from another branch. The roadmap defines sequence and gates; its own text does not prove a gate passed.
 
 For a missing document or conflicting instruction: continue **independent read-only or non-conflicting tasks**, record the missing source as UNKNOWN/BLOCKED for the dependent gate, and halt only mutations that rely on that disputed decision. Never broadly halt safe inventory work or silently assume precedence.
 
@@ -57,4 +57,4 @@ For a missing document or conflicting instruction: continue **independent read-o
 - `docs/FINECORE_IDENTITY_INVENTORY.md` — compatibility surfaces and decisions.
 - `docs/MIGRATION_VALIDATION.md` — recorded, not necessarily current, validation.
 - `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md` — separate Pi feature roadmap; proposed changes in PR #132 must be checked at the current ref.
-- `docs/MIGRATION_ROADMAP.md` — Orca-specific migration proposal from PR #134, **not canonical until separately approved/integrated**.
+- `docs/MIGRATION_ROADMAP.md` — accepted Orca migration phase plan, integrated by PR #134 at `3dd7dadd8acf650c7f130223985cdf44e8ef0f5a`; gate status must still be established from current evidence.
