@@ -20,6 +20,10 @@ Every change must have a source commit and scope, tests or a documented research
 
 Public presentation and new artifacts use **FineCore**. Keep inherited `orca-harness-*` public library identifiers, `ORCA_*` environment variables, persisted config paths, plugin namespaces and protocol contracts where compatibility requires them. Do not globally replace `orca` strings, rewrite historical Orca results or imply upstream downloads install FineCore. For any new alias, specify precedence, old-data read compatibility, test and rollback; never silently touch credentials.
 
+## Branch, PR and documentation hygiene
+
+Prefer one scoped PR containing cohesive commits instead of a new numbered branch for each step. Use stacked PRs only for real dependencies, document the parent/base in the PR and review stacks after three open layers. The limit is a **review checkpoint**, not a hard empirical threshold. Reuse existing issues, roadmaps and evidence ledgers; do not proliferate status markdown. Store raw logs as linked CI/evidence artifacts rather than redundant repository copies. Never auto-restack/rebase, force-push, retarget, delete or merge; the harness PR trunk is staging, not remote `main`. See the skill's [change hygiene section](.agents/skills/finecore-migration-identity/SKILL.md#change-hygiene--avoid-stacked-pr-and-documentation-sprawl) for justification and exceptions.
+
 ## Required work protocol
 
 1. Read the skill and referenced migration manifests; inspect Git branch, SHA, ancestry and dirty state before edits.
