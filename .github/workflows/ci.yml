@@ -53,11 +53,13 @@ jobs:
       # locally and is the authority; the audit prints the largest files so
       # the ones approaching the limit are visible before they cross it.
       - name: source size
+        id: source_size
         run: |
           ./ci/check-source-size.sh
           python3 scripts/audit_crates.py --top 25
 
       - name: clippy
+        if: ${{ success() || (failure() && steps.source_size.outcome == 'failure') }}
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   test:
