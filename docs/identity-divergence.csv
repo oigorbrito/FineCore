@@ -1043,7 +1043,7 @@ crates/tools/tests/workflow_host.rs,crates/tools/tests/workflow_host.rs,87f9989b
 crates/tools/tests/workflow_support/mod.rs,crates/tools/tests/workflow_support/mod.rs,b83b77a81d50b960a5e9307429639e3770ecb046,b83b77a81d50b960a5e9307429639e3770ecb046,identical,unchanged,Content matches pinned source blob.
 ,docs/FINECORE_IDENTITY_INVENTORY.md,,ad13478d4a33d443d5a302b0012e86d1a3a869e3,added,repository-integration,FineCore migration inventory/evidence and release/package status.
 ,docs/MIGRATION_VALIDATION.md,,bfc50c85dfbab7cc5713ed6047a003c25d4c691c,added,repository-integration,Migration acceptance assessment and differential validation results.
-,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
+,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,Separate deferred Pi model/auth feature roadmap; not part of the pinned Orca source tree.
 docs/assets/benchmarks/cold-start.png,docs/assets/benchmarks/cold-start.png,5182142cf0ec2336e45bf01085a19634c678cb99,5182142cf0ec2336e45bf01085a19634c678cb99,identical,unchanged,Content matches pinned source blob.
 docs/assets/benchmarks/footprint.png,docs/assets/benchmarks/footprint.png,240549fcd278c833cc684234e2035a2979de50c3,240549fcd278c833cc684234e2035a2979de50c3,identical,unchanged,Content matches pinned source blob.
 docs/assets/screenshots/answer.png,docs/assets/screenshots/answer.png,307e6ad493c93a21b2f3c95305bb324f03f4419e,307e6ad493c93a21b2f3c95305bb324f03f4419e,identical,unchanged,Content matches pinned source blob.
@@ -1109,7 +1109,7 @@ docs/superpowers/specs/2026-09-01-tui-style-modes-design.md,docs/superpowers/spe
 ,docs/validation-logs/linux-source-size-upstream.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for pinned Orca source.
 ,docs/validation-logs/linux-workspace-finecore.log,,59d34a5bbac27b6e0981d50e13a907a545faff17,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for FineCore.
 ,docs/validation-logs/linux-workspace-upstream.log,,5cca9cb6fa2713583eeb6fe30ded7a1bca23f1d6,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for pinned Orca source.
-,docs/upstream-import-manifest.csv,,1c8688f52393e3be1d79c39e997470842c932deb,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
+,docs/upstream-import-manifest.csv,,1c8688f52393e3be1d79c39e997470842c932deb,added,repository-integration,Path-and-blob inventory for the pinned Orca import; FineCore evidence artifact outside the upstream source tree.
 ,npm/finecore/README.md,,b57c31369b815e0cf30d1513acb3294dfa00fe33,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
 ,npm/finecore/package.json,,9de1cd31f26dde90c09210f42aca7490e7c62111,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
