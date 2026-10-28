@@ -1,10 +1,10 @@
-# FineCore Orca migration roadmap — proposal under review
+# FineCore Orca migration roadmap
 
 ## Purpose and constraints
 
 Propose a complete, traceable migration based on the canonical Orca Harness upstream, applying only explicitly approved FineCore identity changes. This roadmap does not replace a rights review. Preserve required license and attribution notices. Do not represent upstream-derived material as independently authored.
 
-**Authority note:** this roadmap is a proposal submitted for review, not the operational source of truth. Until formally accepted, the applicable root `AGENTS.md`, specialized migration skill, manifests, and validation record at the checked-out revision govern. Reconcile this proposal against those exact revisions and record paths, SHAs, authority, and unresolved conflicts before relying on it. The documented staging lineage is `migration/orca-faithful-import`; `bootstrap/finecore-independent` is the greenfield base. Any promotion to bootstrap is a separate decision. Public product identity is FineCore; preserve upstream code and compatibility contracts as closely as possible, retaining inherited identifiers where changing them could break compatibility.
+**Authority:** this roadmap is the operational phase and gate plan for the Orca migration, integrated into `migration/orca-faithful-import` by PR #134. Root `AGENTS.md` and `.agents/skills/finecore-migration-identity/SKILL.md` remain governing contracts for identity, evidence, compatibility, branch safety, and approvals; follow stricter applicable requirements where they differ. Verify those files and the manifests at the exact checkout before dependent actions. This roadmap does not authorize destructive operations, protected-ref changes, merge, release, or promotion. The documented staging lineage is `migration/orca-faithful-import`; `bootstrap/finecore-independent` is the greenfield base. Public product identity is FineCore; preserve upstream code and compatibility contracts as closely as possible, retaining inherited identifiers where changing them could break compatibility.
 
 ### Pinned source and destination
 

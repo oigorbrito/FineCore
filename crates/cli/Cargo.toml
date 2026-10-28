@@ -31,6 +31,3 @@ textwrap = "0.16"
 unicode-width = "0.2"
 syntect-tui = { version = "3.0.6", default-features = false }
 syntect = { version = "5.3", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem"] }
