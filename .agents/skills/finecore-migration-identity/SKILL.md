@@ -11,6 +11,19 @@ This skill governs changes involving the Orca-to-FineCore import, canonical prod
 
 **Protected histories:** remote `main` contains tracker/evidence history only, not the Rust harness. `bootstrap/finecore-independent` is greenfield. `migration/orca-faithful-import` descends from bootstrap and is the designated harness staging base. Never merge harness commits into remote `main`, rewrite unrelated histories, force-push, rebase destructively, modify branch protection, delete worktrees/aliases, publish releases, or auto-merge. Promotion to bootstrap is a separate explicit decision after audit; no automation may promote it.
 
+
+## Executor access and roadmap reconciliation gate
+
+Never assume the executor has access to this conversation, an untracked local roadmap or another Git branch. At the start, verify that the checked-out root contains the required files. On the policy PR branch the root `AGENTS.md`, this skill, migration manifests and validation records are present; on unmerged `migration/orca-faithful-import` the newly authored policy files are not yet available. Provide exact relative paths and immutable Git refs for cross-branch material. Read-only remote retrieval may establish provenance; do not execute historical instructions as current policy.
+
+**Current Orca staging evidence** (ref `migration/orca-faithful-import@2d95a810`): `docs/upstream-import-manifest.csv`, `docs/identity-divergence.csv`, `docs/FINECORE_IDENTITY_INVENTORY.md`, `docs/MIGRATION_VALIDATION.md`. The file `docs/PI_MODEL_AUTH_PARITY_ROADMAP.md` is a **separate future feature roadmap**, not the Orca migration roadmap. Stage 0A is proposed in PR #132 and must not be claimed present in plain staging until integrated.
+
+**Alternative/historical paths** (retrieve only for comparison): `migration/finecore-m01@a0b9d775:docs/migration/FINECORE-M01.md` plus `AGENTS.md` and `.github/skills/reconciliation/SKILL.md` concern an earlier `oigorbrito/core` source; `migration/orca-tree-import@41be0191:docs/migration/ORCA-IMPORT-04.md` concerns an alternate `vendor/orca-harness/` subtree import; `feature/pi-auth-parity-02@5b652a84:docs/engineering/ORCA_MIGRATION_INTEGRATION.md` discusses the PR #111 route to tracker `main`, which is **not authorized** by current policy. Do not merge or cherry-pick these unrelated histories to reconcile documents.
+
+A reported untracked local `docs/MIGRATION_ROADMAP.md` proposes importing directly into bootstrap, contrary to the observed staging lineage and the separate promotion gate. It has **not** been located in the verified remote staging/policy trees. If locally available, preserve it and capture content/provenance for review; if unavailable, mark its reconciliation UNKNOWN. Never treat the 404 as permission to fabricate or discard it.
+
+If source or decision conflicts, mark only **dependent** operations BLOCKED and continue independent inventory, test characterization and evidence collection. For any write, require verified destination branch, current SHA and unaffected scope; no edits whose correctness depends on an unresolved roadmap decision. An instruction without a repository-accessible reference is not an executable gate.
+
 ## Classification: separate facts from hypotheses
 
 - **Verified**: link to immutable commit/tree/blob, complete command, environment, raw output/artifact and pass/fail comparison.
