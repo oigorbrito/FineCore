@@ -720,7 +720,7 @@ crates/extensions/src/compact.rs,crates/extensions/src/compact.rs,374c810f78ea99
 crates/extensions/src/events.rs,crates/extensions/src/events.rs,975f036eb3f450a9a2e9bf9bed8ec6eb81f56faa,975f036eb3f450a9a2e9bf9bed8ec6eb81f56faa,identical,unchanged,Content matches pinned source blob.
 crates/extensions/src/lib.rs,crates/extensions/src/lib.rs,5b528a29ea010f5921677199fcbdd452c3202b70,5b528a29ea010f5921677199fcbdd452c3202b70,identical,unchanged,Content matches pinned source blob.
 crates/extensions/src/long_session.rs,crates/extensions/src/long_session.rs,c6bfe360c0f20af30b5128410848d2b9cba2bf02,c6bfe360c0f20af30b5128410848d2b9cba2bf02,identical,unchanged,Content matches pinned source blob.
-crates/extensions/src/memory.rs,crates/extensions/src/memory.rs,85a76b62195f7e4b5809985b859d6d74f5521e71,85a76b62195f7e4b5809985b859d6d74f5521e71,identical,unchanged,Content matches pinned source blob.
+crates/extensions/src/memory.rs,crates/extensions/src/memory.rs,85a76b62195f7e4b5809985b859d6d74f5521e71,7d7e067055d30c1ba2386003ecb67e0743d04a4a,modified,repository-integration,Move the private unix_now helper into a focused private module to satisfy the inherited source-size threshold; behavior unchanged.
 crates/extensions/src/memory/model.rs,crates/extensions/src/memory/model.rs,b419e7f435ca6461aa532100f412719f2caf0f6b,b419e7f435ca6461aa532100f412719f2caf0f6b,identical,unchanged,Content matches pinned source blob.
 crates/extensions/src/memory/permissions.rs,crates/extensions/src/memory/permissions.rs,8a97d0bd717f98bbe1c63b843764279d5edd06d7,8a97d0bd717f98bbe1c63b843764279d5edd06d7,identical,unchanged,Content matches pinned source blob.
 crates/extensions/src/memory/public_id.rs,crates/extensions/src/memory/public_id.rs,a1a972b45a9e948265ccb604d0f944b11a7d7d88,a1a972b45a9e948265ccb604d0f944b11a7d7d88,identical,unchanged,Content matches pinned source blob.
@@ -1115,3 +1115,4 @@ npm/finecore/package.json,npm/finecore/package.json,,9de1cd31f26dde90c09210f42ac
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
+,crates/extensions/src/memory/time.rs,,a476ecdb64385aa2def43325866ac0d089d6f725,added,repository-integration,Private unix_now helper extracted from memory.rs without changing behavior.
