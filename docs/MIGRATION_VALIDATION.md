@@ -63,6 +63,6 @@ No live provider login, external API call, or benchmark measurement was performe
   - `cargo test -p finecore --bin finecore bare_prompt_is_small -- --test-threads=1`: 1 passed.
   - `cargo test -p finecore --bin finecore system_prompt_instructs_concurrent_batching -- --test-threads=1`: 1 passed.
   - `cargo test -p finecore --bin finecore welcome -- --test-threads=1`: 5 passed.
-- The model-picker copy change was inspected, but its focused selector test was not run in this validation pass. The Agent Plugin warning assertion is `cfg(unix)` and was not run on Windows. No dedicated OpenRouter network/integration test was run; the title/header builder was inspected and the legacy headers remain unchanged.
+- `cargo test -p finecore --bin finecore model_picker_uses_the_shared_tabular_window -- --test-threads=1`: the first focused run exposed a stale assertion expecting the former help text. After updating the regression expectation to FineCore's new wording, re-run PASS (1 passed). The Agent Plugin warning assertion is `cfg(unix)` and was not run on Windows. No dedicated OpenRouter network/integration test was run; the title/header builder was inspected and the legacy headers remain unchanged.
 - At last remote check, the commit had zero status checks and zero Actions workflow runs. CI and exact-head execution are `NOT_VERIFIED`; the broad workspace gates remain independently pending.
 - No merge, promotion, release, or main change occurred. Migration remains `MIGRATION_PENDING`.

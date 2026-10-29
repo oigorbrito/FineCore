@@ -79,7 +79,7 @@ The candidate in PR #160 is based directly on staging `migration/orca-faithful-i
 
 The OpenRouter title is provider-facing application metadata, not only local display text. The candidate changes that title to FineCore while preserving the inherited user-agent and referer headers. It does not change provider selection, authentication, persistence, config paths, plugin namespaces, MCP protocol/client identity, or library crate names. Unrelated local configuration-test and benchmark changes are excluded.
 
-PR #160 remains a candidate until reviewed and validated at its exact head. Its ledger is reconciled to the candidate tree; this does not complete the semantic divergence review or migration gates.
+The model picker copy has a focused regression assertion in `core_5_model_provider.rs`. PR #160 remains a candidate until reviewed and validated at its exact head. Its ledger is reconciled to the candidate tree; this does not complete the semantic divergence review or migration gates.
 
 ## Validation checklist for the identity pass
 
