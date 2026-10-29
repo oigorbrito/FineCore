@@ -85,12 +85,12 @@ fn validate_orcacode_extension(extensions: &Map<String, Value>, warnings: &mut V
                 format!(
                     "plugin.json.extensions.{ORCACODE_EXTENSION_NAMESPACE}.{field}"
                 ),
-                "unknown Orcacode extension manifest field ignored; hooks use the namespaced hooks.json file",
+                "unknown FineCore extension manifest field ignored; hooks use the namespaced hooks.json file",
             )
         })),
         None => warnings.push(PluginWarning::new(
             format!("plugin.json.extensions.{ORCACODE_EXTENSION_NAMESPACE}"),
-            "Orcacode extension manifest data must be an object and was ignored",
+            "FineCore extension manifest data must be an object and was ignored",
         )),
     }
 }

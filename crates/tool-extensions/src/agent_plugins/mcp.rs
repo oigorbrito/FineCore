@@ -44,7 +44,7 @@ pub(super) fn load(
             Ok(Some(server)) => parsed.push(server),
             Ok(None) => warnings.push(PluginWarning::new(
                 format!("mcpServers.{server_name}"),
-                "transport is valid but unsupported by Orcacode v1",
+                "transport is valid but unsupported by FineCore",
             )),
             Err(message) => warnings.push(PluginWarning::new(
                 format!("mcpServers.{server_name}"),

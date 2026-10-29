@@ -4,11 +4,31 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import run
 
 
 class RunTest(unittest.TestCase):
+    def test_parse_args_supports_finecore_and_legacy_binary_flags(self):
+        cases = [
+            (["--finecore", "/tmp/finecore"], "/tmp/finecore"),
+            (["--orcacode", "/tmp/orcacode"], "/tmp/orcacode"),
+            (
+                ["--finecore", "/tmp/new", "--orcacode", "/tmp/legacy"],
+                "/tmp/legacy",
+            ),
+            (
+                ["--orcacode", "/tmp/legacy", "--finecore", "/tmp/new"],
+                "/tmp/new",
+            ),
+        ]
+        for arguments, expected in cases:
+            with self.subTest(arguments=arguments), patch.object(
+                sys, "argv", ["run.py", *arguments]
+            ):
+                self.assertEqual(run.parse_args().finecore, expected)
+
     def test_selection_is_deterministic(self):
         instances = [{"instance_id": str(index)} for index in range(5)]
         self.assertEqual(run.select_instances(instances, 3), instances[:3])

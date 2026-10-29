@@ -331,8 +331,10 @@
     #[test]
     fn plugins_round_trip_in_name_order_and_preserve_unrelated_config() {
         seed(r#"{"future": {"kept": true}}"#);
-        save_plugin("zeta", "/plugins/zeta", false).unwrap();
-        save_plugin("alpha", "/plugins/alpha", true).unwrap();
+        let zeta_root = std::env::temp_dir().join("finecore-plugin-tests/zeta");
+        let alpha_root = std::env::temp_dir().join("finecore-plugin-tests/alpha");
+        save_plugin("zeta", &zeta_root, false).unwrap();
+        save_plugin("alpha", &alpha_root, true).unwrap();
 
         let plugins = stored_plugins();
         assert_eq!(
@@ -340,12 +342,12 @@
             [
                 RegisteredPlugin {
                     name: "alpha".into(),
-                    root: PathBuf::from("/plugins/alpha"),
+                    root: alpha_root,
                     enabled: true,
                 },
                 RegisteredPlugin {
                     name: "zeta".into(),
-                    root: PathBuf::from("/plugins/zeta"),
+                    root: zeta_root,
                     enabled: false,
                 },
             ]
@@ -358,7 +360,8 @@
 
     #[test]
     fn malformed_plugin_entries_are_skipped_and_valid_entries_can_change_state() {
-        seed(
+        let valid_root = std::env::temp_dir().join("finecore-plugin-tests/valid");
+        let mut config: Value = serde_json::from_str(
             r#"{"plugins": {
                 "missing-root": {"enabled": true},
                 "bad-root": {"root": 7, "enabled": false},
@@ -367,7 +370,10 @@
                 "../escape": {"root": "/plugins/escape", "enabled": true},
                 "valid": {"root": "/plugins/valid", "enabled": false}
             }}"#,
-        );
+        )
+        .unwrap();
+        config["plugins"]["valid"]["root"] = json!(valid_root.display().to_string());
+        seed(&config.to_string());
         assert_eq!(stored_plugins().len(), 1);
         assert_eq!(stored_plugin("valid").unwrap().name, "valid");
         assert!(stored_plugin("missing-root").is_none());

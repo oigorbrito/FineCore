@@ -25,14 +25,14 @@
         let target = dir.join("real.json");
         let link = dir.join("config.json");
         fs::write(&target, b"preserve").unwrap();
-        if std::os::windows::fs::symlink_file(&target, &link).is_ok() {
-            assert!(write_private(&link, "new config").is_err());
-            assert_eq!(fs::read(&target).unwrap(), b"preserve");
-            assert!(fs::symlink_metadata(&link)
-                .unwrap()
-                .file_type()
-                .is_symlink());
-        }
+        std::os::windows::fs::symlink_file(&target, &link)
+            .expect("create symlink fixture for config protection test");
+        assert!(write_private(&link, "new config").is_err());
+        assert_eq!(fs::read(&target).unwrap(), b"preserve");
+        assert!(fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink());
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -112,4 +112,3 @@
         })
         .unwrap();
     }
-

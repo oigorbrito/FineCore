@@ -208,7 +208,7 @@ pub(crate) fn model_picker_lines(
     let mut lines = Vec::new();
     let help = Line::from(Span::styled(
         view::truncate_line(
-            "  Missing models? Update Orcacode or check account access.",
+            "  Models unavailable? Check provider configuration or account access.",
             width,
         ),
         t.dim,
