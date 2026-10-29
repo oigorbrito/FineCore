@@ -11,9 +11,9 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [migration/orca-faithful-import]
   pull_request:
-    branches: [main]
+    branches: [migration/orca-faithful-import]
   workflow_dispatch:
 
 concurrency:
@@ -53,11 +53,13 @@ jobs:
       # locally and is the authority; the audit prints the largest files so
       # the ones approaching the limit are visible before they cross it.
       - name: source size
+        id: source_size
         run: |
           ./ci/check-source-size.sh
           python3 scripts/audit_crates.py --top 25
 
       - name: clippy
+        if: ${{ success() || (failure() && steps.source_size.outcome == 'failure') }}
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   test:
@@ -76,8 +78,15 @@ jobs:
         with:
           key: test
 
+      - name: install Bun for workspace tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
       - name: test
-        run: cargo test --workspace
+        run: |
+          bun --version
+          cargo test --workspace
 
       # Every benchmark parser and gate has its own tests; a broken parser
       # would otherwise fail (or pass) the bench job for the wrong reason.

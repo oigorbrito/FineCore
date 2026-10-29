@@ -19,9 +19,9 @@ name: bench
 
 on:
   push:
-    branches: [main]
+    branches: [migration/orca-faithful-import]
   pull_request:
-    branches: [main]
+    branches: [migration/orca-faithful-import]
   workflow_dispatch:
 
 concurrency:
