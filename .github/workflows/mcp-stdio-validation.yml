@@ -1,0 +1,32 @@
+name: MCP stdio validation
+
+on:
+  pull_request:
+    branches: [migration/orca-faithful-import]
+    paths:
+      - 'crates/tool-extensions/src/mcp/**'
+      - 'crates/tool-extensions/tests/mcp_stdio.rs'
+      - '.github/workflows/mcp-stdio-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-stdio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: checkout candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: test MCP stdio integration
+        run: |
+          git rev-parse HEAD
+          rustc --version
+          cargo --version
+          cargo test --locked -p orca-harness-tool-extensions --test mcp_stdio -- --test-threads=1
