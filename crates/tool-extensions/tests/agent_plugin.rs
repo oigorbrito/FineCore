@@ -219,7 +219,10 @@ fn agent_plugin_warns_for_ignored_manifest_fields_and_extensions() {
             "$schema": PLUGIN_SCHEMA,
             "name": "warning-plugin",
             "unknown": true,
-            "extensions": { "com.example.client": 42 }
+            "extensions": {
+                "com.example.client": 42,
+                "io.github.okikorg.orcacode": { "futureField": true }
+            }
         }),
     );
 
@@ -231,15 +234,28 @@ fn agent_plugin_warns_for_ignored_manifest_fields_and_extensions() {
         warnings.contains("extensions.com.example.client"),
         "{warnings}"
     );
+    assert!(
+        warnings.contains("FineCore does not load this client extension namespace"),
+        "{warnings}"
+    );
+    assert!(
+        warnings.contains("unknown FineCore extension manifest field ignored"),
+        "{warnings}"
+    );
     assert!(!warnings.contains("skills"), "{warnings}");
 
     write_manifest(
         &tree,
         &root,
-        json!({ "$schema": PLUGIN_SCHEMA, "name": "warning-plugin", "extensions": [] }),
+        json!({
+            "$schema": PLUGIN_SCHEMA,
+            "name": "warning-plugin",
+            "extensions": { "io.github.okikorg.orcacode": [] }
+        }),
     );
     let plugin = load_agent_plugin(&root, &tree.path.join("data")).unwrap();
-    assert!(warning_text(&plugin).contains("extensions"));
+    assert!(warning_text(&plugin)
+        .contains("FineCore extension manifest data must be an object and was ignored"));
 }
 
 #[test]
@@ -298,6 +314,12 @@ fn invalid_and_unsupported_servers_preserve_valid_stdio_siblings() {
     assert!(warnings.contains("mcpServers.bad"), "{warnings}");
     assert!(warnings.contains("mcpServers.remote"), "{warnings}");
     assert!(warnings.contains("mcpServers.legacy"), "{warnings}");
+    assert!(
+        warnings.contains(
+            "transport is valid but unsupported by FineCore's Agent Plugins 1.0 support (stdio only)"
+        ),
+        "{warnings}"
+    );
 }
 
 #[test]

@@ -50,6 +50,7 @@ mod main_tests {
             &Workspace::new(PathBuf::from(".")),
             &["read_file".into(), "grep".into()],
         );
+        assert!(prompt.starts_with("You are FineCore,"));
         assert!(prompt.contains("read_file, grep"));
         assert!(prompt.contains("entire response must be only that line"));
         assert!(prompt.contains("Batch independent reads"));
@@ -149,6 +150,7 @@ mod main_tests {
     #[test]
     fn system_prompt_instructs_concurrent_batching() {
         let prompt = system_prompt(&Workspace::new(PathBuf::from(".")), false);
+        assert!(prompt.starts_with("You are FineCore,"));
         assert!(prompt.contains("execute concurrently"));
         assert!(prompt.contains("plan the batch"));
         assert!(prompt.contains("one response"));
