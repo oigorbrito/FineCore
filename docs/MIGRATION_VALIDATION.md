@@ -56,7 +56,7 @@ No live provider login, external API call, or benchmark measurement was performe
 
 ## Public identity integration candidate — PR #160
 
-- Candidate: `oigorbrito/FineCore` PR #160, branch `codex/finecore-public-identity-staging`, head `17ddb7d13b87a6d955306d55750d5d9f331ae4fb`, direct parent/base staging `53d8f8344f3f17f28766c7c880981147d3e128c6`. The compare reports one commit ahead, zero behind, and 11 changed paths.
+- Candidate: `oigorbrito/FineCore` PR #160, branch `codex/finecore-public-identity-staging`, head `5c888d2b98bd4201fdfcf2290721056ab2d320e6`, based on staging `53d8f8344f3f17f28766c7c880981147d3e128c6`. The compare reports three commits ahead, zero behind, and 14 changed paths.
 - Origin: the three hunks in PR #130 were reimplemented on staging: agent system prompt, OpenRouter title, welcome card and their presentation tests. No #130 history or Pi authentication/provider/storage implementation was included. The external OpenRouter title change is application metadata; inherited user-agent and referer headers remain intact.
 - Local focused evidence was run on Windows 10 with Rust/Cargo 1.99.1 in checkout `89117a52bb5881d200f6a70327d382660e677857` plus the identity patch. That checkout contains the #138 storage split, so this is not execution of the exact PR #160 tree:
   - `cargo fmt --all -- --check`: PASS.
@@ -64,5 +64,5 @@ No live provider login, external API call, or benchmark measurement was performe
   - `cargo test -p finecore --bin finecore system_prompt_instructs_concurrent_batching -- --test-threads=1`: 1 passed.
   - `cargo test -p finecore --bin finecore welcome -- --test-threads=1`: 5 passed.
 - `cargo test -p finecore --bin finecore model_picker_uses_the_shared_tabular_window -- --test-threads=1`: the first focused run exposed a stale assertion expecting the former help text. After updating the regression expectation to FineCore's new wording, re-run PASS (1 passed). The Agent Plugin warning assertion is `cfg(unix)` and was not run on Windows. No dedicated OpenRouter network/integration test was run; the title/header builder was inspected and the legacy headers remain unchanged.
-- At last remote check, the commit had zero status checks and zero Actions workflow runs. CI and exact-head execution are `NOT_VERIFIED`; the broad workspace gates remain independently pending.
+- At the latest remote check for head `5c888d2b98bd4201fdfcf2290721056ab2d320e6`, commit status count was zero and Actions workflow run count was zero. CI and exact-head execution are `NOT_VERIFIED`; the broad workspace gates remain independently pending.
 - No merge, promotion, release, or main change occurred. Migration remains `MIGRATION_PENDING`.
