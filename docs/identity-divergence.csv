@@ -1,13 +1,12 @@
 source_path,destination_path,source_blob,destination_worktree_blob,status,category,rationale
 ,.agents/skills/finecore-migration-identity/SKILL.md,,bc3ce3a9d47cd94a5a79b7783ca55170c75b49c4,added,repository-integration,FineCore-specific migration identity and evidence procedure; repository-owned file.
-,.agents/skills/orca-harness-migration/SKILL.md,,50d7887ea5245b466a12e9720a13597e548b710c,added,repository-integration,FineCore migration execution procedure for the pinned Orca import; repository-owned file.
 .github/dependabot.yml,.github/dependabot.yml,75d26b6ab02f31363a733586ecea8e6d60ea7481,75d26b6ab02f31363a733586ecea8e6d60ea7481,identical,unchanged,Content matches pinned source blob.
 .github/workflows/bench-live.yml,.github/workflows/bench-live.yml,017bdc704df8a094f8e7d6afecc7ac50df27bf15,b20da8cb742ff307a8ebb3034771e48c8efbe5f3,modified,approved-exception,Guard scheduled paid-model benchmark to canonical upstream repository only.
 .github/workflows/bench.yml,.github/workflows/bench.yml,b01f632f9adcad7591a12c23add1a5a745c84f9d,9f148970717fd1d08cb559ce93a98915069a542c,modified,identity-only,Update active CI/build/binary sizing for finecore; upstream publication remains guarded/disabled.
 .github/workflows/ci.yml,.github/workflows/ci.yml,dc64e2b2eb036088d22f15fd39ef9e04df6fd4ae,7e7a2be7d3e218beb8b1381456c1e2a5dc0a3f7b,modified,identity-only,Update active CI/build/binary sizing for finecore; upstream publication remains guarded/disabled.
 .github/workflows/release-orcacode.yml,.github/workflows/release-orcacode.yml,9dc47fe6673e21e612cddd2f393273d4e9cbd0d3,07ce271b0afa3b24b16059e33ee67e541432f17f,modified,approved-exception,Guard inherited release jobs to canonical upstream repository only.
 .gitignore,.gitignore,7356d4fd9e44ec83da41661dfd957cd3d0452709,7356d4fd9e44ec83da41661dfd957cd3d0452709,identical,unchanged,Content matches pinned source blob.
-,AGENTS.md,,146e36e819badfa6f4debfcb883e7acc15ea4790,added,repository-integration,"FineCore agent policy for canonical identity, staging boundaries, source fidelity and review governance; repository-owned file."
+,AGENTS.md,,a17fe73b44f9dd0f5d4111b8c509c2ef4a381ee4,added,repository-integration,"FineCore agent policy for canonical identity, staging boundaries, source fidelity and review governance; repository-owned file."
 benchmarks/compare.sh,benchmarks/compare.sh,c086ca31133177f0ce4de9ecc4ef004bf38f32fc,c086ca31133177f0ce4de9ecc4ef004bf38f32fc,identical,unchanged,Content matches pinned source blob.
 benchmarks/compare/README.md,benchmarks/compare/README.md,f033b04f5d616512df5b64910aa61f466c3bdcb6,7390029ff8cb26ada8d5aa1851d9259f6b6b3139,modified,identity-only,Update active comparison docs for the FineCore binary identity.
 ,benchmarks/compare/report_test.py,,0f34da774efa273a92c62e86c2208ead2ab13195,added,repository-integration,Regression test for the active FineCore benchmark report identity.
@@ -1080,9 +1079,9 @@ docs/external/pages/troubleshooting.html,docs/external/pages/troubleshooting.htm
 docs/external/README.md,docs/external/README.md,4aef7e6d435c797cf75a72ff350a1f5e02683796,20d83a359b2bf59b701701a85df5e12f6104fcb5,modified,repository-integration,"Mark inherited external docs as upstream-only, not a FineCore manual."
 docs/external/server.ts,docs/external/server.ts,2c24e3b0efa3a6f3425f6b6bdecd40100c0661e3,2c24e3b0efa3a6f3425f6b6bdecd40100c0661e3,identical,unchanged,Content matches pinned source blob.
 docs/external/styles.css,docs/external/styles.css,f56a29e0d0d2bffdc2cd0a894d61314e204c4480,f56a29e0d0d2bffdc2cd0a894d61314e204c4480,identical,unchanged,Content matches pinned source blob.
-,docs/FINECORE_IDENTITY_INVENTORY.md,,4db7938cf4ea895bf123dd1a895d74b213056e9c,added,repository-integration,FineCore migration inventory/evidence and release/package status.
+,docs/FINECORE_IDENTITY_INVENTORY.md,,e054eb9156bcef49e690ff59860c0297f8dc681e,added,repository-integration,FineCore migration inventory/evidence and release/package status.
 ,docs/MIGRATION_ROADMAP.md,,fb089c01d4ae1844ec3af11e666ef0f1da8014a9,added,repository-integration,FineCore Orca migration roadmap proposal adopted through PR #134; no upstream source path omitted.
-,docs/MIGRATION_VALIDATION.md,,f7d75b4c5122f90241975be8d6b8e814b5280f3b,added,repository-integration,Migration acceptance assessment and differential validation results.
+,docs/MIGRATION_VALIDATION.md,,a9e91cf13bf29360bf9894dd7b29c256ff7e7eaa,added,repository-integration,Migration acceptance assessment and differential validation results.
 ,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
 docs/plan/2026-09-12-bun-programmatic-tool-calling.md,docs/plan/2026-09-12-bun-programmatic-tool-calling.md,0d8335496e5d32d764ff5f29062c8fbf14e83862,0d8335496e5d32d764ff5f29062c8fbf14e83862,identical,unchanged,Content matches pinned source blob.
 docs/plan/2026-09-12-sandbox-environments.md,docs/plan/2026-09-12-sandbox-environments.md,490d121fc290586e0315b774861b44c5b0f2f62a,490d121fc290586e0315b774861b44c5b0f2f62a,identical,unchanged,Content matches pinned source blob.
@@ -1102,19 +1101,9 @@ docs/releases/0.8.0.md,docs/releases/0.8.0.md,66c1dd70efb4b9b01374f1937f4d1f7d69
 docs/releases/0.9.0.md,docs/releases/0.9.0.md,acecc448eea2afbdc3b38ed08b35f94a189afa67,acecc448eea2afbdc3b38ed08b35f94a189afa67,identical,unchanged,Content matches pinned source blob.
 docs/superpowers/specs/2026-09-01-tui-style-modes-design.md,docs/superpowers/specs/2026-09-01-tui-style-modes-design.md,32e120a7f26943774e3459754ad2f2bf7935b727,32e120a7f26943774e3459754ad2f2bf7935b727,identical,unchanged,Content matches pinned source blob.
 ,docs/upstream-import-manifest.csv,,1c8688f52393e3be1d79c39e997470842c932deb,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
-,docs/validation-logs/linux-cli-finecore.log,,0a56c1844fd12b665dc1b50169af416a907e00f5,added,validation-evidence,Raw WSL2 ext4 CLI package test output for FineCore.
-,docs/validation-logs/linux-cli-upstream.log,,2ea38c6198400829f0cf90a5ec4ef9b37a021294,added,validation-evidence,Raw WSL2 ext4 CLI package test output for pinned Orca source.
-,docs/validation-logs/linux-clippy-finecore.log,,001b71badc962affdda84f2fe5cd7eb255f3a278,added,validation-evidence,Raw WSL2 ext4 strict workspace Clippy output for FineCore.
-,docs/validation-logs/linux-clippy-upstream.log,,264eab6e1ee67a5cef45bcb76c23a696ee887ae2,added,validation-evidence,Raw WSL2 ext4 strict workspace Clippy output for pinned Orca source.
-,docs/validation-logs/linux-source-size-finecore.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for FineCore.
-,docs/validation-logs/linux-source-size-upstream.log,,4c1c29f1804a9f219011531c619fe9f5961563b9,added,validation-evidence,Raw WSL2 ext4 source-size gate output for pinned Orca source.
-,docs/validation-logs/linux-workspace-finecore.log,,59d34a5bbac27b6e0981d50e13a907a545faff17,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for FineCore.
-,docs/validation-logs/linux-workspace-upstream.log,,5cca9cb6fa2713583eeb6fe30ded7a1bca23f1d6,added,validation-evidence,Raw WSL2 ext4 workspace/Bun test output for pinned Orca source.
 LICENSE,LICENSE,16fe87b06e802f094b3fbb0894b137bca2b16ef1,16fe87b06e802f094b3fbb0894b137bca2b16ef1,identical,unchanged,Content matches pinned source blob.
 Makefile,Makefile,dd26921ca1879a882ee61638d02fa58cf5097efd,8c71970ae031a40dea18980a3366af8f3b780c68,modified,identity-only,FineCore development targets; upstream release targets are labeled disabled.
 NOTICE,NOTICE,3b56a3c7fcdaa2040bba1fbf358aa3572fa32312,3b56a3c7fcdaa2040bba1fbf358aa3572fa32312,identical,unchanged,Content matches pinned source blob.
-,npm/finecore/package.json,,9de1cd31f26dde90c09210f42aca7490e7c62111,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
-,npm/finecore/README.md,,b57c31369b815e0cf30d1513acb3294dfa00fe33,added,repository-integration,Unpublished npm name-reservation placeholder; explicitly not a functional CLI.
 patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89eef06d1a8871b88f71ca,04456e35de84cdd65a89eef06d1a8871b88f71ca,identical,unchanged,Content matches pinned source blob.
 README.md,README.md,67d0f0281a2cbb4898755d40ecef58de0d890fcf,bbdcd8d7672c194e9c73dfd2160d3aaf21dac8ed,modified,identity-only,"FineCore branding/source guidance with upstream installer, docs, and historical material clearly labeled."
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
