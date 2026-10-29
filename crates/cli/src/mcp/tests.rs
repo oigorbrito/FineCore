@@ -374,7 +374,7 @@ async fn unsupported_only_plugin_reports_degraded_mcp_component() {
     assert!(matches!(
         servers.plugin_state("unsupported-only"),
         PluginRuntimeState::Degraded { servers: 0, warning, .. }
-            if warning.contains("unsupported by FineCore")
+            if warning.contains("unsupported by FineCore's Agent Plugins 1.0 support (stdio only)")
     ));
     assert!(servers
         .reload()

@@ -56,13 +56,20 @@ No live provider login, external API call, or benchmark measurement was performe
 
 ## Public identity integration candidate — PR #160
 
-- Candidate: `oigorbrito/FineCore` PR #160, branch `codex/finecore-public-identity-staging`, head `5c888d2b98bd4201fdfcf2290721056ab2d320e6`, based on staging `53d8f8344f3f17f28766c7c880981147d3e128c6`. The compare reports three commits ahead, zero behind, and 14 changed paths.
-- Origin: the three hunks in PR #130 were reimplemented on staging: agent system prompt, OpenRouter title, welcome card and their presentation tests. No #130 history or Pi authentication/provider/storage implementation was included. The external OpenRouter title change is application metadata; inherited user-agent and referer headers remain intact.
-- Local focused evidence was run on Windows 10 with Rust/Cargo 1.99.1 in checkout `89117a52bb5881d200f6a70327d382660e677857` plus the identity patch. That checkout contains the #138 storage split, so this is not execution of the exact PR #160 tree:
-  - `cargo fmt --all -- --check`: PASS.
-  - `cargo test -p finecore --bin finecore bare_prompt_is_small -- --test-threads=1`: 1 passed.
-  - `cargo test -p finecore --bin finecore system_prompt_instructs_concurrent_batching -- --test-threads=1`: 1 passed.
-  - `cargo test -p finecore --bin finecore welcome -- --test-threads=1`: 5 passed.
-- `cargo test -p finecore --bin finecore model_picker_uses_the_shared_tabular_window -- --test-threads=1`: the first focused run exposed a stale assertion expecting the former help text. After updating the regression expectation to FineCore's new wording, re-run PASS (1 passed). The Agent Plugin warning assertion is `cfg(unix)` and was not run on Windows. No dedicated OpenRouter network/integration test was run; the title/header builder was inspected and the legacy headers remain unchanged.
-- At the latest remote check for head `5c888d2b98bd4201fdfcf2290721056ab2d320e6`, commit status count was zero and Actions workflow run count was zero. CI and exact-head execution are `NOT_VERIFIED`; the broad workspace gates remain independently pending.
-- No merge, promotion, release, or main change occurred. Migration remains `MIGRATION_PENDING`.
+- At review start, remote PR head was `7ee9d3ec5255ee6120246d4154b7c242b916dd0f`, based on `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6`; four commits ahead and 14 changed paths. The final correction is recorded in the PR description and its next commit.
+- Reviewed all four commits and the 14-file diff. The three identity hunks from #130 were reimplemented on staging; no #130 history, Pi login, OAuth, provider-selection, or persistence changes are present. The OpenRouter title is external application metadata; inherited user-agent/referer and protocol headers remain unchanged.
+- Directed semantic review found a material warning regression: the source said remote MCP transports are valid but unsupported by Orcacode v1. FineCore still supports only stdio for Agent Plugins 1.0, as stated in the existing plugin documentation. The revised FineCore warning retains that scope explicitly; no transport support or protocol behavior changed. Cross-platform Agent Plugin assertions cover manifest/client-extension warnings and the scoped MCP warning.
+- The welcome-card test checks the rendered left edge against the geometric center at widths 60 and 90. This measures the rendered card rather than reading implementation internals; the focused test passes at both sizes.
+- The source was assembled in an isolated validation directory from an archive of exact staging base `53d8f8344f3f17f28766c7c880981147d3e128c6` plus the remote PR code patch. Before correction, all 11 changed code-file blobs matched GitHub's PR file API. Shell fetch was unavailable because DNS could not resolve github.com; GitHub connector supplied the immutable base/head content. No pre-existing worktree was edited.
+- Environment: Windows 10, Rust/Cargo 1.99.1. Commands were run offline in the isolated source directory; Cargo reused the existing local target cache.
+  - `cargo fmt --all -- --check`: PASS after correcting the welcome-card formatting.
+  - `cargo test --offline -p finecore --bin finecore welcome -- --test-threads=1`: 5 passed, including centering at both widths.
+  - `cargo test --offline -p finecore --bin finecore model_picker_uses_the_shared_tabular_window -- --test-threads=1`: 1 passed.
+  - `cargo test --offline -p finecore --bin finecore bare_prompt_is_small -- --test-threads=1`: 1 passed.
+  - `cargo test --offline -p finecore --bin finecore system_prompt_instructs_concurrent_batching -- --test-threads=1`: 1 passed.
+  - `cargo test --offline -p orca-harness-tool-extensions --test agent_plugin agent_plugin_warns_for_ignored_manifest_fields_and_extensions -- --test-threads=1`: 1 passed.
+  - `cargo test --offline -p orca-harness-tool-extensions --test agent_plugin -- --test-threads=1`: 20 passed, 1 failed. The failure is `review_regressions::agent_plugin_cwd_expands_all_placeholders_and_accepts_repeated_separators`; the same test failed on exact staging-base source with the same Windows path-expansion signature. This inherited gate remains RED, not waived.
+  - CLI MCP warning test is `cfg(unix)` and was not run on Windows. No OpenRouter network call was made; request-builder inspection confirms only the title changed.
+- CI diagnosis: `.github/workflows/ci.yml` and `bench.yml` filter `pull_request` to base branch `main`; PR #160 targets staging, so those automatic triggers do not match. `ci.yml` is absent from default-branch `main`, so its `workflow_dispatch` is not an available manual trigger; GitHub documents that dispatch only receives events when the workflow file is on the default branch. No runs/status checks are present for this head. Release and paid-model benchmark workflows were not run; no workflow was modified.
+- Broad workspace/Clippy/benchmark gates remain unverified or RED as recorded earlier. No merge, promotion, release or main/bootstrap mutation occurred. Migration remains `MIGRATION_PENDING`.
+

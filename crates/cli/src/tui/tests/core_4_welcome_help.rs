@@ -60,24 +60,26 @@
 
     #[test]
     fn welcome_centres_the_visible_card_not_its_maximum_width() {
-        let mut app = test_app();
-        let rows = rendered_rows(&mut app, 90, 30);
-        assert!(rows.iter().any(|row| row.contains("FineCore — your terminal coding agent")));
-        let first = rows.iter().position(|row| row.contains("FINECORE")).unwrap();
-        let last = rows.iter().rposition(|row| row.contains("/mode")).unwrap();
-        let visible_width = rows[first..=last]
-            .iter()
-            .map(|row| row.trim_start().chars().count())
-            .max()
-            .unwrap();
-        let visible_indent = rows[first].chars().take_while(|ch| *ch == ' ').count();
+        for width in [60, 90] {
+            let mut app = test_app();
+            let rows = rendered_rows(&mut app, width, 30);
+            assert!(rows.iter().any(|row| row.contains("FineCore — your terminal coding agent")));
+            let first = rows.iter().position(|row| row.contains("FINECORE")).unwrap();
+            let last = rows.iter().rposition(|row| row.contains("/mode")).unwrap();
+            let visible_width = rows[first..=last]
+                .iter()
+                .map(|row| row.trim_start().chars().count())
+                .max()
+                .unwrap();
+            let visible_indent = rows[first].chars().take_while(|ch| *ch == ' ').count();
 
-        assert_eq!(
-            visible_indent,
-            (90 - visible_width) / 2,
-            "the longest visible row defines the card centre: {:?}",
-            &rows[first..=last]
-        );
+            assert_eq!(
+                visible_indent,
+                (usize::from(width) - visible_width) / 2,
+                "the longest visible row defines the card centre at width {width}: {:?}",
+                &rows[first..=last]
+            );
+        }
     }
 
     #[test]
