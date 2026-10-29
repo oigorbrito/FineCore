@@ -30,7 +30,7 @@ const BARE_TOOLS: [&str; 3] = ["read_file", "grep", "glob"];
 
 pub(crate) fn bare_system_prompt(ws: &Workspace, tools: &[String]) -> String {
     format!(
-        "You are Orca Code, a coding agent operating in the workspace at {} on {}. \
+        "You are FineCore, a coding agent operating in the workspace at {} on {}. \
          Use only the registered tools: {}. File paths are workspace-relative. \
          Investigate with tools instead of guessing. When the request names files, read \
          them directly; otherwise search workspace-wide before narrowing to any one \

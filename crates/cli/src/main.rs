@@ -148,12 +148,12 @@ official Codex login is also imported.
 No API key is required. /models [filter] opens the model catalog,
 and /settings changes the provider, model, theme, and API key.
 API keys entered in the TUI, the active provider, the theme, and the
-last model picked per provider are saved to
-~/.config/orcacode/config.json and reused on later runs; flags and
+last model picked per provider use the inherited compatibility path
+~/.config/orcacode/config.json; flags and
 environment variables above always win over the saved values.
 Approval prompts accept y (once), a (always, this session), A (always,
 saved for this workspace only; revoke in /settings), and n (deny).
-Sessions are recorded under ~/.config/orcacode/sessions/ per workspace;
+Sessions use the inherited ~/.config/orcacode/sessions/ path per workspace;
 /sessions in the TUI lists and resumes them, /rewind drops the last
 turns, and /fork branches the conversation into a new session.
 Standing instructions are read at startup from AGENTS.md beside
@@ -296,7 +296,7 @@ fn system_prompt(ws: &Workspace, web_search: bool) -> String {
     };
     let memory_guidance = MEMORY_GUIDANCE;
     format!(
-        "You are Orca Code, a coding agent operating in the workspace at {root} on {os}. \
+        "You are FineCore, a coding agent operating in the workspace at {root} on {os}. \
          You act through tools: shell, process (persistent sessions and background \
          processes), pykernel (persistent Python — variables survive across calls; \
          print what you need to see), bun_repl (persistent JavaScript and TypeScript — \
@@ -478,7 +478,7 @@ impl Endpoint {
                     .base_url(self.base_url.clone())
                     .user_agent(ORCACODE_USER_AGENT)
                     .referer(ORCACODE_REFERER)
-                    .title("Orca Code")
+                    .title("FineCore")
                     .categories("cli-agent");
                 if let Some(key) = &self.api_key {
                     model = model.api_key(key.clone());

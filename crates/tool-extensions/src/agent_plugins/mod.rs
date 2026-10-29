@@ -215,7 +215,7 @@ fn warn_for_unsupported_components(
             .map(|namespace| {
                 PluginWarning::new(
                     format!("extensions.{namespace}"),
-                    "Orcacode v1 does not load this client extension namespace",
+                    "FineCore does not load this client extension namespace",
                 )
             })
             .filter(|warning| {
