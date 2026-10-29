@@ -72,6 +72,15 @@ Observed benchmark and test names encode `orca`/`orcacode` in Criterion IDs, tem
 
 Applied: confirmed FineCore repository metadata; FineCore product presentation; CLI package/executable rename; current build/test command examples; CI and benchmark build targets; startup/compare/SWE-bench binary resolution; and FineCore startup benchmark labels/budgets. The inherited Orcacode release workflow is guarded so it can only execute in its canonical upstream repository; the inherited `ci/release.sh` now fails closed and the Makefile labels its release targets disabled. Disabled the inherited updater and background check because they target Orcacode's server/installer; added a fail-closed test. Preserved: `orca-harness-*` library crates/APIs, runtime config/state paths, `ORCA_*` variables, plugin/MCP/provider protocol identifiers, upstream release scripts and artifacts, Criterion IDs, and historical results. Active benchmark metric labels changed only where they named the CLI; historical measurements are explicitly marked as Orca data. The source-to-import inventory is in `docs/upstream-import-manifest.csv`; current divergence is in `docs/identity-divergence.csv`. Remaining: review all remaining historical/external docs and run the supported Linux CI gates.
 
+
+## Public identity integration candidate — PR #160 (Draft)
+
+The candidate in PR #160 is based directly on staging `migration/orca-faithful-import@53d8f8344f3f17f28766c7c880981147d3e128c6` and derives from the pinned Orca snapshot recorded above. It reimplements the three identity hunks from PR #130 on the correct staging lineage; it does not merge or import the #130 branch. Those hunks are the agent's system prompt, the OpenRouter application title, and the welcome card. The candidate also covers the headless prompt, identity-facing extension warnings, compatibility-path wording in CLI help, and stale updater wording in the model picker.
+
+The OpenRouter title is provider-facing application metadata, not only local display text. The candidate changes that title to FineCore while preserving the inherited user-agent and referer headers. It does not change provider selection, authentication, persistence, config paths, plugin namespaces, MCP protocol/client identity, or library crate names. Unrelated local configuration-test and benchmark changes are excluded.
+
+PR #160 remains a candidate until reviewed and validated at its exact head. Its ledger is reconciled to the candidate tree; this does not complete the semantic divergence review or migration gates.
+
 ## Validation checklist for the identity pass
 
 - Capture `git diff --name-status` and content diff against import commit `e036dd7`; see `docs/identity-divergence.csv`.

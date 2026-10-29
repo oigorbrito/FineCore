@@ -53,3 +53,16 @@ No live provider login, external API call, or benchmark measurement was performe
 - Do not fold inherited source-size, Clippy, Bun REPL, or binary-size failures into this identity migration; address them as separate engineering work if approved.
 - Preserve manual review for any eventual merge to `main`; model-picker/login parity remains deferred to [`PI_MODEL_AUTH_PARITY_ROADMAP.md`](PI_MODEL_AUTH_PARITY_ROADMAP.md).
 - The npm package at `npm/finecore/` remains an unpublished placeholder. Registry lookup returned 404 (available at check time), but `npm whoami` returned 401, so the name has not been reserved.
+
+## Public identity integration candidate — PR #160
+
+- Candidate: `oigorbrito/FineCore` PR #160, branch `codex/finecore-public-identity-staging`, head `17ddb7d13b87a6d955306d55750d5d9f331ae4fb`, direct parent/base staging `53d8f8344f3f17f28766c7c880981147d3e128c6`. The compare reports one commit ahead, zero behind, and 11 changed paths.
+- Origin: the three hunks in PR #130 were reimplemented on staging: agent system prompt, OpenRouter title, welcome card and their presentation tests. No #130 history or Pi authentication/provider/storage implementation was included. The external OpenRouter title change is application metadata; inherited user-agent and referer headers remain intact.
+- Local focused evidence was run on Windows 10 with Rust/Cargo 1.99.1 in checkout `89117a52bb5881d200f6a70327d382660e677857` plus the identity patch. That checkout contains the #138 storage split, so this is not execution of the exact PR #160 tree:
+  - `cargo fmt --all -- --check`: PASS.
+  - `cargo test -p finecore --bin finecore bare_prompt_is_small -- --test-threads=1`: 1 passed.
+  - `cargo test -p finecore --bin finecore system_prompt_instructs_concurrent_batching -- --test-threads=1`: 1 passed.
+  - `cargo test -p finecore --bin finecore welcome -- --test-threads=1`: 5 passed.
+- The model-picker copy change was inspected, but its focused selector test was not run in this validation pass. The Agent Plugin warning assertion is `cfg(unix)` and was not run on Windows. No dedicated OpenRouter network/integration test was run; the title/header builder was inspected and the legacy headers remain unchanged.
+- At last remote check, the commit had zero status checks and zero Actions workflow runs. CI and exact-head execution are `NOT_VERIFIED`; the broad workspace gates remain independently pending.
+- No merge, promotion, release, or main change occurred. Migration remains `MIGRATION_PENDING`.

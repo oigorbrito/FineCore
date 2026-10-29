@@ -1080,9 +1080,9 @@ docs/external/pages/troubleshooting.html,docs/external/pages/troubleshooting.htm
 docs/external/README.md,docs/external/README.md,4aef7e6d435c797cf75a72ff350a1f5e02683796,20d83a359b2bf59b701701a85df5e12f6104fcb5,modified,repository-integration,"Mark inherited external docs as upstream-only, not a FineCore manual."
 docs/external/server.ts,docs/external/server.ts,2c24e3b0efa3a6f3425f6b6bdecd40100c0661e3,2c24e3b0efa3a6f3425f6b6bdecd40100c0661e3,identical,unchanged,Content matches pinned source blob.
 docs/external/styles.css,docs/external/styles.css,f56a29e0d0d2bffdc2cd0a894d61314e204c4480,f56a29e0d0d2bffdc2cd0a894d61314e204c4480,identical,unchanged,Content matches pinned source blob.
-,docs/FINECORE_IDENTITY_INVENTORY.md,,ad13478d4a33d443d5a302b0012e86d1a3a869e3,added,repository-integration,FineCore migration inventory/evidence and release/package status.
+,docs/FINECORE_IDENTITY_INVENTORY.md,,5f239a1fafa6fef4033221b865a990594f9d513b,added,repository-integration,FineCore migration inventory/evidence and release/package status.
 ,docs/MIGRATION_ROADMAP.md,,fb089c01d4ae1844ec3af11e666ef0f1da8014a9,added,repository-integration,FineCore Orca migration roadmap proposal adopted through PR #134; no upstream source path omitted.
-,docs/MIGRATION_VALIDATION.md,,7a6479c061d54c004aa77d05e4d70274f53e9ac3,added,repository-integration,Migration acceptance assessment and differential validation results.
+,docs/MIGRATION_VALIDATION.md,,229afed239e6efef79cff23a2545133aec797316,added,repository-integration,Migration acceptance assessment and differential validation results.
 ,docs/PI_MODEL_AUTH_PARITY_ROADMAP.md,,fdbaa5eaba3cc6fcc5d41148ba432222aa0f06c1,added,repository-integration,FineCore migration inventory/evidence or deferred parity roadmap; no upstream source path omitted.
 docs/plan/2026-09-12-bun-programmatic-tool-calling.md,docs/plan/2026-09-12-bun-programmatic-tool-calling.md,0d8335496e5d32d764ff5f29062c8fbf14e83862,0d8335496e5d32d764ff5f29062c8fbf14e83862,identical,unchanged,Content matches pinned source blob.
 docs/plan/2026-09-12-sandbox-environments.md,docs/plan/2026-09-12-sandbox-environments.md,490d121fc290586e0315b774861b44c5b0f2f62a,490d121fc290586e0315b774861b44c5b0f2f62a,identical,unchanged,Content matches pinned source blob.
