@@ -1108,3 +1108,4 @@ patch/harness-core/README.md,patch/harness-core/README.md,04456e35de84cdd65a89ee
 README.md,README.md,67d0f0281a2cbb4898755d40ecef58de0d890fcf,bbdcd8d7672c194e9c73dfd2160d3aaf21dac8ed,modified,identity-only,"FineCore branding/source guidance with upstream installer, docs, and historical material clearly labeled."
 rust-toolchain.toml,rust-toolchain.toml,33893d44f1f0a199f3db7918178b5f751f3f8bbb,33893d44f1f0a199f3db7918178b5f751f3f8bbb,identical,unchanged,Content matches pinned source blob.
 scripts/audit_crates.py,scripts/audit_crates.py,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,f0eb208bf28ab477c9b88a163c8d76f484f44ce0,identical,unchanged,Content matches pinned source blob.
+,.github/workflows/bun-paired-audit.yml,,d8dcf49c6c146d7b1b370b73f919298117c91817,added,validation-evidence,Temporary paired Bun test protocol for pinned Orca and FineCore staging; does not waive failures.

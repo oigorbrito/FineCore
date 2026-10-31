@@ -1,0 +1,72 @@
+name: Bun paired migration audit
+
+on:
+  pull_request:
+    branches: [migration/orca-faithful-import]
+    paths: [.github/workflows/bun-paired-audit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: checkout FineCore staging snapshot
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: 53d8f8344f3f17f28766c7c880981147d3e128c6
+          path: finecore
+          persist-credentials: false
+
+      - name: checkout pinned Orca source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: okikorg/orca-harness
+          ref: 2a9fd399cfbbaad773e3cbed92bb6e24d7561f01
+          path: upstream
+          persist-credentials: false
+
+      - name: rust toolchain
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: run both snapshots
+        id: paired
+        shell: bash
+        run: |
+          set +e
+          rustc --version
+          cargo --version
+          bun --revision
+          (cd upstream && cargo test --locked -p orca-harness-tools --lib bun_repl::tests -- --test-threads=1) > upstream.log 2>&1
+          upstream_exit=$?
+          (cd finecore && cargo test --locked -p orca-harness-tools --lib bun_repl::tests -- --test-threads=1) > finecore.log 2>&1
+          finecore_exit=$?
+          cat upstream.log
+          cat finecore.log
+          printf 'upstream_exit=%s\nfinecore_exit=%s\n' "$upstream_exit" "$finecore_exit" >> "$GITHUB_OUTPUT"
+
+      - name: retain paired logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bun-paired-audit-${{ github.run_id }}
+          path: |
+            upstream.log
+            finecore.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: enforce both test results
+        if: steps.paired.outcome == 'success'
+        env:
+          UPSTREAM_EXIT: ${{ steps.paired.outputs.upstream_exit }}
+          FINECORE_EXIT: ${{ steps.paired.outputs.finecore_exit }}
+        run: test "$UPSTREAM_EXIT" = 0 && test "$FINECORE_EXIT" = 0
