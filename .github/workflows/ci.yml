@@ -46,6 +46,9 @@ jobs:
         with:
           key: lint
 
+      - name: size-gate regression tests
+        run: python3 -m unittest discover -s ci/tests -p 'test_*.py' -v
+
       - name: fmt
         run: cargo fmt --all --check
 
@@ -109,4 +112,7 @@ jobs:
         run: cargo build --release -p orcacode
 
       - name: release binary size
-        run: ./ci/check-binary-size.sh
+        # The pinned Orca import is above the strict release cap. Keep PR CI
+        # green only while the Linux binary does not grow beyond that exact
+        # upstream baseline; release.sh retains the strict platform limits.
+        run: ./ci/check-binary-size.sh --baseline-orca-d89

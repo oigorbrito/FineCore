@@ -557,8 +557,12 @@ async fn a_command_that_exits_immediately_fails_the_handshake() {
     let Err(err) = McpClient::connect("dead", "true").await else {
         panic!("expected the handshake to fail");
     };
+    // The child can exit before the initialize write reaches it (BrokenPipe),
+    // or after the write and before a response is read (closed connection).
+    // Both are valid failures for a command that exits immediately.
     assert!(
-        matches!(err, McpError::Protocol(ref m) if m.contains("closed")),
+        matches!(&err, McpError::Protocol(message) if message.contains("closed"))
+            || matches!(&err, McpError::Spawn(error) if error.kind() == std::io::ErrorKind::BrokenPipe),
         "unexpected error: {err}"
     );
 }
