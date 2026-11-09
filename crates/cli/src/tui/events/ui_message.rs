@@ -1,0 +1,466 @@
+use super::harness::{
+    bind_workflow_stage, handle_harness_event, handle_subagent_event, start_subagent,
+};
+
+use ratatui::text::{Line, Span};
+use tokio::sync::mpsc;
+
+use crate::msg::{UiMsg, WorkerCmd};
+use crate::tui::components::transcript::BlockSpacing;
+use crate::view::theme;
+
+use super::super::format::{elapsed_label, fmt_tokens, plural};
+use super::super::render::{replay_transcript, reset_conversation_ui};
+use super::super::state::{App, EffortPicker, ModelPicker, ModelPickerTarget, Overlay, RunState};
+use super::super::{expand_last_shell, push_notice, push_wrapped_lines, start_next_queued_prompt};
+
+/// The dim one-row footer under a finished turn: `done · 0.2s · 2 tools ·
+/// ↑12.0k ↓611`. It sits with the answer it describes rather than
+/// floating above the composer, so it scrolls away with the turn.
+fn push_turn_footer(app: &mut App, parts: &[String]) {
+    let mark = crate::view::glyphs::glyphs().footer;
+    let line = Line::from(Span::styled(
+        format!("  {mark}{}", parts.join(" · ")),
+        theme().dim,
+    ));
+    app.push_transcript_block(vec![line], BlockSpacing::Tight);
+}
+
+pub(crate) fn handle_ui_msg(
+    app: &mut App,
+    msg: UiMsg,
+    worker: &mpsc::UnboundedSender<WorkerCmd>,
+    width: usize,
+) {
+    match msg {
+        UiMsg::Event(event) => handle_harness_event(app, event, width),
+        UiMsg::SubagentStarted {
+            id,
+            parent_id,
+            depth,
+            call_id,
+            task,
+            identity,
+            run,
+            stage,
+        } => {
+            start_subagent(app, id, parent_id, depth, call_id, task, identity);
+            if let (Some(run), Some(stage)) = (run, stage) {
+                bind_workflow_stage(app, id, run, &stage);
+            }
+        }
+        UiMsg::SubagentEvent {
+            id,
+            parent_id,
+            depth,
+            call_id,
+            event,
+        } => handle_subagent_event(app, id, parent_id, depth, call_id, event),
+        UiMsg::SubagentCompleted {
+            id,
+            is_error,
+            message,
+        } => {
+            if let Some(transcript) = app.subagent_transcripts.get_mut(&id) {
+                transcript.detached = true;
+            }
+            app.subagent_activity.remove(&id);
+            // A run reports its own outcome, which is authoritative for every
+            // stage: stages stopped by a cancellation never report themselves.
+            if let Some(workflow) = app.workflows.get_mut(&id) {
+                workflow.settle(&message, is_error);
+                app.invalidate_agent_list();
+            }
+            if let Some(transcript) = app
+                .subagent_transcripts
+                .get(&id)
+                .filter(|t| t.status.is_active())
+            {
+                let (parent_id, depth, call_id) = (
+                    transcript.parent_id,
+                    transcript.depth,
+                    transcript.call_id.clone(),
+                );
+                let event = if is_error {
+                    orca_harness_extensions::HarnessEvent::Error { message }
+                } else {
+                    orca_harness_extensions::HarnessEvent::Result { message }
+                };
+                handle_subagent_event(app, id, parent_id, depth, call_id, event);
+            }
+        }
+        UiMsg::Approval(request) => {
+            app.approval = Some(request);
+            app.approval_choice = None;
+        }
+        UiMsg::Ask(request) => app.ask = Some(crate::tui::components::ask::AskForm::new(request)),
+        UiMsg::Models { request_id, result } => {
+            let Some((pending_id, target)) = app.picker_pending.take() else {
+                return;
+            };
+            if pending_id != request_id {
+                app.picker_pending = Some((pending_id, target));
+                return;
+            }
+            let t = theme();
+            // Learn the active model's window from the catalog in passing.
+            if let Ok(models) = &result {
+                if !matches!(target, ModelPickerTarget::Subagent { .. }) {
+                    if let Some(info) = models.iter().find(|m| m.id == app.cfg.model_name) {
+                        if info.context_length.is_some() {
+                            app.context_window = info.context_length;
+                        }
+                    }
+                }
+            }
+            match (target, result) {
+                (_, Ok(models)) if models.is_empty() => {
+                    app.overlay = app.overlay_stack.pop();
+                    app.push_line(Line::from(Span::styled("no models available", t.dim)));
+                }
+                (ModelPickerTarget::Models { filter }, Ok(models)) => {
+                    app.overlay = Some(Overlay::Models(ModelPicker::new(models, filter)));
+                }
+                (ModelPickerTarget::Subagent { tier, provider }, Ok(models)) => {
+                    let mut picker = ModelPicker::new(models, String::new());
+                    picker.subagent = Some((tier, provider));
+                    app.overlay = Some(Overlay::Models(picker));
+                }
+                (ModelPickerTarget::ActiveModelEffort, Ok(models)) => {
+                    let effort_picker = models
+                        .into_iter()
+                        .find(|model| model.id == app.cfg.model_name)
+                        .and_then(EffortPicker::new);
+                    match effort_picker {
+                        Some(picker) => app.overlay = Some(Overlay::Efforts(picker)),
+                        None => {
+                            app.overlay = app.overlay_stack.pop();
+                            app.push_line(Line::from(Span::styled(
+                                format!(
+                                    "model {} does not advertise reasoning effort choices",
+                                    app.cfg.model_name
+                                ),
+                                t.error,
+                            )));
+                        }
+                    }
+                }
+                (_, Err(err)) => {
+                    app.overlay = app.overlay_stack.pop();
+                    app.push_line(Line::from(Span::styled(
+                        format!("model list failed: {err}"),
+                        t.error,
+                    )));
+                }
+            }
+        }
+        UiMsg::ModelChanged {
+            id,
+            reasoning_effort,
+        } => {
+            app.cfg.model_name = id.clone();
+            app.reasoning_effort = reasoning_effort.clone();
+            let effort = reasoning_effort
+                .map(|effort| format!(" · effort {effort}"))
+                .unwrap_or_default();
+            app.push_line(Line::from(Span::styled(
+                format!("model: {id}{effort}"),
+                theme().dim,
+            )));
+        }
+        UiMsg::ContextWindow(window) => {
+            // Best-effort discovery: never wipe a window the model picker
+            // already stashed with a probe that found nothing.
+            if window.is_some() {
+                app.context_window = window;
+            }
+        }
+        UiMsg::RefineDone(result) => {
+            match *result {
+                Ok(outcome) => {
+                    let t = theme();
+                    // The same block shape as /hotkeys: a strong
+                    // header, dim tree rows, one strong action row.
+                    let mut lines = vec![Line::from(vec![
+                        Span::styled("  refine", t.strong),
+                        Span::styled(
+                            format!(" · proposed skill {}", outcome.proposal.name),
+                            t.dim,
+                        ),
+                    ])];
+                    let mut rows: Vec<String> = vec![outcome.proposal.description.clone()];
+                    match outcome.proposal.scripts.is_empty() {
+                        true => rows.push("packages no scripts (judgment-only lesson)".into()),
+                        false => {
+                            for script in &outcome.proposal.scripts {
+                                rows.push(format!("packages {}", script.path));
+                            }
+                        }
+                    }
+                    rows.push(format!(
+                        "evidence: {}",
+                        outcome.proposal.citations.join(", ")
+                    ));
+                    // Every rendered proposal already passed validation, so
+                    // one summary row carries the news; the itemized list
+                    // only ever mattered when something failed, and failures
+                    // arrive as an error instead.
+                    rows.push(format!(
+                        "✓ {} check{} passed{}",
+                        outcome.checks.len(),
+                        if outcome.checks.len() == 1 { "" } else { "s" },
+                        match outcome.repaired {
+                            true => " · after one repair retry",
+                            false => "",
+                        }
+                    ));
+                    let last = rows.len() - 1;
+                    for (index, row) in rows.iter().enumerate() {
+                        let branch = if index == last {
+                            crate::view::glyphs::branch_shape().corner()
+                        } else {
+                            "├"
+                        };
+                        lines.push(Line::from(Span::styled(
+                            crate::view::truncate_line(&format!("  {branch} {row}"), width),
+                            t.dim,
+                        )));
+                    }
+                    app.push_transcript_block(lines, BlockSpacing::Tight);
+                }
+                Err(err) => {
+                    app.push_line(
+                        crate::tui::components::notification::Notification::error(format!(
+                            "refine: {err}"
+                        ))
+                        .line(),
+                    );
+                }
+            }
+        }
+        UiMsg::Compacted(result) => match result {
+            Ok(report) => {
+                // Until the next model step reports real usage, the
+                // report's estimate is the best context figure we have.
+                app.context_tokens = report.est_tokens_after as u64;
+                let pct =
+                    100.0 * report.est_tokens_after as f64 / report.est_tokens_before.max(1) as f64;
+                app.push_line(Line::from(Span::styled(
+                    format!(
+                        "compacted: {} -> {} messages · ~{} -> ~{} est tokens ({pct:.1}%)",
+                        report.messages_before,
+                        report.messages_after,
+                        report.est_tokens_before,
+                        report.est_tokens_after,
+                    ),
+                    theme().dim,
+                )));
+                if report.elided_results > 0 {
+                    app.push_line(Line::from(Span::styled(
+                        format!(
+                            "{} tool outputs ({} KB) elided to store, recoverable via read_tool_result",
+                            report.elided_results,
+                            report.elided_bytes / 1024,
+                        ),
+                        theme().dim,
+                    )));
+                }
+            }
+            Err(err) => {
+                app.push_line(Line::from(Span::styled(
+                    format!("compact: {err}"),
+                    theme().dim,
+                )));
+            }
+        },
+        UiMsg::McpConnecting(connecting) => app.mcp_connecting = connecting,
+        UiMsg::Notice(text) => {
+            push_notice(app, text);
+        }
+        UiMsg::RunStarted { id, cancel } => match &app.run {
+            RunState::Running {
+                id: active_id,
+                started,
+                ..
+            } if active_id == &id => {
+                app.run = RunState::Running {
+                    id,
+                    started: *started,
+                    cancel,
+                };
+            }
+            _ => {
+                app.reset_activity();
+                app.run = RunState::Running {
+                    id,
+                    started: std::time::Instant::now(),
+                    cancel,
+                };
+            }
+        },
+        UiMsg::SessionCleared { id } => {
+            reset_conversation_ui(app);
+            if let Some(id) = id {
+                app.cfg.session_id = Some(id.clone());
+                push_notice(
+                    app,
+                    format!("session {id} started · previous transcript preserved · background work stopped"),
+                );
+            } else {
+                push_notice(app, "conversation cleared · background work stopped");
+            }
+        }
+        UiMsg::ContextRewound { messages, notice } => {
+            // The transcript is redrawn from the shortened context, but
+            // the token totals are not conversation state — they record
+            // what this session actually spent, and rewinding does not
+            // un-spend it. Occupancy is left to the next model step.
+            let spent = (
+                app.tokens_in,
+                app.tokens_out,
+                app.cache_read_total,
+                app.cache_write_total,
+                app.usage_steps,
+            );
+            reset_conversation_ui(app);
+            (
+                app.tokens_in,
+                app.tokens_out,
+                app.cache_read_total,
+                app.cache_write_total,
+                app.usage_steps,
+            ) = spent;
+            push_notice(app, notice);
+            replay_transcript(app, &messages, width);
+        }
+        UiMsg::SessionForked { id, parent } => {
+            app.cfg.session_id = Some(id.clone());
+            push_notice(
+                app,
+                format!("forked to session {id} · {parent} is left as it was"),
+            );
+        }
+        UiMsg::SessionLoaded { id, messages } => {
+            reset_conversation_ui(app);
+            app.cfg.session_id = Some(id.clone());
+            push_notice(
+                app,
+                format!("resumed session {id} ({} messages)", messages.len()),
+            );
+            replay_transcript(app, &messages, width);
+        }
+        UiMsg::ProviderChanged { provider, model } => {
+            app.cfg.provider = provider;
+            app.cfg.model_name = model.clone();
+            app.reasoning_effort = None;
+            app.context_window = None;
+            app.push_line(Line::from(Span::styled(
+                format!("provider: {} · model: {model}", provider.label()),
+                theme().dim,
+            )));
+        }
+        UiMsg::RunDone { id, result } => {
+            if !matches!(&app.run, RunState::Running { id: active_id, .. } if active_id == &id) {
+                return;
+            }
+            let completed = result.is_ok();
+            let turn_elapsed = match &app.run {
+                RunState::Running { started, .. } => Some(started.elapsed()),
+                RunState::Idle => None,
+            };
+            // Flush any partial stream (interrupted mid-generation).
+            if result.is_err() {
+                app.commit_activity(width);
+                let partial = if !app.text.trim().is_empty() {
+                    Some(std::mem::take(&mut app.text))
+                } else {
+                    app.pending_assistant.take()
+                };
+                if let Some(partial) = partial {
+                    app.push_markdown_block(&partial, width, BlockSpacing::Section);
+                    // Interrupted output is often exactly what the user
+                    // wanted to keep — that is why they interrupted.
+                    app.last_answer = Some(partial);
+                }
+            }
+            app.text.clear();
+            app.run = RunState::Idle;
+            app.approval = None;
+            app.ask = None;
+            if let Err(err) = result {
+                let mut lines = Vec::new();
+                // A structured provider failure is never an interruption, so it
+                // takes precedence over the "cancel" substring check below.
+                if let Some(explained) = orca_harness_model_providers::http_error::explain(&err) {
+                    push_wrapped_lines(
+                        &mut lines,
+                        &format!("run failed · {}", explained.headline),
+                        "  ",
+                        theme().error,
+                        width,
+                    );
+                    push_wrapped_lines(&mut lines, &explained.detail, "  ", theme().dim, width);
+                    if let Some(hint) = &explained.hint {
+                        push_wrapped_lines(
+                            &mut lines,
+                            &format!("fix: {hint}"),
+                            "  ",
+                            theme().dim,
+                            width,
+                        );
+                    }
+                } else {
+                    let (style, label) = if err.to_lowercase().contains("cancel") {
+                        (theme().dim, "interrupted".to_string())
+                    } else {
+                        (theme().error, format!("run failed: {err}"))
+                    };
+                    push_wrapped_lines(&mut lines, &label, "  ", style, width);
+                }
+                app.push_transcript_block(lines, BlockSpacing::Tight);
+            }
+            if completed {
+                if let Some(elapsed) = turn_elapsed {
+                    let mut parts = vec![
+                        "done".to_string(),
+                        elapsed_label(elapsed),
+                        plural(app.turn_tool_calls, "tool"),
+                    ];
+                    if app.turn_tokens_in > 0 || app.turn_tokens_out > 0 {
+                        parts.push(format!(
+                            "↑{} ↓{}",
+                            fmt_tokens(app.turn_tokens_in),
+                            fmt_tokens(app.turn_tokens_out)
+                        ));
+                    }
+                    push_turn_footer(app, &parts);
+                }
+                if !start_next_queued_prompt(app, worker, width) {
+                    crate::tui::commands::request_plan_approval(app);
+                }
+            }
+        }
+        UiMsg::ShellDone { id } => {
+            if !matches!(&app.run, RunState::Running { id: active_id, .. } if active_id == &id) {
+                return;
+            }
+            app.commit_activity(width);
+            // `!cmd` is an explicit request to run and see: show the
+            // result inline (bounded) instead of hiding it behind
+            // `/expand`. The rail summary above already gives the
+            // exit code and first line at a glance.
+            expand_last_shell(app, width);
+            let elapsed = match &app.run {
+                RunState::Running { started, .. } => Some(started.elapsed()),
+                RunState::Idle => None,
+            };
+            app.run = RunState::Idle;
+            app.approval = None;
+            app.ask = None;
+            if let Some(elapsed) = elapsed {
+                push_turn_footer(app, &["shell".to_string(), elapsed_label(elapsed)]);
+            }
+            start_next_queued_prompt(app, worker, width);
+        }
+    }
+}

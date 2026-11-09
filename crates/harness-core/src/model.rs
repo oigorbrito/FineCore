@@ -1,0 +1,205 @@
+//! The Model boundary. The Loop contains no provider-specific logic;
+//! adapters (OpenAI-compatible, Anthropic, local inference, ...) live in
+//! separate crates behind this trait.
+
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+
+use crate::context::Context;
+use crate::error::ModelError;
+use crate::tool::{ToolCall, ToolSchema};
+
+/// Token accounting for one model invocation, self-reported by the
+/// adapter. The kernel never inspects it; extensions (metering, billing,
+/// event streams) consume it via `after_model`.
+///
+/// Adapters must normalize to these semantics (providers disagree):
+/// `input_tokens` is UNCACHED prompt tokens only — cache reads and writes
+/// are reported separately, never double-counted. OpenAI-style
+/// `prompt_tokens` includes cached tokens and must be reduced; Anthropic
+/// `input_tokens` already excludes them.
+///
+/// `cost` is what the endpoint itself says the call cost, in US dollars,
+/// when it reports one (OpenRouter's `usage.cost`). Adapters never derive
+/// it from token counts.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Usage {
+    /// Prompt tokens actually processed (excluding cache reads/writes).
+    pub input_tokens: u64,
+    /// Completion tokens, including any provider-reported reasoning.
+    pub output_tokens: u64,
+    /// Provider-reported reasoning tokens, already included in output_tokens.
+    /// None means the provider omitted this breakdown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u64>,
+    pub cache_read_tokens: u64,
+    pub cache_create_tokens: u64,
+    /// Endpoint-reported cost in US dollars. None means none was reported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost: Option<f64>,
+    /// The endpoint's breakdown of `cost`, when it sends one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_details: Option<CostDetails>,
+}
+
+/// OpenRouter's `usage.cost_details`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CostDetails {
+    /// What the upstream provider charged, in US dollars.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_inference_cost: Option<f64>,
+}
+
+/// Sums two optional figures; absent on both sides stays absent.
+fn add_reported<T: std::ops::Add<Output = T>>(total: Option<T>, other: Option<T>) -> Option<T> {
+    match (total, other) {
+        (Some(total), Some(other)) => Some(total + other),
+        (total, other) => total.or(other),
+    }
+}
+
+impl Usage {
+    pub fn add(&mut self, other: &Usage) {
+        self.input_tokens += other.input_tokens;
+        self.output_tokens += other.output_tokens;
+        if let Some(tokens) = other.reasoning_tokens {
+            self.reasoning_tokens = Some(self.reasoning_tokens.unwrap_or(0).saturating_add(tokens));
+        }
+        self.cache_read_tokens += other.cache_read_tokens;
+        self.cache_create_tokens += other.cache_create_tokens;
+        self.cost = add_reported(self.cost, other.cost);
+        if let Some(details) = other.cost_details {
+            let total = self.cost_details.get_or_insert_with(CostDetails::default);
+            total.upstream_inference_cost = add_reported(
+                total.upstream_inference_cost,
+                details.upstream_inference_cost,
+            );
+        }
+    }
+
+    /// The context this step occupied: everything the model saw (cached
+    /// or not) plus what it produced — which the next request re-sends.
+    /// This is the figure a context meter or compaction threshold reads.
+    pub fn context_tokens(&self) -> u64 {
+        self.input_tokens + self.output_tokens + self.cache_read_tokens + self.cache_create_tokens
+    }
+}
+
+/// An incremental fragment emitted while the model is still generating.
+/// Deltas are presentation-only: the [`ModelResponse`] returned by
+/// [`Model::generate_streaming`] stays the source of truth the loop acts
+/// on, and the kernel never accumulates deltas itself.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ModelDelta {
+    /// A fragment of assistant text.
+    Text { text: String },
+    /// A fragment of the model's reasoning/thinking channel. Ephemeral:
+    /// reasoning never enters the Context.
+    Reasoning { text: String },
+    /// A fragment of tool-call arguments being generated. Presentation
+    /// can count it as output without exposing incomplete JSON as a call.
+    ToolInput { text: String },
+}
+
+/// Receives deltas during a streaming generation. Implemented for plain
+/// `Fn(ModelDelta)` closures.
+#[async_trait]
+pub trait DeltaSink: Send + Sync {
+    async fn emit(&self, delta: ModelDelta);
+}
+
+#[async_trait]
+impl<F> DeltaSink for F
+where
+    F: Fn(ModelDelta) + Send + Sync,
+{
+    async fn emit(&self, delta: ModelDelta) {
+        self(delta)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ModelResponse {
+    /// A final answer: the run terminates.
+    Final { text: String, usage: Option<Usage> },
+    /// One batch of tool calls to execute before the next model step.
+    ToolCalls {
+        /// Assistant text accompanying the calls, if any.
+        content: Option<String>,
+        calls: Vec<ToolCall>,
+        usage: Option<Usage>,
+    },
+}
+
+impl ModelResponse {
+    /// A final answer with no usage attached.
+    pub fn final_text(text: impl Into<String>) -> Self {
+        Self::Final {
+            text: text.into(),
+            usage: None,
+        }
+    }
+
+    /// A tool-call batch with no accompanying text or usage.
+    pub fn tool_calls(calls: Vec<ToolCall>) -> Self {
+        Self::ToolCalls {
+            content: None,
+            calls,
+            usage: None,
+        }
+    }
+
+    pub fn usage(&self) -> Option<&Usage> {
+        match self {
+            Self::Final { usage, .. } | Self::ToolCalls { usage, .. } => usage.as_ref(),
+        }
+    }
+}
+
+#[async_trait]
+pub trait Model: Send + Sync {
+    async fn generate(
+        &self,
+        context: &Context,
+        tools: &[ToolSchema],
+    ) -> Result<ModelResponse, ModelError>;
+
+    /// Like [`generate`](Model::generate), but emits incremental
+    /// [`ModelDelta`]s to `sink` while the response is produced. The
+    /// returned response is authoritative. Defaults to plain `generate`
+    /// with no deltas, so non-streaming adapters need no changes; the loop
+    /// only calls this when at least one extension subscribes to deltas.
+    async fn generate_streaming(
+        &self,
+        context: &Context,
+        tools: &[ToolSchema],
+        _sink: &dyn DeltaSink,
+    ) -> Result<ModelResponse, ModelError> {
+        self.generate(context, tools).await
+    }
+}
+
+// Shared handles are models too, so hosts can keep a reference to the
+// model (e.g. a test double) while the Agent owns another.
+#[async_trait]
+impl<M: Model + ?Sized> Model for std::sync::Arc<M> {
+    async fn generate(
+        &self,
+        context: &Context,
+        tools: &[ToolSchema],
+    ) -> Result<ModelResponse, ModelError> {
+        (**self).generate(context, tools).await
+    }
+
+    async fn generate_streaming(
+        &self,
+        context: &Context,
+        tools: &[ToolSchema],
+        sink: &dyn DeltaSink,
+    ) -> Result<ModelResponse, ModelError> {
+        (**self).generate_streaming(context, tools, sink).await
+    }
+}
