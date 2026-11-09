@@ -43,6 +43,7 @@ permissions:
 
 jobs:
   tag:
+    if: github.repository == 'okikorg/orca-harness'
     name: resolve tag
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -94,6 +95,7 @@ jobs:
           echo "releasing orcacode $version from tag $tag"
 
   build:
+    if: github.repository == 'okikorg/orca-harness'
     name: build ${{ matrix.asset }}
     needs: tag
     runs-on: ${{ matrix.os }}
@@ -207,6 +209,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: github.repository == 'okikorg/orca-harness'
     name: publish ${{ needs.tag.outputs.tag }}
     needs: [tag, build]
     runs-on: ubuntu-latest

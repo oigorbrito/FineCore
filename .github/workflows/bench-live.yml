@@ -32,6 +32,7 @@ env:
 
 jobs:
   harness-comparison:
+    if: github.repository == 'okikorg/orca-harness'
     name: harness comparison
     runs-on: ubuntu-latest
     timeout-minutes: 60
