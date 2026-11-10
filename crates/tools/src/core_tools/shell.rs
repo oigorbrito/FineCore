@@ -1,0 +1,561 @@
+//! `shell` — run a command and hand stdout/stderr/exit status to the model.
+//!
+//! Targeting: by default the command runs on the host via `sh -c "<cmd>"`.
+//! Point it at another machine or container by setting an *executor*: a
+//! program plus fixed leading args that receive the command string as the
+//! final argument. `ssh user@host` runs on a remote box; `docker exec -i
+//! <ctr> sh -c` runs inside a container. The tool's contract to the model
+//! is identical either way — it asks for a command, it gets output.
+//!
+//! Cancellation: when the run's `CancellationToken` fires (e.g. the caller
+//! disconnected), the child process is killed rather than left orphaned.
+
+use std::process::Stdio;
+use std::time::Duration;
+
+use async_trait::async_trait;
+use serde_json::{json, Value};
+use tokio::io::AsyncReadExt;
+use tokio::process::Command;
+
+use orca_harness_core::{Tool, ToolContext, ToolError, ToolSchema};
+
+use crate::pgroup;
+
+/// How and where a shell command is executed.
+#[derive(Clone)]
+pub struct Executor {
+    kind: Kind,
+}
+
+/// A child process on some machine, or a provider sandbox reached over its
+/// own API. The distinction is internal: every constructor below keeps the
+/// signature it always had, and a sandbox is one more way to be "elsewhere".
+#[derive(Clone)]
+enum Kind {
+    Process {
+        program: String,
+        leading_args: Vec<String>,
+    },
+    Sandbox(std::sync::Arc<dyn orca_harness_core::Sandbox>),
+}
+
+impl std::fmt::Debug for Executor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.kind {
+            Kind::Process {
+                program,
+                leading_args,
+            } => f
+                .debug_struct("Executor")
+                .field("program", program)
+                .field("leading_args", leading_args)
+                .finish(),
+            Kind::Sandbox(_) => f.debug_struct("Executor").field("sandbox", &"..").finish(),
+        }
+    }
+}
+
+impl Executor {
+    /// The local host, via `sh -c "<cmd>"`. Deliberately not a login
+    /// shell: profile scripts (`nvm`, banners) would pollute stdout that
+    /// the model reads. Set a richer executor if you need profile PATH.
+    pub fn local_sh() -> Self {
+        Self {
+            kind: Kind::Process {
+                program: "sh".into(),
+                leading_args: vec!["-c".into()],
+            },
+        }
+    }
+
+    /// An arbitrary executor: `program` plus `leading_args`, with the
+    /// command string appended as the final argument. Examples:
+    /// `Executor::new("ssh", ["user@host"])`,
+    /// `Executor::new("docker", ["exec","-i","ctr","sh","-lc"])`.
+    pub fn new<I, S>(program: impl Into<String>, leading_args: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        Self {
+            kind: Kind::Process {
+                program: program.into(),
+                leading_args: leading_args.into_iter().map(Into::into).collect(),
+            },
+        }
+    }
+
+    /// Run commands inside a provider sandbox. Unlike every other
+    /// executor this one does not spawn a local process: the command is
+    /// sent to the sandbox's own API. Pair it with sandbox-backed file
+    /// tools (see [`crate::Workspace`]) — a sandboxed shell beside host
+    /// file tools is a boundary with a hole in it.
+    pub fn sandbox(sandbox: std::sync::Arc<dyn orca_harness_core::Sandbox>) -> Self {
+        Self {
+            kind: Kind::Sandbox(sandbox),
+        }
+    }
+
+    /// Whether commands run in a sandbox rather than as a local process.
+    pub fn is_sandboxed(&self) -> bool {
+        matches!(&self.kind, Kind::Sandbox(_))
+    }
+
+    /// The sandbox this executor targets, if any.
+    pub(crate) fn as_sandbox(&self) -> Option<&std::sync::Arc<dyn orca_harness_core::Sandbox>> {
+        match &self.kind {
+            Kind::Sandbox(sandbox) => Some(sandbox),
+            Kind::Process { .. } => None,
+        }
+    }
+
+    /// Run `command` on a remote host over SSH.
+    pub fn ssh(destination: impl Into<String>) -> Self {
+        Self::new("ssh", [destination.into()])
+    }
+
+    /// Run `command` inside a running Docker container via `sh -c`.
+    pub fn docker_exec(container: impl Into<String>) -> Self {
+        Self::new(
+            "docker",
+            ["exec", "-i", &container.into(), "sh", "-c"].map(String::from),
+        )
+    }
+
+    fn is_local_sh(&self) -> bool {
+        matches!(&self.kind, Kind::Process { program, .. } if program == "sh")
+    }
+
+    /// Build a [`Command`] that runs `command_str` through this executor.
+    /// For the local `sh` executor `working_dir` becomes the child's real
+    /// cwd; for remote executors there is no cwd to set, so it is folded
+    /// in as `cd <dir> && …`. Stdio is left for the caller to configure.
+    ///
+    /// Panics for a sandbox executor, which has no local command to build;
+    /// callers reach [`as_sandbox`](Self::as_sandbox) first.
+    pub(crate) fn build(&self, command_str: &str, working_dir: Option<&str>) -> Command {
+        let Kind::Process {
+            program,
+            leading_args,
+        } = &self.kind
+        else {
+            unreachable!("build() on a sandbox executor; check as_sandbox() first")
+        };
+        let mut cmd = Command::new(program);
+        cmd.args(leading_args);
+        let effective = match (working_dir, self.is_local_sh()) {
+            (Some(_), true) | (None, _) => command_str.to_string(),
+            (Some(dir), false) => format!("cd {dir} && {command_str}"),
+        };
+        cmd.arg(effective);
+        if self.is_local_sh() {
+            if let Some(dir) = working_dir {
+                cmd.current_dir(dir);
+            }
+        }
+        // Own process group: kills can reach grandchildren, and children
+        // no longer die accidentally with the host's terminal — hosts
+        // must kill them deliberately (see pgroup + CLI signal handling).
+        #[cfg(unix)]
+        cmd.process_group(0);
+        cmd
+    }
+
+    /// The same command as [`build`](Self::build), but as the backend and
+    /// request a [`Spawner`](crate::Spawner) takes — the form long-lived
+    /// processes need, and the only form that works for a sandbox.
+    pub(crate) fn spawn_parts(
+        &self,
+        command_str: &str,
+        working_dir: Option<&str>,
+    ) -> (crate::Spawner, crate::spawner::Spawn) {
+        match &self.kind {
+            Kind::Process {
+                program,
+                leading_args,
+            } => {
+                let local_sh = self.is_local_sh();
+                // Same split as `build`: only the local shell gets a real
+                // cwd; anything else has the directory folded into the
+                // command, because there is no local directory to enter.
+                let effective = match (working_dir, local_sh) {
+                    (Some(_), true) | (None, _) => command_str.to_string(),
+                    (Some(dir), false) => format!("cd {dir} && {command_str}"),
+                };
+                let mut args = leading_args.clone();
+                args.push(effective);
+                (
+                    crate::Spawner::Local,
+                    crate::spawner::Spawn {
+                        program: program.clone(),
+                        args,
+                        working_dir: local_sh.then_some(working_dir).flatten().map(String::from),
+                        capture_stderr: true,
+                    },
+                )
+            }
+            Kind::Sandbox(sandbox) => (
+                crate::Spawner::Sandbox(sandbox.clone()),
+                crate::spawner::Spawn {
+                    program: "sh".into(),
+                    args: vec!["-c".into(), command_str.to_string()],
+                    working_dir: working_dir.map(String::from),
+                    capture_stderr: true,
+                },
+            ),
+        }
+    }
+}
+
+/// `shell` tool. Runs one command per call; concurrency-`Parallel` by
+/// default (independent commands fan out), so serialize at the policy
+/// layer if your target cannot handle concurrent sessions.
+pub struct ShellTool {
+    executor: Executor,
+    /// Per-call wall-clock timeout. `None` relies on the run deadline.
+    timeout: Option<Duration>,
+    /// Cap on captured stdout/stderr bytes each, to protect the context
+    /// window and the NDJSON line cap downstream.
+    max_output_bytes: usize,
+    working_dir: Option<String>,
+    /// Set on a sandbox the host started without network access: the
+    /// line added below a failed command's network error.
+    network_off: Option<String>,
+}
+
+impl Default for ShellTool {
+    fn default() -> Self {
+        Self::new(Executor::local_sh())
+    }
+}
+
+impl ShellTool {
+    pub fn new(executor: Executor) -> Self {
+        Self {
+            executor,
+            timeout: None,
+            max_output_bytes: 64 * 1024,
+            working_dir: None,
+            network_off: None,
+        }
+    }
+
+    /// Convenience: a host shell.
+    pub fn local() -> Self {
+        Self::default()
+    }
+
+    pub fn timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub fn max_output_bytes(mut self, bytes: usize) -> Self {
+        self.max_output_bytes = bytes;
+        self
+    }
+
+    /// Set a working directory. For the local executor this becomes the
+    /// child's cwd; for remote executors it is prepended as `cd <dir> &&`.
+    pub fn working_dir(mut self, dir: impl Into<String>) -> Self {
+        self.working_dir = Some(dir.into());
+        self
+    }
+
+    /// The target has no network access, and `message` says why. A
+    /// command that fails with a network error gets one more line, `[Orca]
+    /// <message>`, below that error in the stream that reported it.
+    pub fn network_off(mut self, message: impl Into<String>) -> Self {
+        self.network_off = Some(message.into());
+        self
+    }
+
+    /// The sandbox path: the provider runs the command and reports the
+    /// same three fields, so the tool's contract to the model is unchanged.
+    /// Cancellation still wins the race; the provider enforces the timeout.
+    async fn call_sandbox(
+        &self,
+        sandbox: &dyn orca_harness_core::Sandbox,
+        command_str: &str,
+        ctx: &ToolContext,
+    ) -> Result<Value, ToolError> {
+        let mut request = orca_harness_core::ExecRequest::new(command_str);
+        request.cwd = self.working_dir.clone();
+        request.timeout_ms = self.timeout.map(|t| t.as_millis() as u64);
+
+        let output = tokio::select! {
+            biased;
+            _ = ctx.cancellation.cancelled() => return Err(ToolError::msg("cancelled")),
+            result = sandbox.exec(request) => {
+                result.map_err(|e| ToolError::msg(e.to_string()))?
+            }
+        };
+
+        let (mut stdout, stdout_truncated) = truncate(output.stdout, self.max_output_bytes);
+        let (mut stderr, stderr_truncated) = truncate(output.stderr, self.max_output_bytes);
+        if output.exit_code != 0 {
+            self.mark_network_error(&mut stdout, &mut stderr);
+        }
+        Ok(json!({
+            "stdout": stdout,
+            "stderr": stderr,
+            "exitCode": output.exit_code,
+            "success": output.exit_code == 0,
+            "stdoutTruncated": stdout_truncated,
+            "stderrTruncated": stderr_truncated,
+        }))
+    }
+
+    /// On a network-off target, a failed command whose output carries a
+    /// network error gets `[Orca] <message>` as its own line below it:
+    /// stderr when the error is there, otherwise stdout.
+    fn mark_network_error(&self, stdout: &mut String, stderr: &mut String) {
+        let Some(message) = &self.network_off else {
+            return;
+        };
+        let stream = if is_network_error(stderr) {
+            stderr
+        } else if is_network_error(stdout) {
+            stdout
+        } else {
+            return;
+        };
+        if !stream.is_empty() && !stream.ends_with('\n') {
+            stream.push('\n');
+        }
+        stream.push_str("[Orca] ");
+        stream.push_str(message);
+        stream.push('\n');
+    }
+
+    fn build_command(&self, command_str: &str) -> Command {
+        let mut cmd = self
+            .executor
+            .build(command_str, self.working_dir.as_deref());
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
+        cmd
+    }
+}
+
+/// What resolvers, sockets and the common clients (curl, pip, npm, Node,
+/// Python) print when a command cannot reach the network.
+const NETWORK_ERRORS: [&str; 8] = [
+    "Could not resolve host",
+    "Temporary failure in name resolution",
+    "Name or service not known",
+    "Network is unreachable",
+    "Failed to establish a new connection",
+    "getaddrinfo",
+    "ENOTFOUND",
+    "ECONNREFUSED",
+];
+
+fn is_network_error(output: &str) -> bool {
+    NETWORK_ERRORS.iter().any(|error| output.contains(error))
+}
+
+fn truncate(bytes: Vec<u8>, cap: usize) -> (String, bool) {
+    let truncated = bytes.len() > cap;
+    let slice = if truncated { &bytes[..cap] } else { &bytes[..] };
+    (String::from_utf8_lossy(slice).into_owned(), truncated)
+}
+
+#[async_trait]
+impl Tool for ShellTool {
+    fn schema(&self) -> ToolSchema {
+        ToolSchema {
+            name: "shell".into(),
+            description: "Run a shell command and return its stdout, stderr, and exit code. \
+                Use for building, testing, inspecting, and manipulating the target machine."
+                .into(),
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The shell command line to execute."
+                    }
+                },
+                "required": ["command"]
+            }),
+        }
+    }
+
+    async fn call(&self, input: Value, ctx: &ToolContext) -> Result<Value, ToolError> {
+        let command_str = input
+            .get("command")
+            .and_then(Value::as_str)
+            .ok_or_else(|| ToolError::msg("`command` (string) is required"))?;
+        if command_str.trim().is_empty() {
+            // `sh -c ""` exits 0 doing nothing; succeeding silently would
+            // tell the model its (missing) command worked.
+            return Err(ToolError::msg("`command` must not be empty"));
+        }
+
+        if let Some(sandbox) = self.executor.as_sandbox() {
+            return self.call_sandbox(sandbox.as_ref(), command_str, ctx).await;
+        }
+
+        let mut child = self
+            .build_command(command_str)
+            .spawn()
+            .map_err(|e| ToolError::msg(format!("failed to spawn: {e}")))?;
+        let pgid = child.id();
+
+        let mut stdout_pipe = child.stdout.take();
+        let mut stderr_pipe = child.stderr.take();
+        let read_streams = async {
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            if let Some(pipe) = stdout_pipe.as_mut() {
+                let _ = pipe.read_to_end(&mut out).await;
+            }
+            if let Some(pipe) = stderr_pipe.as_mut() {
+                let _ = pipe.read_to_end(&mut err).await;
+            }
+            let status = child.wait().await;
+            (out, err, status)
+        };
+
+        // Race execution against cancellation and the optional timeout.
+        // On either, the whole process group is SIGKILLed so grandchildren
+        // die too; `kill_on_drop` remains as the non-Unix fallback.
+        let outcome = tokio::select! {
+            biased;
+            _ = ctx.cancellation.cancelled() => {
+                if let Some(pgid) = pgid {
+                    pgroup::kill_group(pgid);
+                }
+                return Err(ToolError::msg("cancelled"));
+            }
+            result = async {
+                match self.timeout {
+                    Some(t) => tokio::time::timeout(t, read_streams).await.map_err(|_| ()),
+                    None => Ok(read_streams.await),
+                }
+            } => result,
+        };
+
+        let (stdout, stderr, status) = match outcome {
+            Ok(triple) => triple,
+            Err(()) => {
+                if let Some(pgid) = pgid {
+                    pgroup::kill_group(pgid);
+                }
+                return Err(ToolError::msg("command timed out"));
+            }
+        };
+        let status = status.map_err(|e| ToolError::msg(format!("wait failed: {e}")))?;
+
+        let (mut stdout, stdout_truncated) = truncate(stdout, self.max_output_bytes);
+        let (mut stderr, stderr_truncated) = truncate(stderr, self.max_output_bytes);
+        if !status.success() {
+            self.mark_network_error(&mut stdout, &mut stderr);
+        }
+
+        Ok(json!({
+            "stdout": stdout,
+            "stderr": stderr,
+            "exitCode": status.code(),
+            "success": status.success(),
+            "stdoutTruncated": stdout_truncated,
+            "stderrTruncated": stderr_truncated,
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shell_has_no_default_timeout() {
+        assert_eq!(ShellTool::local().timeout, None);
+    }
+
+    const MESSAGE: &str = "Network is off here.";
+
+    async fn run(tool: &ShellTool, command: &str) -> Value {
+        let ctx = ToolContext {
+            call_id: "test".into(),
+            tool_name: "shell".into(),
+            cancellation: orca_harness_core::CancellationToken::new(),
+            deadline: None,
+        };
+        tool.call(json!({ "command": command }), &ctx)
+            .await
+            .unwrap()
+    }
+
+    #[test]
+    fn every_listed_network_error_is_recognised() {
+        for error in NETWORK_ERRORS {
+            assert!(
+                is_network_error(&format!("before {error} after")),
+                "{error}"
+            );
+        }
+        assert!(!is_network_error("No such file or directory"));
+    }
+
+    #[tokio::test]
+    async fn a_failed_command_with_a_network_error_gets_the_line_below_it() {
+        let tool = ShellTool::local().network_off(MESSAGE);
+        let out = run(
+            &tool,
+            "echo 'curl: (6) Could not resolve host: example.com' >&2; exit 6",
+        )
+        .await;
+        assert_eq!(
+            out["stderr"],
+            "curl: (6) Could not resolve host: example.com\n[Orca] Network is off here.\n"
+        );
+        assert_eq!(out["stdout"], "");
+        assert_eq!(out["exitCode"], 6);
+
+        // No trailing newline: the line still starts on its own line.
+        let out = run(
+            &tool,
+            "printf 'connect ECONNREFUSED 10.0.0.1:443' >&2; exit 1",
+        )
+        .await;
+        assert_eq!(
+            out["stderr"],
+            "connect ECONNREFUSED 10.0.0.1:443\n[Orca] Network is off here.\n"
+        );
+
+        // Reported on stdout only: the line follows it there.
+        let out = run(
+            &tool,
+            "echo 'getaddrinfo ENOTFOUND registry.npmjs.org'; exit 1",
+        )
+        .await;
+        assert_eq!(
+            out["stdout"],
+            "getaddrinfo ENOTFOUND registry.npmjs.org\n[Orca] Network is off here.\n"
+        );
+        assert_eq!(out["stderr"], "");
+    }
+
+    #[tokio::test]
+    async fn other_output_is_left_alone() {
+        let tool = ShellTool::local().network_off(MESSAGE);
+        // Succeeded, though its output names a network error.
+        let out = run(&tool, "echo 'Could not resolve host' >&2").await;
+        assert_eq!(out["stderr"], "Could not resolve host\n");
+        // Failed, but not on the network.
+        let out = run(&tool, "echo 'No such file or directory' >&2; exit 1").await;
+        assert_eq!(out["stderr"], "No such file or directory\n");
+        // Not marked network-off.
+        let out = run(
+            &ShellTool::local(),
+            "echo 'Network is unreachable' >&2; exit 1",
+        )
+        .await;
+        assert_eq!(out["stderr"], "Network is unreachable\n");
+    }
+}

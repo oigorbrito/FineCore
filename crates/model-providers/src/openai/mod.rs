@@ -1,0 +1,577 @@
+//! OpenAI-compatible chat-completions adapter for Orca Harness.
+//!
+//! Works against any endpoint speaking the `/v1/chat/completions` protocol
+//! (OpenAI, vLLM, llama.cpp server, most gateways). The kernel's Loop
+//! contains no provider-specific logic; this crate is where the protocol
+//! mapping lives.
+
+mod request;
+mod stream;
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
+use async_trait::async_trait;
+use futures_util::StreamExt;
+use serde::Deserialize;
+use serde_json::{json, Value};
+
+use orca_harness_core::{
+    Context, CostDetails, DeltaSink, Model, ModelError, ModelResponse, ToolCall, ToolSchema, Usage,
+};
+
+use self::stream::ChunkAccumulator;
+use crate::sse::SseLineBuffer;
+#[cfg(test)]
+use request::encode_messages;
+
+fn parse_tool_arguments(
+    tool_name: &str,
+    arguments: &str,
+    finish_reason: Option<&str>,
+    usage: Option<Usage>,
+) -> Result<Value, ModelError> {
+    if arguments.trim().is_empty() {
+        return Ok(Value::Object(Default::default()));
+    }
+    serde_json::from_str(arguments).map_err(|error| ModelError::MalformedToolArguments {
+        tool_name: tool_name.to_string(),
+        argument_bytes: arguments.len(),
+        finish_reason: finish_reason.map(str::to_string),
+        message: error.to_string(),
+        usage,
+    })
+}
+
+/// Receives a response's `id` once per call. OpenRouter calls it the
+/// generation id, the key to its `GET /generation` cost lookup.
+pub type ResponseIdHook = Arc<dyn Fn(&str, ResponseIdSource) + Send + Sync>;
+
+/// Where a call's response id was read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResponseIdSource {
+    /// OpenRouter's `X-Generation-Id` header on a 2xx response, before any
+    /// of the body.
+    Header,
+    /// The first stream chunk that carried an `id`, or a plain call's body:
+    /// the response had no header.
+    Body,
+}
+
+/// The response header OpenRouter names its generation in.
+const GENERATION_HEADER: &str = "x-generation-id";
+
+/// How long a call its caller dropped keeps waiting for the response
+/// headers, so the generation id they carry is still reported.
+pub const HEADER_WAIT: Duration = Duration::from_secs(10);
+
+/// Reports one call's response id, at most once.
+struct IdReport {
+    hook: Option<ResponseIdHook>,
+    reported: AtomicBool,
+}
+
+impl IdReport {
+    fn report(&self, id: Option<&str>, source: ResponseIdSource) {
+        let (Some(hook), Some(id)) = (&self.hook, id.filter(|id| !id.is_empty())) else {
+            return;
+        };
+        if !self.reported.swap(true, Ordering::AcqRel) {
+            hook(id, source);
+        }
+    }
+}
+
+pub struct OpenAiModel {
+    base_url: String,
+    api_key: Option<String>,
+    model: String,
+    temperature: Option<f64>,
+    max_tokens: Option<u64>,
+    reasoning_effort: Option<String>,
+    service_tier: Option<String>,
+    verbosity: Option<String>,
+    response_format: Option<Value>,
+    nested_reasoning: bool,
+    parallel_tool_calls: Option<bool>,
+    headers: Vec<(String, String)>,
+    usage_accounting: bool,
+    prompt_cache: bool,
+    gateway_caching: bool,
+    session_id: Option<String>,
+    prompt_cache_key: Option<String>,
+    response_id: Option<ResponseIdHook>,
+    header_wait: Duration,
+}
+
+impl OpenAiModel {
+    pub fn new(model: impl Into<String>) -> Self {
+        Self {
+            base_url: "https://api.openai.com/v1".into(),
+            api_key: None,
+            model: model.into(),
+            temperature: None,
+            max_tokens: None,
+            reasoning_effort: None,
+            service_tier: None,
+            verbosity: None,
+            response_format: None,
+            nested_reasoning: false,
+            parallel_tool_calls: None,
+            headers: Vec::new(),
+            usage_accounting: false,
+            prompt_cache: false,
+            gateway_caching: false,
+            session_id: None,
+            prompt_cache_key: None,
+            response_id: None,
+            header_wait: HEADER_WAIT,
+        }
+    }
+
+    /// Ask the endpoint for detailed usage accounting (`usage: {include:
+    /// true}`). OpenRouter needs this to report cached-token details;
+    /// plain OpenAI rejects the parameter, so it is off by default.
+    pub fn usage_accounting(mut self, enabled: bool) -> Self {
+        self.usage_accounting = enabled;
+        self
+    }
+
+    /// Report each call's response `id` once, as soon as it is known: from
+    /// the `X-Generation-Id` header of a 2xx response, before the body, so a
+    /// call dropped before its first chunk still names the generation; else
+    /// from the first chunk of a stream or a plain call's body. The hook
+    /// belongs to this instance, so a host that needs the id of one
+    /// particular call builds one per call.
+    pub fn response_id(mut self, hook: ResponseIdHook) -> Self {
+        self.response_id = Some(hook);
+        self
+    }
+
+    /// How long a call its caller dropped keeps waiting for its response
+    /// headers to report their id ([`HEADER_WAIT`] unless set).
+    pub fn header_wait(mut self, wait: Duration) -> Self {
+        self.header_wait = wait;
+        self
+    }
+
+    fn id_report(&self) -> Arc<IdReport> {
+        Arc::new(IdReport {
+            hook: self.response_id.clone(),
+            reported: AtomicBool::new(false),
+        })
+    }
+
+    /// Add OpenRouter's normalized prompt-cache directive: the top-level
+    /// `cache_control`, a breakpoint that moves to the end of each request,
+    /// and a fixed one on the system prompt. Kept opt-in because not every
+    /// OpenAI-compatible endpoint accepts these fields.
+    pub fn prompt_cache(mut self, enabled: bool) -> Self {
+        self.prompt_cache = enabled;
+        self
+    }
+
+    /// Keep gateway routing stable across every model step in one agent run
+    /// (OpenRouter's sticky routing).
+    pub fn session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = Some(session_id.into());
+        self
+    }
+
+    /// Ask Vercel AI Gateway to place its own cache markers
+    /// (`providerOptions.gateway.caching: "auto"`); unset, it adds none.
+    pub fn gateway_caching(mut self, enabled: bool) -> Self {
+        self.gateway_caching = enabled;
+        self
+    }
+
+    /// Keep OpenAI's automatic prompt cache routed by one run-stable key.
+    pub fn prompt_cache_key(mut self, prompt_cache_key: impl Into<String>) -> Self {
+        self.prompt_cache_key = Some(prompt_cache_key.into());
+        self
+    }
+
+    /// Point at a different OpenAI-compatible endpoint, e.g. a local vLLM
+    /// server. Pass the base up to (not including) `/chat/completions`.
+    pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.base_url = base_url.into();
+        self
+    }
+
+    pub fn api_key(mut self, api_key: impl Into<String>) -> Self {
+        self.api_key = Some(api_key.into());
+        self
+    }
+
+    pub fn temperature(mut self, temperature: f64) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    pub fn max_tokens(mut self, max_tokens: u64) -> Self {
+        self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Set Chat Completions' processing tier. Omitted unless configured.
+    /// Supported tiers and model availability are endpoint-specific.
+    pub fn service_tier(mut self, tier: impl Into<String>) -> Self {
+        self.service_tier = Some(tier.into());
+        self
+    }
+
+    /// Set Chat Completions' flat verbosity field (`low`, `medium`, `high`).
+    /// This is not the Responses API's nested `text.verbosity` field.
+    pub fn verbosity(mut self, verbosity: impl Into<String>) -> Self {
+        self.verbosity = Some(verbosity.into());
+        self
+    }
+
+    /// Set an already-encoded Chat Completions response_format object.
+    /// For flat Agents/Responses text.format input, use [`Self::text_format`].
+    pub fn response_format(mut self, format: Value) -> Self {
+        self.response_format = Some(format);
+        self
+    }
+
+    /// Translate Agents/Responses text.format to Chat response_format.
+    /// Supports text, json_object and json_schema, moving the latter's
+    /// name/schema/description/strict fields into the Chat json_schema object.
+    /// Unsupported types/fields or malformed shapes fail before any request.
+    #[allow(clippy::result_large_err)] // ModelError is large crate-wide
+    pub fn text_format(self, format: Value) -> Result<Self, ModelError> {
+        Ok(self.response_format(request::chat_response_format(format)?))
+    }
+
+    /// Set OpenAI Chat Completions' flat reasoning-effort parameter.
+    pub fn reasoning_effort(mut self, effort: impl Into<String>) -> Self {
+        self.reasoning_effort = Some(effort.into());
+        self.nested_reasoning = false;
+        self
+    }
+
+    /// Set OpenRouter's normalized nested reasoning parameter.
+    pub fn nested_reasoning_effort(mut self, effort: impl Into<String>) -> Self {
+        self.reasoning_effort = Some(effort.into());
+        self.nested_reasoning = true;
+        self
+    }
+
+    /// Whether the endpoint may return multiple tool calls in one response.
+    /// OpenAI defaults this to true, but some compatible servers default to
+    /// single calls; unset, the field is omitted from the request entirely.
+    pub fn parallel_tool_calls(mut self, enabled: bool) -> Self {
+        self.parallel_tool_calls = Some(enabled);
+        self
+    }
+
+    /// Attach a header to every request (gateway routing, attribution).
+    pub fn header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.headers.push((name.into(), value.into()));
+        self
+    }
+
+    /// Identify the client to provider usage and diagnostics surfaces.
+    pub fn user_agent(self, user_agent: impl Into<String>) -> Self {
+        self.header(reqwest::header::USER_AGENT.as_str(), user_agent)
+    }
+
+    fn prepare_request(&self, body: &Value) -> reqwest::RequestBuilder {
+        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
+        let mut request = crate::http::client().post(&url).json(body);
+        if let Some(api_key) = &self.api_key {
+            request = request.bearer_auth(api_key);
+        }
+        for (name, value) in &self.headers {
+            request = request.header(name.as_str(), value.as_str());
+        }
+        request
+    }
+
+    async fn post(
+        &self,
+        body: Value,
+        ids: &Arc<IdReport>,
+    ) -> Result<reqwest::Response, ModelError> {
+        let request = self.prepare_request(&body);
+        // RequestBuilder owns the serialized bytes; release the JSON tree
+        // before waiting for a potentially long provider response.
+        drop(body);
+        // The request runs in a task of its own, so a caller that drops the
+        // call still gets the headers' generation id reported: for up to
+        // `header_wait` after the drop, then the response is dropped, which
+        // closes the connection and stops the generation upstream.
+        let (mut reply, response) = tokio::sync::oneshot::channel();
+        let ids = ids.clone();
+        let wait = self.header_wait;
+        tokio::spawn(async move {
+            let sent = request.send();
+            tokio::pin!(sent);
+            let response = tokio::select! {
+                response = &mut sent => response,
+                _ = async {
+                    reply.closed().await;
+                    tokio::time::sleep(wait).await;
+                } => return,
+            };
+            // An error status is a refusal before any stream: its headers
+            // name nothing to charge.
+            if let Ok(response) = &response {
+                if response.status().is_success() {
+                    let id = response
+                        .headers()
+                        .get(GENERATION_HEADER)
+                        .and_then(|value| value.to_str().ok());
+                    ids.report(id, ResponseIdSource::Header);
+                }
+            }
+            let _ = reply.send(response);
+        });
+        let response = response
+            .await
+            .map_err(|_| ModelError::Request("the request task ended without a response".into()))?
+            .map_err(|e| crate::http_error::transport_error(&e))?;
+        crate::http_error::check_response(response).await
+    }
+}
+
+#[derive(Deserialize)]
+struct ChatCompletion {
+    #[serde(default)]
+    id: Option<String>,
+    choices: Vec<Choice>,
+    usage: Option<WireUsage>,
+}
+
+#[derive(Deserialize, Default)]
+pub(crate) struct WireUsage {
+    #[serde(default)]
+    prompt_tokens: u64,
+    #[serde(default)]
+    completion_tokens: u64,
+    #[serde(default)]
+    prompt_tokens_details: WirePromptTokensDetails,
+    /// Some gateways send `null` here; treat it like an absent object.
+    #[serde(default)]
+    completion_tokens_details: Option<WireCompletionTokensDetails>,
+    /// DeepSeek-style cache reporting, used when details are absent.
+    #[serde(default)]
+    prompt_cache_hit_tokens: u64,
+    /// OpenRouter's cost of the call in US dollars (usage accounting).
+    #[serde(default)]
+    cost: Option<f64>,
+    #[serde(default)]
+    cost_details: Option<WireCostDetails>,
+}
+
+#[derive(Deserialize, Default)]
+struct WireCostDetails {
+    #[serde(default)]
+    upstream_inference_cost: Option<f64>,
+}
+
+#[derive(Deserialize, Default)]
+struct WirePromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: u64,
+    /// OpenRouter reports Anthropic cache writes here.
+    #[serde(default)]
+    cache_write_tokens: u64,
+}
+
+#[derive(Deserialize, Default)]
+struct WireCompletionTokensDetails {
+    reasoning_tokens: Option<u64>,
+}
+
+impl WireUsage {
+    pub(crate) fn into_usage(self) -> Usage {
+        // OpenAI-style `prompt_tokens` INCLUDES cached tokens; harness
+        // Usage semantics keep them separate, so subtract to avoid
+        // double-counting. `cached_tokens` is reads-only and disjoint
+        // from `cache_write_tokens`, confirmed against live OpenRouter
+        // traffic: a request that both reads and writes cache reports
+        // both fields independently, summing to prompt_tokens. Do not
+        // subtract cache_write from cached_tokens here again; that
+        // double-counted every cache write into input_tokens (#19).
+        let cache_read = match self.prompt_tokens_details.cached_tokens {
+            0 => self.prompt_cache_hit_tokens,
+            cached => cached,
+        };
+        let cache_write = self.prompt_tokens_details.cache_write_tokens;
+        Usage {
+            input_tokens: self
+                .prompt_tokens
+                .saturating_sub(cache_read)
+                .saturating_sub(cache_write),
+            output_tokens: self.completion_tokens,
+            cache_read_tokens: cache_read,
+            cache_create_tokens: cache_write,
+            reasoning_tokens: self
+                .completion_tokens_details
+                .and_then(|details| details.reasoning_tokens),
+            cost: self.cost,
+            cost_details: self.cost_details.map(|details| CostDetails {
+                upstream_inference_cost: details.upstream_inference_cost,
+            }),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct Choice {
+    message: ChoiceMessage,
+    finish_reason: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ChoiceMessage {
+    content: Option<String>,
+    #[serde(default)]
+    tool_calls: Vec<WireToolCall>,
+}
+
+#[derive(Deserialize)]
+struct WireToolCall {
+    id: String,
+    function: WireFunction,
+}
+
+#[derive(Deserialize)]
+struct WireFunction {
+    name: String,
+    arguments: String,
+}
+
+#[async_trait]
+impl Model for OpenAiModel {
+    async fn generate(
+        &self,
+        context: &Context,
+        tools: &[ToolSchema],
+    ) -> Result<ModelResponse, ModelError> {
+        let ids = self.id_report();
+        let response = self.post(self.request_body(context, tools), &ids).await?;
+        let body = response
+            .text()
+            .await
+            .map_err(|e| crate::http_error::transport_error(&e))?;
+
+        let completion: ChatCompletion = serde_json::from_str(&body)
+            .map_err(|e| ModelError::InvalidResponse(format!("{e}: {body}")))?;
+        ids.report(completion.id.as_deref(), ResponseIdSource::Body);
+        let choice = completion
+            .choices
+            .into_iter()
+            .next()
+            .ok_or_else(|| ModelError::InvalidResponse("no choices in response".into()))?;
+
+        let usage = completion.usage.map(WireUsage::into_usage);
+
+        match choice.finish_reason.as_deref() {
+            Some("length") => {
+                return Err(ModelError::OutputLimit {
+                    message:
+                        "model output ended before the response completed; retry with a smaller payload"
+                            .into(),
+                    usage,
+                });
+            }
+            Some("content_filter") => {
+                return Err(ModelError::ContentFiltered {
+                    message: "provider stopped generation".into(),
+                    usage,
+                });
+            }
+            _ => {}
+        }
+
+        if choice.message.tool_calls.is_empty() {
+            return Ok(ModelResponse::Final {
+                text: choice.message.content.unwrap_or_default(),
+                usage,
+            });
+        }
+
+        let calls = choice
+            .message
+            .tool_calls
+            .into_iter()
+            .map(|c| {
+                parse_tool_arguments(
+                    &c.function.name,
+                    &c.function.arguments,
+                    choice.finish_reason.as_deref(),
+                    usage,
+                )
+                .map(|arguments| ToolCall {
+                    id: c.id,
+                    name: c.function.name,
+                    arguments,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ModelResponse::ToolCalls {
+            content: choice.message.content,
+            calls,
+            usage,
+        })
+    }
+
+    async fn generate_streaming(
+        &self,
+        context: &Context,
+        tools: &[ToolSchema],
+        sink: &dyn DeltaSink,
+    ) -> Result<ModelResponse, ModelError> {
+        let mut body = self.request_body(context, tools);
+        body["stream"] = json!(true);
+        body["stream_options"] = json!({"include_usage": true});
+
+        let ids = self.id_report();
+        let response = self.post(body, &ids).await?;
+        let mut bytes = response.bytes_stream();
+        let mut lines = SseLineBuffer::default();
+        let mut accumulator = ChunkAccumulator::new();
+        let mut done_observed = false;
+
+        'body: while let Some(chunk) = bytes.next().await {
+            let chunk = chunk.map_err(|e| crate::http_error::transport_error(&e))?;
+            for payload in lines.push(&chunk) {
+                if payload == "[DONE]" {
+                    done_observed = true;
+                    break 'body;
+                }
+                let deltas = accumulator.apply(&payload);
+                ids.report(accumulator.response_id(), ResponseIdSource::Body);
+                for delta in deltas? {
+                    sink.emit(delta).await;
+                }
+            }
+        }
+
+        if !done_observed {
+            for payload in lines.finish() {
+                if payload == "[DONE]" {
+                    done_observed = true;
+                    break;
+                }
+                let deltas = accumulator.apply(&payload);
+                ids.report(accumulator.response_id(), ResponseIdSource::Body);
+                for delta in deltas? {
+                    sink.emit(delta).await;
+                }
+            }
+        }
+
+        accumulator.finish(done_observed)
+    }
+}
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod request_bench;
