@@ -1,7 +1,7 @@
 name: ci
 
-# Merge gate for the workspace: formatting, the source-size limit, clippy
-# with warnings denied, the full test suite, the benchmark reporting tests,
+# Merge gate for the workspace: formatting, non-regressing imported source
+# size and Clippy baselines, the full test suite, benchmark reporting tests,
 # a bench smoke run, and the release binary size. Consumes zero untrusted
 # input. Benchmarks with budgets run in bench.yml so a slow benchmark job
 # never holds up test feedback.
@@ -61,7 +61,17 @@ jobs:
           python3 scripts/audit_crates.py --top 25
 
       - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets --message-format=json -- -D warnings \
+            > "$RUNNER_TEMP/clippy.json" 2> "$RUNNER_TEMP/clippy.stderr"
+          cargo_status=$?
+          set -e
+          cat "$RUNNER_TEMP/clippy.stderr"
+          python3 scripts/check_clippy_baseline.py \
+            --baseline ci/baselines/clippy-result-large-err-orca-d89.json \
+            --cargo-exit-code "$cargo_status" \
+            "$RUNNER_TEMP/clippy.json"
 
   test:
     name: cargo test
