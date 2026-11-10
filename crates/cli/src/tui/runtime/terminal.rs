@@ -64,10 +64,9 @@ pub async fn run(
 }
 
 fn resume_hint(session_id: Option<&str>) -> Option<String> {
-    let id = session_id?;
-    Some(format!(
-        "\nResume this session with:\n  orcacode resume {id}"
-    ))
+    session_id.map(|_| {
+        "\nResume the latest session in this workspace with:\n  orcacode --continue".into()
+    })
 }
 
 /// The newest two recorded sessions for this workspace, for the welcome
@@ -97,7 +96,7 @@ mod resume_tests {
         assert!(resume_hint(None).is_none());
         assert_eq!(
             resume_hint(Some("session-id")).unwrap(),
-            "\nResume this session with:\n  orcacode resume session-id"
+            "\nResume the latest session in this workspace with:\n  orcacode --continue"
         );
     }
 }
