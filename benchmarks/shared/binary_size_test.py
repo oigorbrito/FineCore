@@ -45,50 +45,6 @@ class BinarySizeTests(unittest.TestCase):
             self.assertEqual(1, result.returncode)
             self.assertIn("missing release binary", result.stderr)
 
-    def test_imported_linux_baseline_passes_without_growth(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            binary = pathlib.Path(tmp) / "target" / "release" / "orcacode"
-            binary.parent.mkdir(parents=True)
-            with binary.open("wb") as handle:
-                handle.truncate(9_415_792)
-            result = subprocess.run(
-                ["bash", str(GATE), "--baseline-orca-d89"],
-                cwd=tmp,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-            self.assertIn("inherited Orca d89bf274 baseline", result.stdout)
-
-    def test_imported_linux_baseline_rejects_growth(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            binary = pathlib.Path(tmp) / "target" / "release" / "orcacode"
-            binary.parent.mkdir(parents=True)
-            with binary.open("wb") as handle:
-                handle.truncate(9_415_793)
-            result = subprocess.run(
-                ["bash", str(GATE), "--baseline-orca-d89"],
-                cwd=tmp,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(1, result.returncode)
-            self.assertIn("exceeds the imported Orca d89bf274 baseline", result.stderr)
-
-    def test_baseline_allowance_cannot_be_applied_to_other_targets(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            binary = pathlib.Path(tmp) / "other" / "orcacode"
-            binary.parent.mkdir(parents=True)
-            binary.write_bytes(b"x")
-            result = subprocess.run(
-                ["bash", str(GATE), "--baseline-orca-d89", str(binary)],
-                cwd=tmp,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(1, result.returncode)
-            self.assertIn("restricted to target/release/orcacode", result.stderr)
-
 
 if __name__ == "__main__":
     unittest.main()

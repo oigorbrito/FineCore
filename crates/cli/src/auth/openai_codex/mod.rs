@@ -25,6 +25,7 @@ const REFRESH_WINDOW_SECS: u64 = 300;
 pub struct CodexCliCredential {
     path: PathBuf,
     client: reqwest::Client,
+    refresh_url: String,
     state: Mutex<Option<CodexCredential>>,
 }
 
@@ -36,14 +37,15 @@ impl CodexCliCredential {
         } else {
             codex_auth_path()
         };
-        Self::new(path)
+        Self::new(path, REFRESH_URL.into())
     }
 
     /// Complete Orcacode's own headless-friendly OpenAI device OAuth flow.
-    fn new(path: PathBuf) -> Self {
+    fn new(path: PathBuf, refresh_url: String) -> Self {
         Self {
             path,
             client: reqwest::Client::new(),
+            refresh_url,
             state: Mutex::new(None),
         }
     }
@@ -113,7 +115,7 @@ impl CodexCliCredential {
     ) -> Result<(CodexCredential, Option<String>), CredentialError> {
         let response = self
             .client
-            .post(REFRESH_URL)
+            .post(&self.refresh_url)
             .form(&refresh_form(refresh_token))
             .send()
             .await

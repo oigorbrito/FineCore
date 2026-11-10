@@ -180,7 +180,7 @@ async fn truncation_recovery_demo(root: &std::path::Path) {
     });
     assert!(any_truncated, "expected truncated output in messages");
     println!("  Messages contain truncated marker: {}", any_truncated);
-    println!("  Persistent session is ready for recovery.");
+    println!("  Session id: {}", id);
 
     // Second run: resume and invoke the paired reader against the persisted call id.
     let recover_model = ScriptedModel::tool_round(

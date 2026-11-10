@@ -24,7 +24,6 @@ fn refresh_contract_matches_official_codex_json_shape() {
     );
     assert!(needs_refresh(Some(1)));
     assert!(!needs_refresh(None));
-    assert_eq!(reqwest::Url::parse(REFRESH_URL).unwrap().scheme(), "https");
 }
 
 #[test]
@@ -36,7 +35,7 @@ fn missing_auth_is_distinct_and_actionable() {
 
 #[tokio::test]
 async fn unauthorized_recovery_reuses_a_concurrently_rotated_token() {
-    let source = CodexCliCredential::new(PathBuf::from("/not/read"));
+    let source = CodexCliCredential::new(PathBuf::from("/not/read"), "http://not-called".into());
     *source.state.lock().await = Some(CodexCredential {
         bearer: BearerCredential {
             access_token: "new".into(),

@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let session = agent_t1.new_session().persistent().open()?;
     let session_id = session.id().expect("persistent session must have an id");
-    println!("Created a persistent session.");
+    println!("Created persistent session ID: {session_id}");
 
     let res1 = session
         .run("Hello! My favorite programming language is Rust.")
@@ -56,7 +56,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- Step 2: List Sessions ---");
     let sessions_list = harness.sessions().list();
     println!("Found {} persisted session(s):", sessions_list.len());
-    println!("Session details are kept out of console output.");
+    for s in &sessions_list {
+        println!("  - Session ID: {}, Path: {}", s.meta.id, s.path.display());
+    }
     assert!(
         sessions_list.iter().any(|s| s.meta.id == session_id),
         "Initial session must appear in sessions list"
@@ -107,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Fork from the resumed session
     let forked_session = resumed_session.fork().await?;
     let forked_id = forked_session.id().expect("fork must have an id");
-    println!("Forked a new session.");
+    println!("Forked new session ID: {forked_id}");
     assert_ne!(forked_id, session_id, "Fork must receive a new session ID");
 
     // Verify parentage in persisted metadata
@@ -157,7 +159,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     session_to_clear.clear().await?;
     let rotated_id = session_to_clear.id().unwrap();
 
-    println!("Cleared the session and rotated its identifier.");
+    println!("Original ID before clear: {old_id}");
+    println!("New ID after clear rotation: {rotated_id}");
     assert_ne!(
         old_id, rotated_id,
         "clear() rotates to a new session file with a fresh ID"
@@ -194,7 +197,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     session_to_reset.reset_in_place().await?;
     let post_reset_id = session_to_reset.id().unwrap();
 
-    println!("Reset the session in place without rotating its identifier.");
+    println!("ID before reset_in_place: {pre_reset_id}");
+    println!("ID after reset_in_place:  {post_reset_id}");
     assert_eq!(
         pre_reset_id, post_reset_id,
         "reset_in_place() retains the exact same session ID"

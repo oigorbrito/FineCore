@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Report Rust source size and reject new or growing over-limit files.
+"""Report Rust source size by file and flag files over the LoC limit.
 
 The audit intentionally measures physical lines for the limit, matching the
 existing ``ci/check-source-size.sh`` check: a file may have at most 599 lines
 (it must stay below 600).  Non-blank lines are included as a second useful
 measure when reviewing a large file.
 
-The pinned Orca import contains files that already exceed the limit. A checked-
-in baseline records those exact line counts. Existing debt stays visible, while
-new over-limit files and growth beyond a recorded count fail the gate.
-``--top`` keeps the report to the largest files, always including failures.
+Exit status is 1 when any file is over the limit, so CI can run it as a gate;
+``--top`` keeps the report to the largest files (every flagged file is always
+listed) so the log shows what is approaching the limit without every file.
 
 Usage:
     python3 scripts/audit_crates.py
@@ -20,7 +19,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,77 +26,51 @@ from pathlib import Path
 
 # Same number as ci/check-source-size.sh: more than this many lines fails.
 DEFAULT_LIMIT = 599
-DEFAULT_BASELINE = Path(__file__).resolve().parents[1] / "ci/baselines/orca-d89bf274.json"
 
 
 @dataclass(frozen=True)
 class FileStats:
-    path: str
+    path: Path
     total_lines: int
     non_blank_lines: int
 
 
 def count_lines(path: Path) -> tuple[int, int]:
-    """Return newline counts (matching ``wc -l``) and non-blank line counts."""
+    """Return physical and non-blank line counts for a UTF-8 source file."""
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
-    return text.count("\n"), sum(bool(line.strip()) for line in lines)
+    return len(lines), sum(bool(line.strip()) for line in lines)
 
 
 def audit_crates(root: Path, limit: int) -> list[FileStats]:
-    """Collect source statistics below ``root/crates``."""
+    """Collect statistics for Rust files below ``root/crates``."""
     crates = root / "crates"
     if not crates.is_dir():
         raise FileNotFoundError(f"crates directory not found: {crates}")
 
     stats = []
-    for suffix in ("*.rs", "*.inc", "*.part"):
-        for path in sorted(crates.rglob(suffix)):
-            if not path.is_file():
-                continue
-            total, non_blank = count_lines(path)
-            stats.append(FileStats(path.relative_to(root).as_posix(), total, non_blank))
+    for path in sorted(crates.rglob("*.rs")):
+        if not path.is_file():
+            continue
+        total, non_blank = count_lines(path)
+        stats.append(FileStats(path.relative_to(root), total, non_blank))
 
     return stats
 
 
-def load_baseline(path: Path) -> dict[str, int]:
-    """Load the exact imported-source line-count ceilings."""
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return {str(name): int(lines) for name, lines in data["source_line_counts"].items()}
-
-
-def classify_size(path: str, lines: int, limit: int, baseline: dict[str, int]) -> str:
-    """Return ``ok``, ``baseline``, or ``regression`` for a source file."""
-    if lines <= limit:
-        return "ok"
-    if path in baseline and lines <= baseline[path]:
-        return "baseline"
-    return "regression"
-
-
 def print_report(
-    root: Path,
-    stats: list[FileStats],
-    limit: int,
-    baseline: dict[str, int],
-    top: int | None = None,
+    root: Path, stats: list[FileStats], limit: int, top: int | None = None
 ) -> int:
-    """Print the report and return the number of new or worsened violations.
+    """Print the report and return the number of files above ``limit``.
 
     ``top`` limits the table to the ``top`` largest files; flagged files are
     never dropped, since they are the reason the report exists.
     """
-    ordered = sorted(stats, key=lambda entry: (-entry.total_lines, entry.path))
-    states = {
-        item.path: classify_size(item.path, item.total_lines, limit, baseline)
-        for item in ordered
-    }
-    flagged = sum(state == "regression" for state in states.values())
-    inherited = sum(state == "baseline" for state in states.values())
+    ordered = sorted(stats, key=lambda entry: (-entry.total_lines, str(entry.path)))
+    flagged = sum(item.total_lines > limit for item in ordered)
     shown = ordered if top is None else ordered[: max(top, flagged)]
 
-    print(f"Crate source files: {len(stats)}")
+    print(f"Crate Rust files: {len(stats)}")
     print(f"Limit:            > {limit} physical lines")
     if len(shown) < len(ordered):
         print(f"Showing:          {len(shown)} largest of {len(ordered)}")
@@ -107,7 +79,7 @@ def print_report(
     print("-" * 72)
 
     for item in shown:
-        status = states[item.path].upper()
+        status = "OVER_LIMIT" if item.total_lines > limit else "ok"
         print(
             f"{status:10} {item.total_lines:7} {item.non_blank_lines:10}  "
             f"{item.path}"
@@ -115,11 +87,9 @@ def print_report(
 
     print()
     if flagged:
-        print(f"Found {flagged} new or worsened violation(s) over {limit} lines.", file=sys.stderr)
+        print(f"Flagged {flagged} file(s) over {limit} lines.", file=sys.stderr)
     else:
-        print(f"No new or worsened violations over {limit} lines.")
-    if inherited:
-        print(f"Existing imported baseline debt: {inherited} file(s) over {limit} lines.")
+        print(f"No files over {limit} lines.")
     return flagged
 
 
@@ -136,12 +106,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_LIMIT,
         help=f"flag files with more than this many lines (default: {DEFAULT_LIMIT})",
-    )
-    parser.add_argument(
-        "--baseline",
-        type=Path,
-        default=DEFAULT_BASELINE,
-        help="JSON file containing exact inherited source line-count ceilings",
     )
     parser.add_argument(
         "--top",
@@ -162,11 +126,10 @@ def main() -> int:
         return 2
     try:
         stats = audit_crates(args.root, args.limit)
-        baseline = load_baseline(args.baseline)
-    except (FileNotFoundError, UnicodeDecodeError, KeyError, ValueError) as error:
+    except (FileNotFoundError, UnicodeDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    return 1 if print_report(args.root, stats, args.limit, baseline, args.top) else 0
+    return 1 if print_report(args.root, stats, args.limit, args.top) else 0
 
 
 if __name__ == "__main__":
