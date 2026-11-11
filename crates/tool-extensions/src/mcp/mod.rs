@@ -2,6 +2,7 @@ mod catalog;
 mod client;
 mod model;
 mod tool;
+mod wire;
 
 pub use catalog::McpCatalog;
 pub(crate) use client::apply_stdio_launch;
