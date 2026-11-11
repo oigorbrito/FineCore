@@ -11,9 +11,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 
+use super::wire::Wire;
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
 use orca_harness_core::{ToolContext, ToolError, ToolSchema};
@@ -97,11 +97,6 @@ pub struct McpClient {
     wire: Mutex<Wire>,
 }
 
-struct Wire {
-    stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
-}
-
 impl McpClient {
     /// Spawn `command` (split on whitespace — no shell quoting), run the
     /// MCP handshake, and retain the live client plus the server's tools.
@@ -139,14 +134,14 @@ impl McpClient {
         apply_stdio_launch(&mut command, launch);
         let mut child = command.spawn()?;
         let stdin = child.stdin.take().expect("stdin piped");
-        let stdout = BufReader::new(child.stdout.take().expect("stdout piped"));
+        let stdout = child.stdout.take().expect("stdout piped");
         let client = Arc::new(Self {
             server: server.to_string(),
             next_id: AtomicU64::new(1),
             healthy: AtomicBool::new(true),
             capabilities: OnceLock::new(),
             child: StdMutex::new(Some(child)),
-            wire: Mutex::new(Wire { stdin, stdout }),
+            wire: Mutex::new(Wire::new(stdin, stdout)),
         });
 
         let init = json!({
@@ -316,87 +311,6 @@ pub(crate) async fn request_with_context(
             client.invalidate();
             Err(ToolError::msg("deadline exceeded"))
         },
-    }
-}
-
-impl Wire {
-    async fn send(&mut self, message: &Value) -> Result<(), McpError> {
-        let mut line = message.to_string();
-        line.push('\n');
-        self.stdin.write_all(line.as_bytes()).await?;
-        self.stdin.flush().await?;
-        Ok(())
-    }
-
-    /// Read until the response for `id` arrives. Valid notifications are
-    /// skipped, and server requests are answered inline so a `ping`
-    /// mid-exchange cannot deadlock the lane. Non-JSON stdout diagnostics
-    /// are tolerated; parsed JSON must be a valid JSON-RPC envelope.
-    async fn recv(&mut self, id: u64) -> Result<Value, McpError> {
-        loop {
-            let mut line = String::new();
-            if self.stdout.read_line(&mut line).await? == 0 {
-                return Err(McpError::Protocol("server closed the connection".into()));
-            }
-            let Ok(message) = serde_json::from_str::<Value>(line.trim()) else {
-                continue;
-            };
-            let object = message
-                .as_object()
-                .ok_or_else(|| McpError::Protocol("JSON-RPC message is not an object".into()))?;
-            if object.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
-                return Err(McpError::Protocol("invalid JSON-RPC version".into()));
-            }
-            if let Some(method) = object.get("method") {
-                let method = method
-                    .as_str()
-                    .ok_or_else(|| McpError::Protocol("JSON-RPC method is not a string".into()))?;
-                if let Some(request_id) = object.get("id") {
-                    let reply = if method == "ping" {
-                        json!({ "jsonrpc": "2.0", "id": request_id, "result": {} })
-                    } else {
-                        json!({ "jsonrpc": "2.0", "id": request_id,
-                                "error": { "code": -32601, "message": "method not supported" } })
-                    };
-                    self.send(&reply).await?;
-                }
-                continue;
-            }
-            let response_id = object
-                .get("id")
-                .and_then(Value::as_u64)
-                .ok_or_else(|| McpError::Protocol("JSON-RPC response has an invalid id".into()))?;
-            if response_id != id {
-                return Err(McpError::Protocol(format!(
-                    "JSON-RPC response id {response_id} does not match request {id}"
-                )));
-            }
-            let result = object.get("result");
-            let error = object.get("error");
-            if result.is_some() == error.is_some() {
-                return Err(McpError::Protocol(
-                    "JSON-RPC response must contain exactly one of result or error".into(),
-                ));
-            }
-            if let Some(error) = error {
-                let error = error
-                    .as_object()
-                    .ok_or_else(|| McpError::Protocol("JSON-RPC error is not an object".into()))?;
-                if error.get("code").and_then(Value::as_i64).is_none() {
-                    return Err(McpError::Protocol(
-                        "JSON-RPC error code is not an integer".into(),
-                    ));
-                }
-                let detail = error
-                    .get("message")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| {
-                        McpError::Protocol("JSON-RPC error message is not a string".into())
-                    })?;
-                return Err(McpError::Protocol(format!("server error: {detail}")));
-            }
-            return Ok(result.expect("validated result").clone());
-        }
     }
 }
 
