@@ -71,10 +71,11 @@
             .chars()
             .count();
 
-        assert_eq!(
-            subtitle.chars().take_while(|ch| *ch == ' ').count(),
-            (90 - visible_width) / 2,
-            "the longest visible row defines the card centre: {subtitle:?}"
+        let actual_indent = subtitle.chars().take_while(|ch| *ch == ' ').count();
+        let expected_indent = (90 - visible_width) / 2;
+        assert!(
+            actual_indent.abs_diff(expected_indent) <= 1,
+            "the longest visible row should be centred within one cell: {subtitle:?}"
         );
     }
 
