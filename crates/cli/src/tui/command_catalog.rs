@@ -332,7 +332,7 @@ pub const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "quit",
-        description: "exit orcacode",
+        description: "exit the application",
         category: "General",
         takes_args: false,
     },

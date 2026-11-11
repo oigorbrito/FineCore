@@ -11,6 +11,10 @@ build = "build.rs"
 name = "orcacode"
 path = "src/main.rs"
 
+[[bin]]
+name = "finecore"
+path = "src/finecore.rs"
+
 [dependencies]
 orca-harness-core = { path = "../harness-core" }
 orca-harness-model-providers = { path = "../model-providers" }

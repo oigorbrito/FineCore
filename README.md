@@ -18,11 +18,10 @@ One static binary (6.5 MB on macOS). One process. Any model.
 > **Baseline provenance.** This candidate starts from
 > [Orca Harness](https://github.com/okikorg/orca-harness) commit
 > `d89bf274c225075ae3f3b1f305a4717e05990ab7` (tree
-> `e7540cd83f773aac8c77f32071da45f2e68f038f`). Only this README's
-> presentation is changed; product code remains upstream. The executable is
-> still `orcacode`; its updater, integrations, configuration paths and
-> compatibility contracts are unchanged. The updater still targets upstream
-> Orcacode, not a FineCore release; do not run it when validating this baseline.
+> `e7540cd83f773aac8c77f32071da45f2e68f038f`). The `v0.0.1` baseline
+> retains the upstream executable and updater. This development branch adds
+> `finecore` alongside `orcacode` and disables the upstream updater for both.
+> To build and run locally: `cargo run -p orcacode --bin finecore`.
 > The original documentation below, including installers, release links,
 > screenshots and performance figures, describes upstream Orcacode, not
 > FineCore releases or FineCore measurements. No FineCore release is published

@@ -317,11 +317,6 @@ pub(crate) async fn run_mode(mut cfg: Config) -> ExitCode {
         eprintln!("ORCA_BENCH set: exiting after startup, before the terminal UI");
         return ExitCode::SUCCESS;
     }
-    // The update check only produces a transcript notice, so it starts
-    // with the UI rather than in the cold-start path above: spawned any
-    // earlier, the runtime waits on its DNS lookup at shutdown and the
-    // startup benchmark measures the network instead of the binary.
-    crate::update::check_in_background(ui_tx.clone());
     let initial_provider = endpoint.provider;
     let session_id = session.as_ref().map(|s| s.session_id());
     // The TUI reads per-server tool counts off the same handle the

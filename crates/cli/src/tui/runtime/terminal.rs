@@ -54,8 +54,10 @@ pub async fn run(
     )?;
     disable_raw_mode()?;
     println!(
-        "orcacode · session ended · tokens in {} out {}",
-        app.tokens_in, app.tokens_out
+        "{} · session ended · tokens in {} out {}",
+        env!("CARGO_BIN_NAME"),
+        app.tokens_in,
+        app.tokens_out
     );
     if let Some(hint) = resume_hint(app.cfg.session_id.as_deref()) {
         println!("{hint}");
@@ -66,7 +68,8 @@ pub async fn run(
 fn resume_hint(session_id: Option<&str>) -> Option<String> {
     let id = session_id?;
     Some(format!(
-        "\nResume this session with:\n  orcacode resume {id}"
+        "\nResume this session with:\n  {} resume {id}",
+        env!("CARGO_BIN_NAME")
     ))
 }
 
@@ -97,7 +100,10 @@ mod resume_tests {
         assert!(resume_hint(None).is_none());
         assert_eq!(
             resume_hint(Some("session-id")).unwrap(),
-            "\nResume this session with:\n  orcacode resume session-id"
+            format!(
+                "\nResume this session with:\n  {} resume session-id",
+                env!("CARGO_BIN_NAME")
+            )
         );
     }
 }

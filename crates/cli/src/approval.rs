@@ -138,8 +138,8 @@ impl Extension for HeadlessGate {
         if GATED_TOOLS.contains(&call.name.as_str()) {
             return Ok(ToolDecision::Deny {
                 reason: format!(
-                    "'{}' needs interactive approval; re-run orcacode with --auto-approve to allow it in headless mode.",
-                    call.name
+                    "'{}' needs interactive approval; re-run {} with --auto-approve to allow it in headless mode.",
+                    call.name, env!("CARGO_BIN_NAME")
                 ),
             });
         }
