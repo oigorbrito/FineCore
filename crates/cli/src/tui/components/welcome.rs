@@ -64,10 +64,7 @@ impl Welcome<'_> {
                 Span::styled("FINECORE", t.strong),
                 Span::styled(format!("  v{}", self.version), t.dim),
             ]),
-            Line::from(Span::styled(
-                "FineCore — your terminal coding agent",
-                t.dim,
-            )),
+            Line::from(Span::styled("FineCore — your terminal coding agent", t.dim)),
             Line::from(""),
             noted("model", self.model, self.effort.map(str::to_string)),
             noted("workspace", self.workspace, branch),
