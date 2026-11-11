@@ -463,7 +463,7 @@ async fn a_failed_stage_leads_with_its_error_and_does_not_read_as_cancelled() {
 #[derive(Clone)]
 struct Flaky {
     inner: Echo,
-    failures: Arc<std::sync::atomic::AtomicUsize>,
+    failures: Arc<Mutex<usize>>,
 }
 #[async_trait::async_trait]
 impl Model for Flaky {
@@ -475,16 +475,18 @@ impl Model for Flaky {
         let flaky = context.messages().iter().any(|m| {
             matches!(m, orca_harness_core::Message::User { content, .. } if content == "review b")
         });
-        if flaky
-            && self
-                .failures
-                .fetch_update(
-                    std::sync::atomic::Ordering::SeqCst,
-                    std::sync::atomic::Ordering::SeqCst,
-                    |n| n.checked_sub(1),
-                )
-                .is_ok()
-        {
+        let fail = if flaky {
+            let mut remaining = self.failures.lock().unwrap();
+            if *remaining > 0 {
+                *remaining -= 1;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if fail {
             return Err(ModelError::Request("connection reset by peer".into()));
         }
         self.inner.generate(context, schemas).await
@@ -504,7 +506,7 @@ fn flaky_tool(
                     calls: Arc::default(),
                     held: None,
                 },
-                failures: Arc::new(failures.into()),
+                failures: Arc::new(Mutex::new(failures)),
             },
             Arc::new(Vec::new),
         )
