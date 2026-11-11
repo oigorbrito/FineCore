@@ -120,3 +120,30 @@ fn map_stdio_io_error(error: std::io::Error) -> McpError {
     };
     McpError::Protocol(format!("{context}: {error}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::ErrorKind;
+
+    #[test]
+    fn stdio_io_errors_after_spawn_are_protocol_errors() {
+        for kind in [
+            ErrorKind::BrokenPipe,
+            ErrorKind::ConnectionAborted,
+            ErrorKind::ConnectionReset,
+            ErrorKind::UnexpectedEof,
+        ] {
+            let error = map_stdio_io_error(std::io::Error::new(kind, "controlled failure"));
+            assert!(
+                matches!(&error, McpError::Protocol(detail)
+                if detail.contains("server closed the connection")
+                    && detail.contains("controlled failure")),
+                "{kind:?}: {error}"
+            );
+        }
+        let error = map_stdio_io_error(std::io::Error::new(ErrorKind::PermissionDenied, "denied"));
+        assert!(matches!(&error, McpError::Protocol(detail)
+            if detail.contains("stdio transport failed") && detail.contains("denied")));
+    }
+}
