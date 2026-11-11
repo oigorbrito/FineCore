@@ -61,11 +61,11 @@ impl Welcome<'_> {
         let mut content = vec![
             Line::from(vec![
                 Span::styled("▀▄ ", t.accent),
-                Span::styled("ORCACODE", t.strong),
+                Span::styled("FINECORE", t.strong),
                 Span::styled(format!("  v{}", self.version), t.dim),
             ]),
             Line::from(Span::styled(
-                "A small, fast agent runtime for your terminal",
+                "FineCore — your terminal coding agent",
                 t.dim,
             )),
             Line::from(""),
