@@ -43,7 +43,7 @@ fn both_executables_report_identity_and_exit_codes() {
         assert!(!invalid.status.success());
         let plugin = command(binary).arg("plugin").output().unwrap();
         assert!(!plugin.status.success());
-        assert!(String::from_utf8_lossy(&plugin.stderr).contains(&format!("{name} plugin")));
+        assert!(String::from_utf8_lossy(&plugin.stderr).contains("finecore plugin"));
         let resume = command(binary).arg("resume").output().unwrap();
         assert!(!resume.status.success());
         assert!(String::from_utf8_lossy(&resume.stderr).contains(&format!("{name} resume")));

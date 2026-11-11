@@ -28,15 +28,15 @@ pub(crate) enum Language {
 
 const USAGE: &str = "\
 USAGE:
-  orcacode plugin init <name> --python|--py|--typescript|--ts
-  orcacode plugin validate [PATH]
-  orcacode plugin test [PATH]
-  orcacode plugin install [PATH]
-  orcacode plugin list
-  orcacode plugin inspect <name>
-  orcacode plugin enable <name>
-  orcacode plugin disable <name>
-  orcacode plugin uninstall <name>
+  finecore plugin init <name> --python|--py|--typescript|--ts
+  finecore plugin validate [PATH]
+  finecore plugin test [PATH]
+  finecore plugin install [PATH]
+  finecore plugin list
+  finecore plugin inspect <name>
+  finecore plugin enable <name>
+  finecore plugin disable <name>
+  finecore plugin uninstall <name>
 ";
 
 /// Return arguments after `plugin` only when it is the first positional token.
