@@ -415,7 +415,7 @@ impl Endpoint {
                     .base_url(self.base_url.clone())
                     .user_agent(ORCACODE_USER_AGENT)
                     .referer(ORCACODE_REFERER)
-                    .title("FineCore")
+                    .title("Orca Code")
                     .categories("cli-agent");
                 if let Some(key) = &self.api_key {
                     model = model.api_key(key.clone());
