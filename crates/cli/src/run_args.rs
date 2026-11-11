@@ -8,6 +8,19 @@ use crate::headless_input::{self, ApprovalChannel, PromptSource};
 use crate::msg::Provider;
 use crate::{config, resolve_theme, select_provider, Config, USAGE};
 
+fn usage() -> String {
+    USAGE
+        .replace(
+            "orcacode — terminal host for Orca Harness",
+            "FineCore — terminal coding agent",
+        )
+        .replace("  orcacode ", &format!("  {} ", env!("CARGO_BIN_NAME")))
+        .replace(
+            "install the latest release",
+            "unavailable until a FineCore update channel is configured",
+        )
+}
+
 pub(crate) fn parse_run_args(args: Vec<String>) -> Result<Config, String> {
     let env_model = std::env::var("ORCA_MODEL").ok();
     let mut model: Option<String> = None;
@@ -56,7 +69,7 @@ pub(crate) fn parse_run_args(args: Vec<String>) -> Result<Config, String> {
         resume_id = Some(
             args.next()
                 .filter(|id| !id.is_empty() && !id.starts_with('-'))
-                .ok_or("usage: orcacode resume ID [OPTIONS]")?,
+                .ok_or_else(|| format!("usage: {} resume ID [OPTIONS]", env!("CARGO_BIN_NAME")))?,
         );
     }
     while let Some(arg) = args.next() {
@@ -153,14 +166,14 @@ pub(crate) fn parse_run_args(args: Vec<String>) -> Result<Config, String> {
             "--read-only" => read_only = true,
             "--image" => images.push(PathBuf::from(value("--image")?)),
             "-h" | "--help" => {
-                print!("{USAGE}");
+                print!("{}", usage());
                 std::process::exit(0);
             }
             "-v" | "-V" | "--version" => {
-                println!("orcacode {}", env!("CARGO_PKG_VERSION"));
+                println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
-            other => return Err(format!("unknown flag: {other}\n\n{USAGE}")),
+            other => return Err(format!("unknown flag: {other}\n\n{}", usage())),
         }
     }
 

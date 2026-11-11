@@ -182,7 +182,14 @@ fn parse_invocation() -> Result<Invocation, String> {
         return Ok(Invocation::Update);
     }
     if let Some(tail) = plugin::invocation_tail(&args) {
-        return plugin::parse(tail).map(Invocation::Plugin);
+        return plugin::parse(tail)
+            .map(Invocation::Plugin)
+            .map_err(|error| {
+                error.replace(
+                    "  orcacode plugin ",
+                    &format!("  {} plugin ", env!("CARGO_BIN_NAME")),
+                )
+            });
     }
     parse_run_args(args).map(|config| Invocation::Run(Box::new(config)))
 }
