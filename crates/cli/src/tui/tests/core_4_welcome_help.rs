@@ -29,7 +29,7 @@
         });
         let screen = rendered_rows(&mut app, 90, 30).join("\n");
 
-        assert!(screen.contains("▀▄ ORCACODE"), "logo missing: {screen}");
+        assert!(screen.contains("▀▄ FINECORE"), "logo missing: {screen}");
         assert!(
             screen.contains(concat!("v", env!("CARGO_PKG_VERSION"))),
             "version missing: {screen}"
@@ -54,7 +54,7 @@
             rows[models + 1]
         );
         // Centred in the terminal, not pushed against the composer.
-        let first = rows.iter().position(|row| row.contains("ORCACODE")).unwrap();
+        let first = rows.iter().position(|row| row.contains("FINECORE")).unwrap();
         let last = rows.iter().rposition(|row| row.contains("/mode")).unwrap();
         assert!(first >= 8 && 30 - last >= 8, "card rows {first}..{last} of 30");
     }
@@ -65,9 +65,9 @@
         let rows = rendered_rows(&mut app, 90, 30);
         let subtitle = rows
             .iter()
-            .find(|row| row.contains("A small, fast agent runtime"))
+            .find(|row| row.contains("FineCore — your terminal coding agent"))
             .expect("welcome subtitle");
-        let visible_width = "A small, fast agent runtime for your terminal"
+        let visible_width = "FineCore — your terminal coding agent"
             .chars()
             .count();
 
@@ -86,7 +86,7 @@
 
         let screen = rendered_rows(&mut app, 90, 30).join("\n");
 
-        assert!(screen.contains("▀▄ ORCACODE"), "welcome missing: {screen}");
+        assert!(screen.contains("▀▄ FINECORE"), "welcome missing: {screen}");
         assert!(
             !screen.contains("MCP docs connected"),
             "startup notice should remain in the background: {screen}"
@@ -112,7 +112,7 @@
             for width in [40, 90] {
                 let screen = rendered_rows(&mut app, width, 30).join("\n");
                 assert_eq!(screen.contains("MCP connecting · tools pending"), connecting, "{screen}");
-                assert!(screen.contains("ORCACODE"), "{screen}");
+                assert!(screen.contains("FINECORE"), "{screen}");
                 assert!(!screen.contains("startup notice"), "{screen}");
             }
         }
@@ -129,7 +129,7 @@
             handle_ui_msg(&mut app, UiMsg::McpConnecting(connecting), &tx, 90);
             let screen = rendered_rows(&mut app, 90, 30).join("\n");
             assert_eq!(screen.contains("MCP connecting · tools pending"), connecting, "{screen}");
-            assert!(!screen.contains("ORCACODE"), "{screen}");
+            assert!(!screen.contains("FINECORE"), "{screen}");
         }
     }
 
@@ -148,7 +148,7 @@
             "help missing: {screen}"
         );
         assert!(
-            !screen.contains("▀▄ ORCACODE"),
+            !screen.contains("▀▄ FINECORE"),
             "welcome remained: {screen}"
         );
         assert!(app.pending_history.is_empty());
