@@ -27,6 +27,30 @@ pub(super) fn apply_after(app: &mut App, worker: &mpsc::UnboundedSender<WorkerCm
             finish_picker_flow(app);
             send_or_report(app, worker, cmd);
         }
+        After::StartCodexBrowser => {
+            finish_picker_flow(app);
+            let (sender, manual) = tokio::sync::oneshot::channel();
+            let id = app.next_picker_request;
+            app.next_picker_request = app.next_picker_request.wrapping_add(1);
+            app.overlay = Some(Overlay::CodexLoginCode {
+                id,
+                input: String::new(),
+                url: None,
+                sender: Some(sender),
+            });
+            if worker
+                .send(WorkerCmd::LoginCodexBrowser { id, manual })
+                .is_err()
+            {
+                app.overlay = None;
+                push_error(app, "worker is gone; restart the application");
+            }
+        }
+        After::SubmitCodexCode { sender, code } => {
+            if sender.send(code).is_err() {
+                push_error(app, "Codex login is no longer waiting for input");
+            }
+        }
         After::CloseAndSetModel {
             id,
             window,

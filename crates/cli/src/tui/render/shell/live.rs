@@ -205,6 +205,43 @@ pub(crate) fn live_region(app: &App, width: usize) -> LiveRegion {
             Overlay::Locations(picker) => location_picker_lines(picker, width),
             Overlay::SkillMentions(picker) => skill_mention_picker_lines(picker, width),
             Overlay::Providers { picker } => provider_lines(picker, width),
+            Overlay::CodexLoginMethod { picker } => picker.table_lines(
+                "Codex login · enter to choose · esc cancel",
+                [
+                    ["Browser".to_string(), "automatic callback".to_string()],
+                    ["Device code".to_string(), "headless-friendly".to_string()],
+                ],
+                [(12, 12), (0, usize::MAX)],
+                width,
+            ),
+            Overlay::CodexLoginCode {
+                input, url, sender, ..
+            } => {
+                let mut lines = vec![Line::raw("Codex login · esc cancel")];
+                if let Some(url) = url {
+                    lines.push(Line::raw("Open this URL if your browser did not open:"));
+                    lines.extend(
+                        textwrap::wrap(url, width.saturating_sub(2).max(1))
+                            .into_iter()
+                            .map(|part| Line::raw(part.into_owned())),
+                    );
+                } else {
+                    lines.push(Line::raw("Preparing authorization…"));
+                }
+                if sender.is_some() {
+                    lines.push(Line::raw(format!(
+                        "Paste redirect URL or code and press enter: {}",
+                        "*".repeat(input.chars().count())
+                    )));
+                } else {
+                    lines.push(Line::raw("Completing authorization…"));
+                }
+                lines
+            }
+            Overlay::CodexLoginResult { message } => vec![
+                Line::raw(message.clone()),
+                Line::raw("Press enter or esc to continue"),
+            ],
             Overlay::Themes { picker } => theme_picker_lines(picker, width),
             Overlay::Views { picker } => view_picker_lines(app.view_mode, picker, width),
             Overlay::Mode { picker } => mode_picker_lines(app.cfg.mode.get(), picker, width),

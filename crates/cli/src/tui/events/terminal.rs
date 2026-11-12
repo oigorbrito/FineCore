@@ -86,6 +86,13 @@ pub(crate) fn handle_terminal_event(
             {
                 input.push_str(&text);
                 error.clear();
+            } else if let Some(Overlay::CodexLoginCode {
+                input,
+                sender: Some(_),
+                ..
+            }) = app.overlay.as_mut()
+            {
+                input.push_str(&text);
             } else if let Some(Overlay::ApiKey { input, .. }) = app.overlay.as_mut() {
                 input.push_str(&text);
             } else if app.approval.is_none() && app.overlay.is_none() && app.agent_browser.is_none()

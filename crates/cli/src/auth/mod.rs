@@ -23,6 +23,15 @@ pub fn status_summary(provider: Provider) -> &'static str {
     }
 }
 
+pub async fn login_codex_browser(
+    show_url: impl Fn(String),
+    manual: tokio::sync::oneshot::Receiver<String>,
+) -> Result<(), String> {
+    openai_codex::login_browser(show_url, manual)
+        .await
+        .map_err(|error| error.message)
+}
+
 pub async fn login(
     provider: Provider,
     progress: impl Fn(String) + Send + Sync + 'static,

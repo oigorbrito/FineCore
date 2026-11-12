@@ -93,6 +93,7 @@ pub(crate) async fn worker<F>(
     // Skills /refine applied, newest last; RefineUndo pops and deletes.
     let mut refine_applied: Vec<crate::refine::Applied> = Vec::new();
     let mut login_task: Option<tokio::task::JoinHandle<()>> = None;
+    let mut browser_login_id: Option<u64> = None;
     let mut mcp_reload = super::mcp_reload::McpReload::default();
     spawn_window_probe(&endpoint, ui.clone(), context_capacity.clone());
     while let Some(command) = commands.recv().await {
@@ -557,6 +558,7 @@ pub(crate) async fn worker<F>(
                 });
             }
             WorkerCmd::LoginProvider { provider } => {
+                browser_login_id = None;
                 if let Some(task) = login_task.take() {
                     task.abort();
                 }
@@ -576,6 +578,40 @@ pub(crate) async fn worker<F>(
                     });
                 }));
             }
+            WorkerCmd::LoginCodexBrowser { id, manual } => {
+                browser_login_id = Some(id);
+                if let Some(task) = login_task.take() {
+                    task.abort();
+                }
+                login_attempt = login_attempt.wrapping_add(1);
+                let attempt = login_attempt;
+                let url_ui = ui.clone();
+                let completion_tx = command_tx.clone();
+                login_task = Some(tokio::spawn(async move {
+                    let result = crate::auth::login_codex_browser(
+                        move |url| {
+                            let _ = url_ui.send(UiMsg::CodexLoginUrl { id, url });
+                        },
+                        manual,
+                    )
+                    .await;
+                    let _ = completion_tx.send(WorkerCmd::LoginFinished {
+                        provider: crate::msg::Provider::OpenAiCodex,
+                        attempt,
+                        result,
+                    });
+                }));
+            }
+            WorkerCmd::CancelLogin { id } => {
+                if browser_login_id == Some(id) {
+                    browser_login_id = None;
+                    if let Some(task) = login_task.take() {
+                        task.abort();
+                    }
+                    login_attempt = login_attempt.wrapping_add(1);
+                    let _ = ui.send(UiMsg::Notice("login cancelled".into()));
+                }
+            }
             WorkerCmd::LoginFinished {
                 provider,
                 attempt,
@@ -585,8 +621,17 @@ pub(crate) async fn worker<F>(
                     continue;
                 }
                 login_task = None;
+                if let Some(id) = browser_login_id.take() {
+                    let _ = ui.send(UiMsg::CodexLoginFinished {
+                        id,
+                        result: result.clone(),
+                    });
+                }
                 match result {
                     Ok(()) => {
+                        let _ = ui.send(UiMsg::Notice(
+                            "OpenAI Codex authentication succeeded".into(),
+                        ));
                         let mut candidate = endpoint.clone();
                         candidate.provider = provider;
                         candidate.base_url = provider.base_url().into();

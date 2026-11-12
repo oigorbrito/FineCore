@@ -1,5 +1,7 @@
 //! OpenAI Codex subscription authentication.
 
+mod browser;
+
 use crate::auth::{oauth_device::DeviceOAuth, store};
 use async_trait::async_trait;
 use orca_harness_model_providers::openai_codex::{CodexCredential, CodexCredentialSource};
@@ -207,6 +209,73 @@ pub async fn login(progress: impl Fn(String)) -> Result<CodexCredential, Credent
         .map_err(oauth_error)?;
     progress("authorization approved · exchanging credentials…".into());
     exchange_device_code(&client, &grant.authorization_code, &grant.code_verifier).await
+}
+
+pub async fn login_browser(
+    show_url: impl Fn(String),
+    manual: tokio::sync::oneshot::Receiver<String>,
+) -> Result<(), CredentialError> {
+    let path = orcacode_auth_path()?;
+    run_browser_login(
+        show_url,
+        manual,
+        browser::port(),
+        REFRESH_URL,
+        &path,
+        browser::open_browser,
+    )
+    .await
+}
+
+async fn run_browser_login(
+    show_url: impl Fn(String),
+    manual: tokio::sync::oneshot::Receiver<String>,
+    port: u16,
+    token_url: &str,
+    path: &Path,
+    open: impl Fn(&str),
+) -> Result<(), CredentialError> {
+    let flow = browser::BrowserAuthorization::new("FineCore").map_err(oauth_error)?;
+    let callback = browser::BrowserCallback::bind(&flow.state, port).await.ok();
+    show_url(flow.url.clone());
+    open(&flow.url);
+    let code = browser::wait_for_code(callback.as_ref(), manual, &flow.state)
+        .await
+        .map_err(oauth_error)?;
+    drop(callback);
+    complete_browser_login(&flow, &code, token_url, path).await
+}
+
+async fn complete_browser_login(
+    flow: &browser::BrowserAuthorization,
+    code: &str,
+    token_url: &str,
+    path: &Path,
+) -> Result<(), CredentialError> {
+    let client = reqwest::Client::new();
+    let (credential, refresh) = flow
+        .exchange_at(&client, token_url, code)
+        .await
+        .map_err(oauth_error)?;
+    let root = match fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Value>(&bytes)
+            .map_err(|_| oauth_error("Codex credential file is malformed; it was not changed"))?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            json!({"auth_mode":"chatgpt", "tokens":{}})
+        }
+        Err(_) => {
+            return Err(oauth_error(
+                "Could not read Codex credential file; it was not changed",
+            ))
+        }
+    };
+    if !root.is_object() || root.get("tokens").is_some_and(|tokens| !tokens.is_object()) {
+        return Err(oauth_error(
+            "Codex credential file has an invalid shape; it was not changed",
+        ));
+    }
+    persist_tokens(path, root, &credential, &refresh)?;
+    Ok(())
 }
 
 fn oauth_error(message: impl Into<String>) -> CredentialError {

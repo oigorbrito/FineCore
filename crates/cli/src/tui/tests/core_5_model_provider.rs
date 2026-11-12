@@ -270,6 +270,54 @@
     }
 
     #[test]
+    fn codex_browser_overlay_accepts_paste_without_exposing_it() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        app.overlay = Some(Overlay::CodexLoginMethod { picker: ListPicker::new(2) });
+        press(&mut app, &tx, KeyCode::Enter);
+        let Ok(WorkerCmd::LoginCodexBrowser { id, mut manual }) = rx.try_recv() else {
+            panic!("browser login command was not sent");
+        };
+        handle_ui_msg(&mut app, UiMsg::CodexLoginUrl { id: id.wrapping_add(1), url: "stale-url".into() }, &tx, 80);
+        assert!(!flat_lines(&live_lines(&app, 80)).contains("stale-url"));
+        handle_ui_msg(&mut app, UiMsg::CodexLoginFinished { id: id.wrapping_add(1), result: Ok(()) }, &tx, 80);
+        assert!(matches!(app.overlay, Some(Overlay::CodexLoginCode { .. })));
+        handle_ui_msg(&mut app, UiMsg::CodexLoginUrl { id, url: "https://example.invalid/authorize".into() }, &tx, 80);
+        handle_terminal_event(&mut app, CtEvent::Paste("synthetic-secret-code".into()), &tx, 80);
+        let rendered = flat_lines(&live_lines(&app, 80));
+        assert!(!rendered.contains("synthetic-secret-code"));
+        assert!(rendered.contains("example.invalid"));
+        press(&mut app, &tx, KeyCode::Enter);
+        assert_eq!(manual.try_recv().unwrap(), "synthetic-secret-code");
+        press(&mut app, &tx, KeyCode::Esc);
+        assert!(matches!(rx.try_recv(), Ok(WorkerCmd::CancelLogin { id: cancelled }) if cancelled == id));
+    }
+
+    #[test]
+    fn codex_login_confirmation_is_visible_only_after_matching_completion() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        app.overlay = Some(Overlay::CodexLoginMethod { picker: ListPicker::new(2) });
+        press(&mut app, &tx, KeyCode::Enter);
+        let Ok(WorkerCmd::LoginCodexBrowser { id, manual: _manual }) = rx.try_recv() else { panic!("missing login command") };
+        assert!(!flat_lines(&live_lines(&app, 80)).contains("authentication succeeded"));
+        handle_ui_msg(&mut app, UiMsg::CodexLoginFinished { id, result: Ok(()) }, &tx, 80);
+        assert!(flat_lines(&live_lines(&app, 80)).contains("authentication succeeded"));
+        press(&mut app, &tx, KeyCode::Enter);
+        assert!(app.overlay.is_none());
+    }
+
+    #[test]
+    fn codex_method_picker_keeps_device_login_available() {
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut app = test_app();
+        app.overlay = Some(Overlay::CodexLoginMethod { picker: ListPicker::new(2) });
+        press(&mut app, &tx, KeyCode::Down);
+        press(&mut app, &tx, KeyCode::Enter);
+        assert!(matches!(rx.try_recv(), Ok(WorkerCmd::LoginProvider { provider: Provider::OpenAiCodex })));
+    }
+
+    #[test]
     fn api_key_prompt_masks_input_and_submits_on_enter() {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let mut app = test_app();

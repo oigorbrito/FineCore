@@ -11,6 +11,9 @@ pub(crate) fn handle_overlay_key(
 ) {
     let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
     if key.code == KeyCode::Esc || (ctrl && key.code == KeyCode::Char('c')) {
+        if let Some(Overlay::CodexLoginCode { id, .. }) = &app.overlay {
+            let _ = worker.send(WorkerCmd::CancelLogin { id: *id });
+        }
         app.overlay = None;
         app.overlay_stack.clear();
         return;
@@ -71,6 +74,11 @@ pub(crate) fn handle_overlay_key(
                             provider,
                             api_key: None,
                         }),
+                        Err(_) if provider == Provider::OpenAiCodex => {
+                            After::Push(Overlay::CodexLoginMethod {
+                                picker: ListPicker::new(2),
+                            })
+                        }
                         Err(_) => After::CloseAndSend(WorkerCmd::LoginProvider { provider }),
                     },
                     _ => After::CloseAndSend(WorkerCmd::SetProvider {
@@ -79,6 +87,35 @@ pub(crate) fn handle_overlay_key(
                     }),
                 }
             }
+            _ => After::Nothing,
+        },
+        Overlay::CodexLoginMethod { picker } => match picker.on_key(key.code) {
+            PickerEvent::Activated(0) => After::StartCodexBrowser,
+            PickerEvent::Activated(1) => After::CloseAndSend(WorkerCmd::LoginProvider {
+                provider: Provider::OpenAiCodex,
+            }),
+            _ => After::Nothing,
+        },
+        Overlay::CodexLoginCode { input, sender, .. } => match key.code {
+            KeyCode::Enter if !input.trim().is_empty() => match sender.take() {
+                Some(sender) => After::SubmitCodexCode {
+                    sender,
+                    code: std::mem::take(input).trim().to_owned(),
+                },
+                None => After::Nothing,
+            },
+            KeyCode::Char(c) if sender.is_some() => {
+                input.push(c);
+                After::Nothing
+            }
+            KeyCode::Backspace if sender.is_some() => {
+                input.pop();
+                After::Nothing
+            }
+            _ => After::Nothing,
+        },
+        Overlay::CodexLoginResult { .. } => match key.code {
+            KeyCode::Enter => After::Close,
             _ => After::Nothing,
         },
         Overlay::Themes { picker } => match picker.on_key(key.code) {

@@ -122,11 +122,16 @@ Pick a model:
 
 | Provider             | How                                                                            |
 | :------------------- | :----------------------------------------------------------------------------- |
-| ChatGPT subscription | run `orcacode`, type `/provider`, pick `openai-codex`, complete the device login |
+| ChatGPT subscription | run `finecore`, type `/provider`, pick `openai-codex`, then choose browser or device login |
 | OpenAI API           | set `OPENAI_API_KEY`                                                           |
 | Anthropic            | set `ANTHROPIC_API_KEY` and pass `--anthropic`                                  |
 | OpenRouter           | set `OPENROUTER_API_KEY` and pass `--openrouter`                               |
 | Local, no key        | with nothing set it talks to Ollama at `http://localhost:11434/v1`              |
+
+Browser login opens your default browser and also displays the authorization URL.
+If the callback cannot reach FineCore, paste the redirect URL or authorization
+code into the prompt. Press Escape to cancel; device login remains available for
+headless environments. Authentication is confirmed after credentials are saved.
 
 Then ask for something:
 

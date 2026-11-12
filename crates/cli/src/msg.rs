@@ -278,6 +278,16 @@ pub enum UiMsg {
     /// A one-line status notice for the transcript (session warnings,
     /// load failures).
     Notice(String),
+    /// Ephemeral URL for the active browser authorization overlay.
+    CodexLoginUrl {
+        id: u64,
+        url: String,
+    },
+    /// Close the matching authorization overlay after completion.
+    CodexLoginFinished {
+        id: u64,
+        result: Result<(), String>,
+    },
     /// Visible even on the welcome screen, unlike transcript-only notices.
     McpConnecting(bool),
     /// The worker adopted a previously recorded session; the transcript
@@ -418,6 +428,15 @@ pub enum WorkerCmd {
     /// Run a provider-owned interactive OAuth flow, then activate it.
     LoginProvider {
         provider: Provider,
+    },
+    /// Start the Codex browser flow; the sender is owned by the overlay.
+    LoginCodexBrowser {
+        id: u64,
+        manual: oneshot::Receiver<String>,
+    },
+    /// Cancel the matching detached browser login.
+    CancelLogin {
+        id: u64,
     },
     /// Result of a detached provider login; `attempt` rejects stale completions.
     LoginFinished {

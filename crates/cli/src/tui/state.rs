@@ -202,6 +202,17 @@ pub(crate) enum Overlay {
     /// Provider selector (OpenRouter, Vercel AI Gateway, CheaperInference,
     /// OpenAI, Codex, local).
     Providers { picker: ListPicker },
+    /// Choose browser or device authorization for Codex.
+    CodexLoginMethod { picker: ListPicker },
+    /// Ephemeral manual callback input and URL, never added to the transcript.
+    CodexLoginCode {
+        id: u64,
+        input: String,
+        url: Option<String>,
+        sender: Option<tokio::sync::oneshot::Sender<String>>,
+    },
+    /// Visible confirmation or failure after the authorization completes.
+    CodexLoginResult { message: String },
     /// Theme selector over `view::ThemeName::ALL`.
     Themes { picker: ListPicker },
     /// Transcript layout selector (classic or split inspector).
