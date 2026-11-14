@@ -1,6 +1,6 @@
 # {{NAME}}
 
-Node 20+ Agent Plugin scaffold using the stable 1.x MCP TypeScript SDK.
+Node.js `^20.0.0 || ^22.0.0 || >=24.0.0` Agent Plugin scaffold using the stable 1.x MCP TypeScript SDK. Node 20 is technically compatible but reached end of life on 2026-04-30; use a supported Node release in production.
 The tracked `skills/` directory is intentionally empty; add standard
 `skills/<name>/SKILL.md` packages when the plugin needs reusable guidance.
 The empty `io.github.okikorg.orcacode/hooks.json` is an optional Orcacode
