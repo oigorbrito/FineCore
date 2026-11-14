@@ -273,6 +273,28 @@ pub(crate) fn handle_ui_msg(
                 )));
             }
         },
+        UiMsg::CodexLoginUrl { id, url } => {
+            if let Some(Overlay::CodexLoginCode {
+                id: active,
+                url: current,
+                ..
+            }) = &mut app.overlay
+            {
+                if *active == id {
+                    *current = Some(url);
+                }
+            }
+        }
+        UiMsg::CodexLoginFinished { id, result } => {
+            if matches!(app.overlay, Some(Overlay::CodexLoginCode { id: active, .. }) if active == id)
+            {
+                let message = match result {
+                    Ok(()) => "OpenAI Codex authentication succeeded.".to_string(),
+                    Err(error) => format!("OpenAI Codex login failed: {error}"),
+                };
+                app.overlay = Some(Overlay::CodexLoginResult { message });
+            }
+        }
         UiMsg::McpConnecting(connecting) => app.mcp_connecting = connecting,
         UiMsg::Notice(text) => {
             push_notice(app, text);
