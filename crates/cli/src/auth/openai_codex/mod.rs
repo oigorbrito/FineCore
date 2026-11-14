@@ -20,8 +20,8 @@ const DEVICE_LOGIN_URL: &str = "https://auth.openai.com/codex/device";
 const DEVICE_REDIRECT_URI: &str = "https://auth.openai.com/deviceauth/callback";
 const REFRESH_WINDOW_SECS: u64 = 300;
 
-/// Imports and refreshes the official Codex CLI login. The mutex makes token
-/// rotation single-flight; atomic replacement prevents partial auth files.
+/// Imports and refreshes the official Codex CLI login. The mutex coordinates
+/// callers in this instance; a file lock coordinates cooperating processes.
 pub struct CodexCliCredential {
     path: PathBuf,
     client: reqwest::Client,
@@ -52,9 +52,16 @@ impl CodexCliCredential {
 
     async fn current(&self, force: bool) -> Result<CodexCredential, CredentialError> {
         let mut state = self.state.lock().await;
-        let (root, disk, refresh_token) = read_auth(&self.path)?;
-        let current = state.clone().unwrap_or(disk);
-        if !force && !needs_refresh(current.bearer.expires_at) {
+        let (_, observed, observed_refresh) = read_auth(&self.path)?;
+        if !force && !needs_refresh(observed.bearer.expires_at) {
+            *state = Some(observed.clone());
+            return Ok(observed);
+        }
+        let lock = lock_refresh(&self.path).await?;
+        let (root, current, refresh_token) = read_auth(&self.path)?;
+        let changed = current.bearer.access_token != observed.bearer.access_token
+            || refresh_token != observed_refresh;
+        if (!force || changed) && !needs_refresh(current.bearer.expires_at) {
             *state = Some(current.clone());
             return Ok(current);
         }
@@ -64,13 +71,9 @@ impl CodexCliCredential {
                 "Codex access token expired and has no refresh token; select openai-codex to sign in again",
             )
         })?;
-        let (renewed, rotated_refresh) = self.exchange(&current.account_id, &refresh_token).await?;
-        persist_tokens(
-            &self.path,
-            root,
-            &renewed,
-            rotated_refresh.as_deref().unwrap_or(&refresh_token),
-        )?;
+        let renewed = self
+            .exchange_and_persist(lock, root, current.account_id, refresh_token)
+            .await?;
         *state = Some(renewed.clone());
         Ok(renewed)
     }
@@ -86,6 +89,7 @@ impl CodexCliCredential {
         {
             return Ok(current.clone());
         }
+        let lock = lock_refresh(&self.path).await?;
         let (root, disk, refresh) = read_auth(&self.path)?;
         if disk.bearer.access_token != rejected {
             *state = Some(disk.clone());
@@ -97,15 +101,46 @@ impl CodexCliCredential {
                 "Codex login expired; select openai-codex to sign in again",
             )
         })?;
-        let (renewed, rotated) = self.exchange(&disk.account_id, &refresh).await?;
-        persist_tokens(
-            &self.path,
-            root,
-            &renewed,
-            rotated.as_deref().unwrap_or(&refresh),
-        )?;
+        let renewed = self
+            .exchange_and_persist(lock, root, disk.account_id, refresh)
+            .await?;
         *state = Some(renewed.clone());
         Ok(renewed)
+    }
+
+    async fn exchange_and_persist(
+        &self,
+        lock: fs::File,
+        root: Value,
+        account_id: String,
+        refresh: String,
+    ) -> Result<CodexCredential, CredentialError> {
+        let source = Self {
+            path: self.path.clone(),
+            client: self.client.clone(),
+            refresh_url: self.refresh_url.clone(),
+            state: Mutex::new(None),
+        };
+        // A dropped caller must not discard a refresh token already rotated
+        // by the server. The task owns the lock until persistence completes.
+        tokio::spawn(async move {
+            let _lock = lock;
+            let (renewed, rotated) = source.exchange(&account_id, &refresh).await?;
+            persist_tokens(
+                &source.path,
+                root,
+                &renewed,
+                rotated.as_deref().unwrap_or(&refresh),
+            )?;
+            Ok(renewed)
+        })
+        .await
+        .map_err(|error| {
+            CredentialError::new(
+                CredentialErrorKind::Refresh,
+                format!("Codex refresh task failed: {error}"),
+            )
+        })?
     }
 
     async fn exchange(
@@ -186,6 +221,44 @@ impl CodexCliCredential {
             },
         }
     }
+}
+
+async fn lock_refresh(path: &Path) -> Result<fs::File, CredentialError> {
+    let path = path.to_owned();
+    tokio::task::spawn_blocking(move || {
+        let parent = path
+            .parent()
+            .ok_or_else(|| std::io::Error::other("invalid credential path"))?
+            .canonicalize()?;
+        let name = path
+            .file_name()
+            .ok_or_else(|| std::io::Error::other("invalid credential path"))?;
+        let mut lock_name = name.to_os_string();
+        lock_name.push(".finecore.lock");
+        let mut options = fs::OpenOptions::new();
+        options.read(true).write(true).create(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let file = options.open(parent.join(lock_name))?;
+        file.lock()?;
+        Ok::<_, std::io::Error>(file)
+    })
+    .await
+    .map_err(|error| {
+        CredentialError::new(
+            CredentialErrorKind::Storage,
+            format!("credential lock task failed: {error}"),
+        )
+    })?
+    .map_err(|error| {
+        CredentialError::new(
+            CredentialErrorKind::Storage,
+            format!("could not lock Codex credentials: {error}"),
+        )
+    })
 }
 
 pub async fn login(progress: impl Fn(String)) -> Result<CodexCredential, CredentialError> {
