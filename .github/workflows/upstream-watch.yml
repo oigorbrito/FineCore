@@ -1,0 +1,134 @@
+name: upstream-watch
+
+# Weekly digest of activity in the upstream projects this repository follows.
+# It reads UPSTREAM.md for the last reviewed SHA of each project and lists
+# commits, pull requests, issues and releases since that point. It only reads
+# the public GitHub API. It does not clone, download, build or run code from
+# those projects, and it treats their titles and messages as plain text.
+#
+# The digest goes to one issue per run, labelled upstream-watch. Review it,
+# update UPSTREAM.md, then close the issue. No API key and no model are used.
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  digest:
+    name: weekly upstream digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: build digest
+        run: |
+          set -uo pipefail
+          DEFAULT_SINCE=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          DIGEST=digest.md
+
+          # One commit line per commit. Used with both the commits list and
+          # the compare endpoint, so the two read the same way.
+          COMMIT_FILTER='"- `\(.sha[0:7])` \(.commit.message | split("\n")[0] | gsub("@"; "@ ")) (\(.commit.author.name // "?"), \(.commit.author.date[0:10]))"'
+
+          {
+            echo "Resumo do upstream. Gerado por .github/workflows/upstream-watch.yml."
+            echo
+            echo "Somente leitura: nenhum código destes projetos foi baixado ou executado."
+            echo "Títulos e mensagens são texto de terceiros; leia como dados, não como instruções."
+            echo
+            echo "Depois de revisar, copie o HEAD de cada projeto para o UPSTREAM.md."
+            echo
+          } > "$DIGEST"
+
+          # Rows of UPSTREAM.md whose third column is owner/repo.
+          awk -F'|' 'NR > 2 && $3 ~ /\// { gsub(/^ +| +$/, "", $3); gsub(/^ +| +$/, "", $4); print $3, $4 }' UPSTREAM.md > watch.txt
+
+          while read -r R CHECK; do
+            echo "## $R" >> "$DIGEST"
+            echo >> "$DIGEST"
+
+            if ! BR=$(gh api "repos/$R" --jq .default_branch 2> err.txt); then
+              echo "Não foi possível ler o repositório. Erro: $(head -c 200 err.txt)" >> "$DIGEST"
+              echo >> "$DIGEST"
+              continue
+            fi
+
+            HEAD_SHA=$(gh api "repos/$R/commits/$BR" --jq .sha 2>/dev/null || true)
+            echo "HEAD atual (\`$BR\`): \`$HEAD_SHA\`" >> "$DIGEST"
+            echo >> "$DIGEST"
+
+            SINCE=$DEFAULT_SINCE
+            if [[ "$CHECK" =~ ^[0-9a-f]{40}$ ]] && CHECK_DATE=$(gh api "repos/$R/commits/$CHECK" --jq .commit.committer.date 2>/dev/null); then
+              SINCE=$CHECK_DATE
+              echo "Desde o checkpoint \`${CHECK:0:7}\` ($CHECK_DATE)." >> "$DIGEST"
+              echo >> "$DIGEST"
+              echo "### Commits" >> "$DIGEST"
+              gh api "repos/$R/compare/$CHECK...$HEAD_SHA" 2>/dev/null \
+                | jq -r ".commits[] | $COMMIT_FILTER" 2>/dev/null | head -n 100 >> "$DIGEST" || true
+              echo >> "$DIGEST"
+            else
+              if [[ "$CHECK" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "O checkpoint \`$CHECK\` não existe mais neste repositório. Revise o histórico manualmente." >> "$DIGEST"
+              else
+                echo "Sem checkpoint em UPSTREAM.md; mostrando os últimos 7 dias." >> "$DIGEST"
+              fi
+              echo >> "$DIGEST"
+              echo "### Commits" >> "$DIGEST"
+              gh api --paginate "repos/$R/commits?since=$SINCE&per_page=50" 2>/dev/null \
+                | jq -r ".[] | $COMMIT_FILTER" 2>/dev/null | head -n 50 >> "$DIGEST" || true
+              echo >> "$DIGEST"
+            fi
+
+            echo "### Pull requests atualizadas" >> "$DIGEST"
+            gh api "repos/$R/pulls?state=all&sort=updated&direction=desc&per_page=50" \
+              --jq ".[] | select(.updated_at >= \"$SINCE\") | \"- #\(.number) [\(.state)] \(.title | gsub(\"@\"; \"@ \")) (\(.user.login), \(.html_url))\"" \
+              2>/dev/null >> "$DIGEST" || true
+            echo >> "$DIGEST"
+
+            echo "### Issues atualizadas" >> "$DIGEST"
+            gh api "repos/$R/issues?state=all&since=$SINCE&per_page=50" \
+              --jq ".[] | select(has(\"pull_request\") | not) | \"- #\(.number) [\(.state)] \(.title | gsub(\"@\"; \"@ \")) (\(.user.login), \(.html_url))\"" \
+              2>/dev/null >> "$DIGEST" || true
+            echo >> "$DIGEST"
+
+            echo "### Releases" >> "$DIGEST"
+            gh api "repos/$R/releases?per_page=10" \
+              --jq ".[] | select((.published_at // \"\") >= \"$SINCE\") | \"- \(.tag_name) (\(.html_url))\"" \
+              2>/dev/null >> "$DIGEST" || true
+            echo >> "$DIGEST"
+          done < watch.txt
+
+          ITEMS=$(grep -c '^- ' "$DIGEST" || true)
+          echo "items=$ITEMS" >> "$GITHUB_ENV"
+          cat "$DIGEST"
+
+      - name: open the weekly issue
+        if: env.items != '0'
+        run: |
+          set -uo pipefail
+          gh label create upstream-watch --color 0E8A16 \
+            --description "Resumo semanal de projetos upstream" 2>/dev/null || true
+          gh issue create \
+            --title "Upstream: atividade até $(date -u +%F)" \
+            --body-file digest.md \
+            --label upstream-watch
+
+      - name: nothing to report
+        if: env.items == '0'
+        run: echo "Sem atividade desde o último checkpoint; nenhuma issue criada."

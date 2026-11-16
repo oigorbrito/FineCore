@@ -1,0 +1,330 @@
+# EvCore — Roadmap de engenharia: autenticação, providers e modelos locais
+
+Status: **normativo para agentes e desenvolvedores**. Este documento define o que
+pode ser investigado, comparado, aprovado e alterado nas áreas de autenticação,
+providers, credenciais e modelos locais. Ele não autoriza nenhuma implementação.
+
+Leia este roadmap antes de qualquer trabalho nessas áreas.
+
+---
+
+## 0. Como usar este documento
+
+- Antes de editar `crates/cli/src/auth/`, `crates/provider-auth/`,
+  `crates/model-providers/`, `crates/cli/src/config/`, `crates/cli/src/msg.rs`
+  (enum `Provider`, `ProviderAuth`), ou o código de endpoints de modelos locais
+  em `crates/cli/src/main.rs`, leia as seções A, D e E.
+- Qualquer mudança nessas áreas exige uma especificação aprovada na Fase 3 (seção C).
+- Se uma tarefa pedir implementação e não houver especificação aprovada, pare e
+  solicite a aprovação. Não avance para a implementação por iniciativa própria.
+
+---
+
+## A. Objetivo e princípios
+
+Objetivo: manter autenticação, providers e suporte a modelos locais confiáveis,
+compatíveis e verificáveis, sem perder nenhuma funcionalidade já existente.
+
+Princípios obrigatórios:
+
+1. **Decisões baseadas em evidências reproduzíveis.** Toda afirmação sobre
+   comportamento precisa de comando, ambiente, SHA e resultado registrados.
+2. **Confiabilidade operacional acima de conveniência.** Falhas de autenticação
+   não podem corromper credenciais nem deixar o usuário sem acesso sem aviso claro.
+3. **Simplicidade de uso e de manutenção.** Não adicionar camadas sem benefício demonstrado.
+4. **Preservação integral das funcionalidades existentes.** Inclui todos os
+   providers, métodos de login, variáveis `ORCA_*`, caminhos de configuração e de
+   credenciais, e os formatos de arquivo atuais.
+5. **Compatibilidade retroativa sempre que possível.** Credenciais e configurações
+   já gravadas devem continuar funcionando sem migração manual.
+6. **Mudanças incrementais, isoladas e reversíveis.** Uma mudança por PR, com plano de reversão.
+7. **Nenhuma implementação baseada apenas em preferência arquitetural.**
+   Uma proposta precisa de evidência de problema ou de benefício.
+8. **Nenhuma duplicação de funcionalidade já existente.** Antes de criar um módulo,
+   verifique se a responsabilidade já existe (por exemplo, `auth/store.rs` já
+   faz gravação privada e atômica de JSON).
+
+---
+
+## B. Contexto arquitetural
+
+Fatos que devem ser assumidos e revalidados em cada auditoria:
+
+- **EvCore é um fork/cópia quase integral do Orca upstream.** A comparação de
+  árvore feita no bootstrap mostrou 1.076 arquivos idênticos (mesmo blob) entre
+  a árvore upstream `9c35d0dd0d7e0f226063f16dd80161e231628e2b` (commit
+  `2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`) e o EvCore, com 27 modificados,
+  3 adicionados e 1 removido. Essas diferenças estão listadas em `PROVENANCE.md`.
+- **Orca é a baseline de referência** para identificar funcionalidades herdadas.
+- **Funcionalidades herdadas não são contabilizadas como implementações originais
+  do EvCore.** Ao reportar capacidades, indique se vêm do Orca ou se são
+  adições do EvCore.
+- **Pi e Marshall são referências externas** para comparação técnica. Não são
+  bases para substituição integral. Antes de qualquer comparação, registre
+  repositório, versão e SHA exatos. Pi aparece na tabela de comparação
+  do `README.md` ("Pi 0.85.1"); Marshall não tem repositório, versão ou SHA
+  registrados neste repositório e deve ser identificado na Fase 0.
+- **Não presuma que EvCore e Orca permanecem idênticos.** Isso precisa ser
+  demonstrado por comparação de árvore a cada auditoria. O `main` atual é
+  `3057ff718b6036b40f93c33d409e13b4021af5f9`.
+
+### Estado de autenticação e providers verificado no código
+
+Registro para orientar a Fase 0. Revalidar antes de usar.
+
+| Item | Onde está | Observação |
+|---|---|---|
+| Providers | `crates/cli/src/msg.rs` (`enum Provider`) | OpenRouter, Vercel, CheaperInference, OpenAi, OpenAiCodex, Anthropic, Local |
+| Tipo de autenticação | `msg.rs` (`enum ProviderAuth`) | `ApiKey { environment }`, `OAuth`, `None` |
+| Chaves por variável de ambiente | `crates/cli/src/main.rs` (ajuda) e `msg.rs` | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `AI_GATEWAY_API_KEY`, `CHEAPERINFERENCE_API_KEY`, `FIRECRAWL_API_KEY` |
+| Login OAuth (único) | `crates/cli/src/auth/openai_codex/mod.rs` | Fluxo **device** da OpenAI (`auth.openai.com/api/accounts/deviceauth/...`) |
+| Fluxo device genérico | `crates/cli/src/auth/oauth_device.rs` | Recebe `code_verifier` do servidor; não gera PKCE localmente |
+| Importação do login oficial do Codex | `openai_codex/mod.rs` (`CodexCliCredential::discover`) | Lê `~/.codex/auth.json` |
+| Credencial própria | `openai_codex/mod.rs` | `orcacode/auth/openai-codex.json` dentro do diretório de configuração |
+| Gravação de credenciais | `crates/cli/src/auth/store.rs` (`write_private_json`) | Arquivo temporário exclusivo, `0600` em Unix, `sync_all`, `rename`; diretório `0700` |
+| Renovação de tokens | `openai_codex/mod.rs` | Janela de 300 s; `tokio::sync::Mutex` dentro do processo (single-flight) |
+| Lock entre processos | não encontrado | A serialização de renovação é apenas intra-processo |
+| Loopback / callback de navegador | não encontrado no fluxo de login | Há um `TcpListener` em `subagent_models.rs`, dentro de `#[cfg(test)]` |
+| PKCE gerado pelo cliente | não encontrado | `code_verifier` vem do servidor |
+| Keychain / Credential Manager | não encontrado | Credenciais são arquivos JSON |
+| Local (Ollama) | `msg.rs`, `main.rs` | Padrão `http://localhost:11434/v1`; `/api/show` do Ollama para janela de contexto |
+| Local (llama.cpp) | `crates/model-providers/src/openai/mod.rs` | Citado como servidor OpenAI-compatible; não há adapter próprio |
+
+Entradas a confirmar na Fase 0: a lista acima é a leitura inicial e deve ser
+reconferida com `rg` antes de qualquer decisão.
+
+---
+
+## C. Fases do roadmap
+
+Cada fase tem entregas explícitas. Uma fase só começa quando a anterior tiver
+sua entrega registrada. Toda entrega cita SHAs, comandos e resultados.
+
+### Fase 0 — Baseline
+
+Objetivo: fixar o estado de referência antes de qualquer comparação.
+
+- Registrar SHAs: EvCore (`main` e branch de trabalho), Orca upstream
+  (`2a9fd399cfbbaad773e3cbed92bb6e24d7561f01`, árvore `9c35d0dd`), Pi e Marshall
+  (repositório, versão, SHA).
+- Comparar EvCore com Orca: árvore, arquivos alterados, modos e conteúdo.
+- Classificar cada funcionalidade como herdada, divergente ou exclusiva do EvCore.
+- Inventariar autenticação, providers, credenciais e modelos locais (tabela da seção B).
+- Identificar testes existentes e lacunas. Exemplos já conhecidos:
+  `openai_codex/tests.rs` cobre contrato de refresh e persistência atômica;
+  `auth/store.rs` tem testes unitários, mas nenhum de concorrência entre processos.
+
+**Entrega:** relatório de baseline reproduzível (comandos, SHAs, saídas).
+
+### Fase 1 — Auditoria de autenticação
+
+Comparar Orca, Pi e Marshall nos seguintes eixos:
+
+- OAuth 2.0 (RFC 6749) e seu perfil de segurança atual (RFC 9700).
+- Authorization Code com PKCE (RFC 7636), quando aplicável.
+- Device Authorization Grant (RFC 8628), usado pelo login Codex atual.
+- Validação de `state`.
+- Callback local e loopback para aplicativos nativos (RFC 8252).
+- Segurança de credenciais em disco: permissões, escrita atômica, conteúdo mínimo.
+- Renovação de tokens: janela, rotação de refresh token, tratamento de erro.
+- Concorrência: renovação simultânea no mesmo processo e entre processos.
+- Cancelamento, timeout e recuperação após falha.
+- Compatibilidade Windows e Linux (permissões, caminhos, `%APPDATA%`).
+
+**Entrega:** matriz técnica comparativa, com cada célula apontando para
+arquivo e linha, ou para a fonte normativa.
+
+### Fase 2 — Testes empíricos
+
+Estabelecer cenários equivalentes e executá-los nas implementações comparadas:
+
+| Cenário | Tipo esperado |
+|---|---|
+| Login normal | integração ou real |
+| Primeiro login e login subsequente | integração ou real |
+| Token expirado | unitário e integração simulada |
+| Falha de rede durante refresh | integração simulada |
+| Callback inválido (state ou código) | unitário |
+| Porta ocupada (loopback, se houver) | integração |
+| Timeout do device flow | integração simulada |
+| Cancelamento pelo usuário | integração |
+| Refresh concorrente no mesmo processo | unitário (concorrência) |
+| Refresh concorrente entre processos | integração (ainda não coberto) |
+| Reinicialização durante persistência | integração (arquivo parcial) |
+| Credenciais corrompidas ou com campos desconhecidos | unitário |
+
+Distinguir sempre:
+
+- **Unitário:** sem rede, sem processo externo.
+- **Integração simulada:** servidor HTTP local de teste, sem credencial real.
+- **Autenticação real:** conta e rede reais. Só executar com autorização explícita
+  e nunca dentro de gates de CI.
+
+Registrar para cada execução: ambiente (SO, arquitetura), versões de toolchain,
+comando exato, SHA, resultado e limitações. **Teste não executado é registrado
+como NÃO VERIFICADO, nunca como aprovado.**
+
+**Entrega:** relatório reproduzível de testes.
+
+### Fase 3 — Decisão técnica
+
+Classificar cada funcionalidade em uma das categorias:
+
+- **KEEP:** preservar como está.
+- **IMPROVE:** aperfeiçoar pontualmente, sem trocar a abordagem.
+- **ADOPT:** adotar solução externa, somente com vantagem demonstrada.
+- **REJECT:** rejeitar a mudança proposta por falta de benefício comprovado.
+
+Cada decisão precisa de uma especificação com estes campos:
+
+1. Estado atual (arquivo e linha).
+2. Evidência (teste, medição ou referência normativa).
+3. Problema identificado.
+4. Alternativas avaliadas.
+5. Benefício esperado (mensurável ou verificável).
+6. Riscos.
+7. Impacto em funcionalidades existentes (lista explícita).
+8. Testes de aceitação (quais executar e o que deve passar).
+9. Plano de reversão (como voltar ao estado anterior sem perda de credenciais).
+
+**Entrega:** especificação técnica aprovada **antes** de qualquer implementação.
+
+### Fase 4 — Evolução de autenticação
+
+Somente implementar mudanças com especificação aprovada na Fase 3. Ordem de prioridade:
+
+1. Persistência e proteção de credenciais (incluindo escrita atômica e permissões).
+2. Coordenação de renovação de tokens (incluindo renovação entre processos, se justificada).
+3. Browser OAuth, somente se tecnicamente justificado pela Fase 1 e pela Fase 2.
+4. Fallbacks e recuperação.
+5. Compatibilidade com os fluxos existentes.
+
+Restrições:
+
+- **Não remover o device flow nem qualquer método funcional** sem comprovar
+  equivalência e obter aprovação explícita.
+- Não exigir migração destrutiva de credenciais. Credenciais existentes em
+  `~/.codex/auth.json` e em `orcacode/auth/openai-codex.json` devem continuar
+  funcionando.
+
+**Entrega:** PRs pequenas, isoladas e testadas, cada uma com plano de reversão.
+
+### Fase 5 — Modelos locais
+
+Tratar esta fase como **auditoria independente e conservadora**.
+
+Preservar sem alteração:
+
+- Providers existentes, incluindo `Provider::Local`.
+- Adaptadores OpenAI-compatible (`crates/model-providers/src/openai/`).
+- Integração com Ollama (padrão `localhost:11434/v1` e `/api/show`).
+- Integração com llama.cpp como servidor OpenAI-compatible.
+- Configurações, defaults e fluxos funcionais.
+
+Avaliar, sem implementar por padrão:
+
+- Descoberta de modelos disponíveis no endpoint local.
+- Metadados (por exemplo, janela de contexto) e compatibilidade de respostas.
+
+Não fazer sem evidência concreta de necessidade e benefício:
+
+- Substituir adapters existentes.
+- Alterar protocolos ou formatos.
+- Adicionar gerenciamento de download, load ou unload de modelos.
+- Modificar defaults.
+
+Não misturar alterações de modelos locais com mudanças de autenticação. São
+escopos independentes e precisam de PRs separadas.
+
+**Entrega:** relatório de compatibilidade e, se necessário, proposta de melhoria
+com a mesma estrutura da Fase 3.
+
+### Fase 6 — Validação final
+
+Verificar antes de qualquer promoção:
+
+- Preservação das funcionalidades (lista da Fase 0).
+- Compatibilidade das credenciais existentes (ler arquivos gerados pela versão anterior).
+- Funcionamento dos providers (testes de integração simulada e, quando autorizado, real).
+- Funcionamento dos modelos locais (Ollama e llama.cpp, quando disponíveis).
+- Testes de regressão.
+- Compatibilidade entre plataformas (Windows e Linux).
+- Comparação com a baseline da Fase 0.
+- Documentação atualizada.
+
+**Entrega:** relatório de aceitação, com lista de itens NÃO VERIFICADOS.
+
+---
+
+## D. Critérios de aprovação
+
+Não aprovar mudanças que:
+
+- Removam funcionalidades sem autorização explícita.
+- Apresentem regressões em qualquer teste pertinente.
+- Exijam migração destrutiva de credenciais ou de configurações.
+- Dupliquem módulos ou responsabilidades já existentes.
+- Aumentem a complexidade sem benefício demonstrado.
+- Dependam exclusivamente de benchmarks sintéticos.
+- Não tenham plano de reversão.
+
+Metas de desempenho:
+
+- Não estabelecer metas artificiais de desempenho antes da coleta da baseline.
+- Medições de latência em CI compartilhado têm variância alta. Não usar uma
+  medição isolada como prova.
+
+Preservação:
+
+- A preservação das funcionalidades existentes é obrigatória.
+- Se um teste não puder ser executado, registrar explicitamente como
+  **NÃO VERIFICADO**, nunca como aprovado.
+
+---
+
+## E. Regras de execução para agentes
+
+Obrigatórias para qualquer agente de IA, Codex ou desenvolvedor:
+
+1. Ler este roadmap antes de trabalhar em autenticação, providers, credenciais ou modelos locais.
+2. **Não iniciar implementação durante auditorias.** Auditoria produz relatório, não código.
+3. **Não alterar `main` durante a avaliação.** `main` é a baseline de comparação.
+4. **Não fazer merge automaticamente.** Merge exige autorização explícita do responsável.
+5. **Não misturar escopos independentes.** Autenticação, providers e modelos locais
+   têm PRs separadas.
+6. **Não modificar configurações ou formatos de credenciais sem plano de compatibilidade**
+   aprovado (campos novos devem ser tolerados; campos desconhecidos devem ser preservados).
+7. **Não marcar gates como concluídos sem evidências.** Um gate sem execução fica
+   como NÃO VERIFICADO.
+8. **Solicitar aprovação antes de avançar de especificação para implementação.**
+9. **Preservar alterações locais e nunca sobrescrevê-las.** Antes de qualquer
+   operação de Git, verifique `git status`. Não use `reset --hard`, `checkout --`
+   ou `stash drop` sem autorização.
+10. Não fazer push, abrir PR, publicar release ou criar tag sem autorização explícita.
+11. Não contornar gates com `allow`, `continue-on-error`, `|| true`, ou alterando limites.
+
+---
+
+## F. Referências normativas e de projeto
+
+Normativas (verificar a versão vigente antes de citar):
+
+- RFC 6749 — The OAuth 2.0 Authorization Framework.
+- RFC 7636 — Proof Key for Code Exchange (PKCE).
+- RFC 8252 — OAuth 2.0 for Native Apps (inclui loopback).
+- RFC 8628 — OAuth 2.0 Device Authorization Grant.
+- RFC 9700 — Best Current Practice for OAuth 2.0 Security.
+
+Projeto:
+
+- `PROVENANCE.md` — origem, diferenças em relação ao upstream e decisões de bootstrap.
+- `benchmarks/harness-comparison/` — método de comparação entre harnesses.
+- `docs/superpowers/specs/` e `docs/plan/` — convenções existentes para especificações e planos.
+
+---
+
+## G. Histórico deste documento
+
+- Criado como roadmap permanente. Não substitui `PROVENANCE.md`, que registra a origem.
+- Baseline de referência no momento da escrita: `main` = `3057ff718b6036b40f93c33d409e13b4021af5f9`.
+- Qualquer atualização deve registrar o novo SHA de baseline e a data.
