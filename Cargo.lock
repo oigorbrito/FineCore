@@ -1288,6 +1288,7 @@ dependencies = [
  "orca-harness-tools",
  "ratatui",
  "reqwest",
+ "ring",
  "serde",
  "serde_json",
  "syntect",

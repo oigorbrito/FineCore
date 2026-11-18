@@ -73,7 +73,7 @@ OPTIONS:
 
 In the TUI, /provider selects local, OpenAI API, OpenRouter, Vercel AI Gateway,
 CheaperInference, Anthropic, or the OpenAI Codex ChatGPT-subscription provider.
-Selecting openai-codex starts the application's device login; an existing
+Selecting openai-codex starts the browser login (device code if port 1455 is busy); an existing
 official Codex login is also imported.
 No API key is required. /models [filter] opens the model catalog,
 and /settings changes the provider, model, theme, and API key.

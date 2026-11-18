@@ -34,6 +34,6 @@ docs/external/node_modules/
 # coding agents
 .claude
 
-# Working notes stay local: internal studies and plan-mode output
+# Working notes stay local: internal studies
 /docs/internal/
-/docs/plan/
+# docs/plan/ is versioned: AGENTS.md requires plans there.

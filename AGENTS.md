@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instruções para agentes de programação neste repositório (EvCore). Os fatos abaixo foram conferidos no código e nos docs em 2026-11-16. Quando um fato mudar, atualize este arquivo na mesma mudança.
+Instruções para agentes de programação neste repositório (EvCore). Os fatos abaixo foram conferidos no código e nos docs em 2026-11-18. Quando um fato mudar, atualize este arquivo na mesma mudança.
 
 ## Contexto
 
@@ -49,8 +49,8 @@ Os alvos `notes`, `prepare`, `tag`, `release`, `dist` e `publish` estão desabil
 ## Limite de tamanho de arquivo
 
 - Cada `.rs` em `crates/` deve ter menos de 600 linhas (`ci/check-source-size.sh`, limite 599).
-- **Estado atual: o gate falha.** Há 15 arquivos acima do limite, entre eles `crates/tools/src/subagent/host.rs` (909 linhas) e `crates/cli/src/runtime/worker.rs` (750).
-- Não aumente o tamanho desses arquivos. Ao tocar em um deles, prefira dividir a mudança em módulos.
+- **Estado atual (2026-11-18): o gate passa.** `ci/check-source-size.sh` sai com código 0 e `scripts/audit_crates.py` não lista nenhum arquivo acima de 599 linhas. O maior é `crates/cli/src/skills.rs` (597 linhas).
+- Arquivos acima de 550 linhas estão perto do limite. Ao crescer um deles, divida a mudança em módulos antes de passar de 599.
 
 ## Evidência em docs e código
 

@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
+mod browser;
+mod callback;
+mod pkce;
+
 const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const REFRESH_URL: &str = "https://auth.openai.com/oauth/token";
 const DEVICE_CODE_URL: &str = "https://auth.openai.com/api/accounts/deviceauth/usercode";
@@ -188,11 +192,27 @@ impl CodexCliCredential {
     }
 }
 
+/// Browser sign-in by default; device code only when the callback port is unavailable.
 pub async fn login(progress: impl Fn(String)) -> Result<CodexCredential, CredentialError> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|error| oauth_error(error.to_string()))?;
+    match browser::start().await {
+        Ok(pending) => pending.complete(&client, &progress).await,
+        Err(reason) => {
+            progress(format!(
+                "browser sign-in unavailable ({reason}) · using device code"
+            ));
+            device_login(&client, &progress).await
+        }
+    }
+}
+
+async fn device_login(
+    client: &reqwest::Client,
+    progress: &impl Fn(String),
+) -> Result<CodexCredential, CredentialError> {
     let flow = DeviceOAuth {
         client_id: CLIENT_ID,
         initiation_url: DEVICE_CODE_URL,
@@ -202,11 +222,17 @@ pub async fn login(progress: impl Fn(String)) -> Result<CodexCredential, Credent
         max_polls: 120,
     };
     let grant = flow
-        .authorize(&client, &progress)
+        .authorize(client, progress)
         .await
         .map_err(oauth_error)?;
     progress("authorization approved · exchanging credentials…".into());
-    exchange_device_code(&client, &grant.authorization_code, &grant.code_verifier).await
+    exchange_authorization_code(
+        client,
+        &grant.authorization_code,
+        &grant.code_verifier,
+        DEVICE_REDIRECT_URI,
+    )
+    .await
 }
 
 fn oauth_error(message: impl Into<String>) -> CredentialError {
@@ -222,10 +248,11 @@ fn required_oauth_field(value: &Value, key: &str) -> Result<String, CredentialEr
         .ok_or_else(|| oauth_error(format!("OAuth response has no {key}")))
 }
 
-async fn exchange_device_code(
+async fn exchange_authorization_code(
     client: &reqwest::Client,
     code: &str,
     verifier: &str,
+    redirect_uri: &str,
 ) -> Result<CodexCredential, CredentialError> {
     let response = client
         .post(REFRESH_URL)
@@ -234,7 +261,7 @@ async fn exchange_device_code(
             ("client_id", CLIENT_ID),
             ("code", code),
             ("code_verifier", verifier),
-            ("redirect_uri", DEVICE_REDIRECT_URI),
+            ("redirect_uri", redirect_uri),
         ])
         .send()
         .await
@@ -452,27 +479,35 @@ fn utc_timestamp() -> String {
 }
 
 fn codex_auth_path() -> PathBuf {
-    std::env::var_os("CODEX_HOME")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .map(|path| path.join(".codex"))
-        })
+    if let Some(dir) = std::env::var_os("CODEX_HOME").filter(|value| !value.is_empty()) {
+        return PathBuf::from(dir).join("auth.json");
+    }
+    // No home: an empty path makes the read fail as Missing, never a cwd-relative file.
+    home_dir()
+        .map(|home| home.join(".codex").join("auth.json"))
         .unwrap_or_default()
-        .join("auth.json")
+}
+
+/// HOME, then USERPROFILE (Windows usually has no HOME). Only absolute paths count.
+fn home_dir() -> Option<PathBuf> {
+    home_from(std::env::var_os("HOME"), std::env::var_os("USERPROFILE"))
+}
+
+fn home_from(
+    home: Option<std::ffi::OsString>,
+    profile: Option<std::ffi::OsString>,
+) -> Option<PathBuf> {
+    home.filter(|value| !value.is_empty())
+        .or_else(|| profile.filter(|value| !value.is_empty()))
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
 }
 
 fn orcacode_auth_path() -> Result<PathBuf, CredentialError> {
     std::env::var_os("XDG_CONFIG_HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .map(|path| path.join(".config"))
-        })
+        .or_else(|| home_dir().map(|home| home.join(".config")))
         .map(|path| path.join("orcacode/auth/openai-codex.json"))
         .filter(|path| path.is_absolute())
         .ok_or_else(|| {
@@ -486,3 +521,26 @@ fn orcacode_auth_path() -> Result<PathBuf, CredentialError> {
 #[cfg(test)]
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod home_tests {
+    use super::home_from;
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    #[test]
+    fn falls_back_to_userprofile_when_home_is_missing() {
+        let profile = std::env::temp_dir();
+        assert_eq!(
+            home_from(None, Some(profile.clone().into_os_string())),
+            Some(profile)
+        );
+    }
+
+    #[test]
+    fn ignores_empty_and_relative_homes() {
+        assert_eq!(home_from(Some(OsString::new()), None), None);
+        assert_eq!(home_from(Some(OsString::from("relative")), None), None);
+        assert_eq!(home_from(None, None), None::<PathBuf>);
+    }
+}
